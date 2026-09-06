@@ -194,4 +194,4 @@ Ayrıntı ve "projeyi çalıştır" protokolü için [AGENTS.md](AGENTS.md).
 - 🌐 Portfolyo & iletişim: [mehmetfatihdogan.com.tr](https://mehmetfatihdogan.com.tr)
 - 💻 GitHub: [@fatihdogann](https://github.com/fatihdogann)
 
-Proje hakkında soru, hata bildirimi veya geri bildirim için [sitemden](https://mehmetfatihdogan.com.tr) iletişime geçebilirsin.
+Proje hakkında soru, hata bildirimi veya geri bildirim için [iletişim sayfamdan](https://mehmetfatihdogan.com.tr/iletisim) ulaşabilirsin.
