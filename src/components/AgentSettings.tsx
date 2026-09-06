@@ -430,6 +430,138 @@ export function AgentSettings() {
           </div>
         </form>
       </section>
+
+      <TelegramSection />
     </div>
+  );
+}
+
+interface TelegramStatus {
+  status: "kurulmadı" | "yapılandırıldı" | "doğrulandı" | "hata";
+  configured: boolean;
+  lastTestAt: string | null;
+  lastTestOk: boolean;
+  lastTestMessage: string | null;
+  missing: string[];
+}
+
+function TelegramSection() {
+  const [info, setInfo] = useState<TelegramStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch("/api/export/telegram-status", { cache: "no-store" });
+      if (response.ok) setInfo((await response.json()) as TelegramStatus);
+    } catch {
+      /* yoksay */
+    }
+  }, []);
+
+  useEffect(() => {
+    const initial = setTimeout(() => void load(), 0);
+    return () => clearTimeout(initial);
+  }, [load]);
+
+  async function sendTest(): Promise<void> {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const body = await mutateJson<{ ok: boolean; message: string }>(
+        "/api/export/telegram-status",
+        "POST",
+      );
+      setMessage(body.message);
+      await load();
+    } catch (testError) {
+      setMessage(testError instanceof Error ? testError.message : "Test gönderilemedi");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const statusColor =
+    info?.status === "doğrulandı"
+      ? "bg-emerald-600"
+      : info?.status === "hata"
+        ? "bg-red-500"
+        : info?.status === "yapılandırıldı"
+          ? "bg-amber-500"
+          : "bg-stone-400";
+
+  return (
+    <section aria-labelledby="telegram-setup" className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
+      <h2 id="telegram-setup" className="mb-2 flex items-center gap-2 text-sm font-semibold">
+        <span className={`h-2 w-2 rounded-full ${statusColor}`} aria-hidden />
+        Telegram
+        <span className="text-xs font-normal text-stone-500 dark:text-stone-400">
+          durum: {info?.status ?? "yükleniyor…"}
+        </span>
+      </h2>
+
+      {!info?.configured ? (
+        <p className="text-xs text-stone-500 dark:text-stone-400">
+          Kurulmadı. Gerekli ortam değişkenleri:{" "}
+          <code>
+            {info?.missing.join(", ") || "READFLOW_TELEGRAM_BOT_TOKEN, READFLOW_TELEGRAM_CHAT_ID"}
+          </code>{" "}
+          (Coolify environment / .env.local — token arayüze veya Git&apos;e girmez).
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void sendTest()}
+            disabled={busy}
+            className="min-h-[40px] rounded-md bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
+          >
+            {busy ? "Gönderiliyor…" : "Test mesajı gönder"}
+          </button>
+          <span className="text-xs text-stone-500 dark:text-stone-400" role="status" aria-live="polite">
+            {message ??
+              (info.lastTestAt
+                ? `son test: ${info.lastTestAt.slice(0, 16).replace("T", " ")} — ${info.lastTestOk ? "başarılı" : `başarısız: ${info.lastTestMessage ?? ""}`}`
+                : "henüz test edilmedi — env mevcut olması çalışıyor anlamına gelmez")}
+          </span>
+        </div>
+      )}
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={() => setGuideOpen((value) => !value)}
+          aria-expanded={guideOpen}
+          className="min-h-[36px] text-xs text-stone-600 underline underline-offset-2 dark:text-stone-400"
+        >
+          Kurulum rehberi
+        </button>
+        {guideOpen ? (
+          <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-xs leading-relaxed text-stone-600 dark:text-stone-400">
+            <li>
+              Telegram&apos;da <strong>@BotFather</strong> ile <code>/newbot</code> ile bot oluştur;
+              verilen token&apos;i <code>READFLOW_TELEGRAM_BOT_TOKEN</code> olarak ortama ekle.
+            </li>
+            <li>
+              Yeni botunla <strong>/start</strong> gönder (bot sana yazmadan mesaj atamaz).
+            </li>
+            <li>
+              Tarayıcıda <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> aç;
+              yanıttaki <code>message.chat.id</code> değerini{" "}
+              <code>READFLOW_TELEGRAM_CHAT_ID</code> olarak ekle.
+            </li>
+            <li>
+              Web sürecini yeniden başlat, sonra <strong>Test mesajı gönder</strong>&apos;e bas.
+            </li>
+            <li>
+              Not: Bot&apos;ta webhook kuruluysa <code>getUpdates</code> çalışmaz; Readflow
+              webhook&apos;u silmez — kendi kurulumunda bilinçli yönet.
+            </li>
+          </ol>
+        ) : null}
+      </div>
+    </section>
   );
 }
