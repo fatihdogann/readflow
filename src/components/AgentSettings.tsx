@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { mutateJson } from "@/lib/client/api";
+import { LockIcon } from "@/components/Icons";
 
 interface CliCapabilities {
   cli: string;
@@ -151,10 +152,10 @@ export function AgentSettings() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-10">
       {data.envLock.locked ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200" role="note">
-          <strong>🔒 Environment tarafından yönetiliyor.</strong> {data.envLock.description}. Bu
+          <strong className="inline-flex items-center gap-1.5"><LockIcon size={15} /> Environment tarafından yönetiliyor.</strong> {data.envLock.description}. Bu
           ekrandan profil/varsayılan seçimi şu anda etkisizdir; kilidi açmak için ortam
           değişkenlerini (.env.local) kaldırın.
         </div>
@@ -179,17 +180,29 @@ export function AgentSettings() {
           &quot;Bulundu&quot; yalnızca CLI&apos;ın kurulu olduğu anlamına gelir; gerçek çalışma doğrulaması
           profil satırındaki <strong>Bağlantıyı doğrula</strong> ile yapılır.
         </p>
-        <ul className="flex flex-col gap-2">
+        <ul className="grid gap-3 md:grid-cols-3">
           {data.candidates.map((candidate) => (
-            <li key={candidate.cli} className="rounded-lg border border-stone-200 p-3 text-xs dark:border-stone-800">
+            <li key={candidate.cli} className="rounded-2xl border border-stone-200 bg-white/65 p-4 text-xs shadow-[0_10px_28px_rgba(28,25,23,0.04)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold">{candidate.cli}</span>
-                <span className={`rounded px-1.5 py-0.5 font-medium ${candidate.found ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300" : "bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400"}`}>
-                  {candidate.found ? `bulundu${candidate.version ? ` · ${candidate.version}` : ""}` : "kurulu değil"}
-                </span>
-                <span className={`rounded px-1.5 py-0.5 ${candidate.nonInteractive ? "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300" : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"}`}>
-                  {candidate.nonInteractive ? "non-interactive ✓" : "non-interactive doğrulanamadı"}
-                </span>
+                <span className="text-sm font-semibold capitalize">{candidate.cli}</span>
+                {candidate.found ? (
+                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                    bulundu{candidate.version ? ` · ${candidate.version}` : ""}
+                  </span>
+                ) : (
+                  <span className="rounded bg-white px-1.5 py-0.5 font-medium text-stone-600 ring-1 ring-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:ring-stone-700">
+                    kurulu değil
+                  </span>
+                )}
+                {candidate.nonInteractive ? (
+                  <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    non-interactive ✓
+                  </span>
+                ) : (
+                  <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                    non-interactive doğrulanamadı
+                  </span>
+                )}
                 {candidate.modelFlag ? <span className="text-stone-500 dark:text-stone-400">--model ✓</span> : null}
                 {candidate.providerFlag ? <span className="text-stone-500 dark:text-stone-400">--provider ✓</span> : null}
                 {candidate.sandboxReadonlyFlag ? <span className="text-stone-500 dark:text-stone-400">read-only sandbox ✓</span> : null}
@@ -199,7 +212,7 @@ export function AgentSettings() {
                 ) : null}
               </div>
               {candidate.notes.length > 0 ? (
-                <p className="mt-1 text-[11px] text-stone-500 dark:text-stone-400">{candidate.notes.join(" · ")}</p>
+                <p className="mt-3 border-t border-stone-200 pt-2 text-[11px] leading-relaxed text-stone-500 dark:border-stone-800 dark:text-stone-400">{candidate.notes.join(" · ")}</p>
               ) : null}
             </li>
           ))}
@@ -215,7 +228,7 @@ export function AgentSettings() {
         ) : (
           <ul className="flex flex-col gap-2">
             {data.profiles.map((profile) => (
-              <li key={profile.id} className="flex flex-col gap-2 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+              <li key={profile.id} className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white/70 p-4 shadow-[0_12px_34px_rgba(28,25,23,0.045)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="text-sm font-semibold">{profile.name}</span>
                   <span className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-700 dark:bg-stone-800 dark:text-stone-300">
@@ -239,6 +252,11 @@ export function AgentSettings() {
                     <span className="text-stone-500 dark:text-stone-400">henüz doğrulanmadı</span>
                   )}
                 </div>
+                {data.defaultProfileId === profile.id && !profile.last_validated_at ? (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/35 dark:text-amber-300">
+                    Bu varsayılan profil henüz doğrulanmadı. İlk işten önce bağlantıyı doğrulaman önerilir.
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -291,7 +309,7 @@ export function AgentSettings() {
         <h2 id="new-profile" className="mb-2 text-sm font-semibold">
           Yeni profil
         </h2>
-        <form onSubmit={createProfile} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <form onSubmit={createProfile} className="grid grid-cols-1 gap-4 rounded-2xl border border-stone-200 bg-white/70 p-4 shadow-[0_12px_34px_rgba(28,25,23,0.045)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none sm:grid-cols-2 sm:p-5">
           <label className={labelClass}>
             Görünen ad
             <input

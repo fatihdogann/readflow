@@ -47,6 +47,7 @@ pnpm dev:web      # yalnızca web (localhost:3000)
 pnpm dev:worker   # yalnızca job worker
 pnpm dev:mcp      # MCP sunucusu (stdio) — agent konfigürasyonundan çalıştırılır
 pnpm test         # vitest
+pnpm test:e2e     # production build + Playwright masaüstü/mobil akışları
 pnpm typecheck    # tsc --noEmit
 pnpm lint         # eslint
 pnpm build        # production build

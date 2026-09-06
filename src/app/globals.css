@@ -17,6 +17,28 @@ body {
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
+  text-rendering: optimizeLegibility;
+  accent-color: #57534e;
+}
+
+::selection {
+  background: #d6d3d1;
+  color: #1c1917;
+}
+
+.dark ::selection {
+  background: #57534e;
+  color: #fafaf9;
+}
+
+:focus-visible {
+  outline: 2px solid #57534e;
+  outline-offset: 3px;
+}
+
+html {
+  scrollbar-color: #a8a29e transparent;
+  scrollbar-width: thin;
 }
 
 /* ---- Uzun içerik okuma alanı ---- */
@@ -25,6 +47,18 @@ body {
   font-size: 1.0625rem;
   line-height: 1.78;
   overflow-wrap: break-word;
+  letter-spacing: -0.006em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 .article p {
   margin: 0 0 1.15em;

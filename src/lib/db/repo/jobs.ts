@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Operation, StoredSummaryLevel } from "../../types";
 import type { SqliteDb } from "../connection";
 import { nowIso } from "./now";
@@ -41,6 +41,7 @@ export interface JobRow {
   ai_config: string | null;
   /** İş anında sabitlenen makale görsel adresleri (JSON dizi). */
   source_images: string;
+  request_key: string;
 }
 
 export const DEFAULT_LEASE_MS = 10 * 60 * 1000;
@@ -66,31 +67,41 @@ export function newWorkerId(): string {
 
 export function createJob(db: SqliteDb, input: CreateJobInput): JobRow {
   const level = input.summaryLevel ?? "";
+  const requestKey = createRequestKey(input, level);
   const tx = db.transaction((): JobRow => {
     const existing = db
       .prepare(
         `SELECT * FROM jobs
-         WHERE document_id = ? AND operation = ? AND summary_level = ?
+         WHERE request_key = ?
            AND status IN ('pending','processing')
          ORDER BY id LIMIT 1`,
       )
-      .get(input.documentId, input.operation, level) as JobRow | undefined;
+      .get(requestKey) as JobRow | undefined;
 
     if (existing && !input.forceNew) return existing;
 
-    if (existing && input.forceNew) {
+    if (input.forceNew) {
       // "Başka AI ile yeniden çalıştır": bekleyen işi açıkça iptal et, yenisini aç.
       db.prepare(
-        `UPDATE jobs SET status = 'failed', error = ?, completed_at = ? WHERE id = ? AND status IN ('pending','processing')`,
-      ).run("Kullanıcı tarafından iptal edildi (yeni iş oluşturuldu)", nowIso(), existing.id);
+        `UPDATE jobs SET status = 'failed', error = ?, completed_at = ?
+         WHERE document_id = ? AND operation = ? AND summary_level = ?
+           AND status IN ('pending','processing')`,
+      ).run(
+        "Kullanıcı tarafından iptal edildi (yeni iş oluşturuldu)",
+        nowIso(),
+        input.documentId,
+        input.operation,
+        level,
+      );
     }
 
     const result = db
       .prepare(
         `INSERT INTO jobs
            (document_id, operation, summary_level, status, attempts, created_at,
-            source_kind, source_text, source_revision, notes_included, notes_text, ai_config, source_images)
-         VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            source_kind, source_text, source_revision, notes_included, notes_text, ai_config, source_images,
+            request_key)
+         VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.documentId,
@@ -104,10 +115,27 @@ export function createJob(db: SqliteDb, input: CreateJobInput): JobRow {
         input.notesText ?? null,
         input.aiConfig ? JSON.stringify(input.aiConfig) : null,
         JSON.stringify(input.sourceImages ?? []),
+        requestKey,
       );
     return getJob(db, Number(result.lastInsertRowid))!;
   });
   return tx.immediate();
+}
+
+function createRequestKey(input: CreateJobInput, level: StoredSummaryLevel): string {
+  const payload = JSON.stringify({
+    documentId: input.documentId,
+    operation: input.operation,
+    summaryLevel: level,
+    sourceKind: input.sourceKind ?? "auto",
+    sourceText: input.sourceText ?? "",
+    sourceRevision: input.sourceRevision ?? 0,
+    notesIncluded: input.notesIncluded === true,
+    notesText: input.notesText ?? null,
+    aiConfig: input.aiConfig ?? null,
+    sourceImages: input.sourceImages ?? [],
+  });
+  return createHash("sha256").update(payload).digest("hex");
 }
 
 export function getJob(db: SqliteDb, id: number): JobRow | null {
@@ -242,28 +270,33 @@ export function failJob(db: SqliteDb, jobId: number, owner: string, error: strin
   const tx = db.transaction((): JobRow => {
     const job = getJob(db, jobId);
     if (!job) throw new Error(`Job bulunamadı: ${jobId}`);
-    if (job.status === "processing" && job.owner !== owner) {
-      throw new Error("İş sahipliği değişti; hata kaydı kabul edilmedi");
-    }
-    db.prepare(
-      `UPDATE jobs SET status = 'failed', completed_at = ?, error = ? WHERE id = ?`,
-    ).run(nowIso(), tail, jobId);
+    if (job.status !== "processing") throw new Error(`Job işlenmiyor durumda değil: ${job.status}`);
+    if (job.owner !== owner) throw new Error("İş sahipliği değişti; hata kaydı kabul edilmedi");
+    const result = db.prepare(
+      `UPDATE jobs SET status = 'failed', completed_at = ?, error = ?
+       WHERE id = ? AND status = 'processing' AND owner = ?`,
+    ).run(nowIso(), tail, jobId, owner);
+    if (result.changes === 0) throw new Error("İş sahipliği değişti; hata kaydı kabul edilmedi");
     return getJob(db, jobId)!;
   });
   return tx.immediate();
 }
 
 export function retryJob(db: SqliteDb, jobId: number): JobRow {
-  const job = getJob(db, jobId);
-  if (!job) throw new Error(`Job bulunamadı: ${jobId}`);
-  if (job.status !== "failed") throw new Error("Yalnızca başarısız job yeniden denenebilir");
-  if (job.attempts >= 5) throw new Error("Bu job için deneme sınırına ulaşıldı");
-  // Snapshot alanları (source_text, notes, ai_config) aynen korunur.
-  db.prepare(
-    `UPDATE jobs SET status = 'pending', error = NULL, started_at = NULL, completed_at = NULL,
-       owner = NULL, lease_expires_at = NULL WHERE id = ?`,
-  ).run(jobId);
-  return getJob(db, jobId)!;
+  const tx = db.transaction((): JobRow => {
+    const job = getJob(db, jobId);
+    if (!job) throw new Error(`Job bulunamadı: ${jobId}`);
+    if (job.status !== "failed") throw new Error("Yalnızca başarısız job yeniden denenebilir");
+    if (job.attempts >= 5) throw new Error("Bu job için deneme sınırına ulaşıldı");
+    // Snapshot alanları (source_text, notes, ai_config) aynen korunur.
+    const result = db.prepare(
+      `UPDATE jobs SET status = 'pending', error = NULL, started_at = NULL, completed_at = NULL,
+         owner = NULL, lease_expires_at = NULL WHERE id = ? AND status = 'failed' AND attempts < 5`,
+    ).run(jobId);
+    if (result.changes === 0) throw new Error("İş durumu değişti; yeniden deneme başlatılamadı");
+    return getJob(db, jobId)!;
+  });
+  return tx.immediate();
 }
 
 /**

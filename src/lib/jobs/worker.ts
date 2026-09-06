@@ -27,6 +27,8 @@ export interface WorkerHeartbeat {
   ts: string;
   agentMode: AgentRuntimeInfo["mode"];
   agentName: string | null;
+  fallbackAgentName?: string | null;
+  currentJobId?: number | null;
   workerId: string;
   message?: string;
   lastError?: string;
@@ -91,7 +93,12 @@ export async function processJob(
     notesText: job.notes_text,
     images: parseImages(job.source_images),
   });
-  const result = await adapter.run({ prompt, timeoutMs: agentTimeoutMs() });
+  const snapshotTimeout = aiConfig?.kind === "profile" ? aiConfig.timeout_ms : undefined;
+  const timeoutMs =
+    typeof snapshotTimeout === "number" && Number.isFinite(snapshotTimeout) && snapshotTimeout >= 1_000
+      ? Math.min(snapshotTimeout, 30 * 60 * 1_000)
+      : agentTimeoutMs();
+  const result = await adapter.run({ prompt, timeoutMs });
   completeWithProvenance(db, job, workerId, aiConfig, adapter.name, result.text, result.meta);
 }
 
@@ -128,6 +135,7 @@ export class ReadflowWorker {
   readonly initialResolution: { adapter: AgentAdapter | null; info: AgentRuntimeInfo };
   private stopped = false;
   private currentJobId: number | null = null;
+  private currentAgentName: string | null = null;
   private current: Promise<void> | null = null;
   private lastError: string | undefined;
 
@@ -156,7 +164,9 @@ export class ReadflowWorker {
         writeHeartbeat(this.db, {
           ts: new Date().toISOString(),
           agentMode: resolution.info.mode,
-          agentName: resolution.adapter?.name ?? null,
+          agentName: this.currentAgentName ?? resolution.adapter?.name ?? null,
+          fallbackAgentName: resolution.adapter?.name ?? null,
+          currentJobId: this.currentJobId,
           workerId: this.workerId,
           message: resolution.info.message,
           lastError: this.lastError,
@@ -204,6 +214,7 @@ export class ReadflowWorker {
           }
 
           this.currentJobId = job.id;
+          this.currentAgentName = jobAdapter.name;
           this.current = processJob(this.db, jobAdapter, job, this.workerId)
             .then(() => {
               this.lastError = undefined;
@@ -220,6 +231,7 @@ export class ReadflowWorker {
             })
             .finally(() => {
               this.currentJobId = null;
+              this.currentAgentName = null;
               this.current = null;
             });
           await this.current;

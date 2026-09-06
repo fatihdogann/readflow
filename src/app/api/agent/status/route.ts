@@ -22,6 +22,8 @@ export async function GET(): Promise<Response> {
     lastHeartbeat: heartbeat?.ts ?? null,
     agentMode: heartbeat?.agentMode ?? null,
     agentName: heartbeat?.agentName ?? null,
+    fallbackAgentName: heartbeat?.fallbackAgentName ?? null,
+    currentJobId: heartbeat?.currentJobId ?? null,
     message: heartbeat?.message ?? null,
     lastError: heartbeat?.lastError ?? null,
     counts: countsByStatus(db),

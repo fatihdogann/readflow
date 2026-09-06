@@ -30,7 +30,11 @@ export function DocWorkspace({
   const [notesOpen, setNotesOpen] = useState(false);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl justify-center gap-6">
+    <div
+      className={`mx-auto flex w-full justify-center gap-8 transition-[max-width] duration-300 ${
+        notesOpen ? "max-w-6xl" : "max-w-5xl"
+      }`}
+    >
       <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
         {statusError ? (
           <p role="alert" className="no-print rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
@@ -69,20 +73,10 @@ export function DocWorkspace({
       </div>
 
       <NotesPanel
-        key={`panel-${detail.document.id}`}
+        key={detail.document.id}
         documentId={detail.document.id}
         initialNote={detail.document.note}
         initialUpdatedAt={detail.document.note_updated_at}
-        mode="panel"
-        open={notesOpen}
-        onClose={() => setNotesOpen(false)}
-      />
-      <NotesPanel
-        key={`drawer-${detail.document.id}`}
-        documentId={detail.document.id}
-        initialNote={detail.document.note}
-        initialUpdatedAt={detail.document.note_updated_at}
-        mode="drawer"
         open={notesOpen}
         onClose={() => setNotesOpen(false)}
       />

@@ -9,6 +9,7 @@ import type { OutputRow } from "@/lib/db/repo/outputs";
 import { summaryLevelLabel, SUMMARY_LEVELS, type SummaryLevel } from "@/lib/types";
 import { ExportMenu } from "../ExportMenu";
 import { EditorPanel } from "./EditorPanel";
+import { EditIcon } from "@/components/Icons";
 
 interface RevisionMeta {
   id: number;
@@ -335,9 +336,9 @@ export function ContentTabs({
                   setEditing(true);
                   onTabChange("edited");
                 }}
-                className="no-print min-h-[40px] w-fit rounded-md border border-stone-300 px-4 py-2 text-sm text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+                className="no-print inline-flex min-h-[40px] w-fit items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm text-stone-700 shadow-[0_1px_2px_rgba(28,25,23,0.04)] hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
               >
-                ✎ Düzenlemeye başla
+                <EditIcon size={16} /> Düzenlemeye başla
               </button>
             ) : null}
           </div>

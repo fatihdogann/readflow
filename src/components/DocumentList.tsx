@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { DocumentListItem } from "@/lib/db/repo/documents";
 import { isSummaryLevel, operationLabel } from "@/lib/types";
+import { StarIcon } from "@/components/Icons";
 
 export type OutputBadge = { operation: "readability" | "summary"; summary_level: string };
 
@@ -25,14 +26,14 @@ export function DocumentList({
     );
   }
   return (
-    <ul className="flex flex-col">
+    <ul className="grid gap-3">
       {docs.map((doc) => {
         const badges = outputsByDoc.get(doc.id) ?? [];
         return (
-          <li key={doc.id} className="border-b border-stone-200 last:border-0 dark:border-stone-800">
+          <li key={doc.id}>
             <Link
               href={`/doc/${doc.id}`}
-              className="group block px-2 py-4 transition-colors hover:bg-stone-100/70 dark:hover:bg-stone-800/40"
+              className="group block rounded-2xl border border-stone-200 bg-white/55 px-4 py-4 shadow-[0_8px_24px_rgba(28,25,23,0.035)] transition duration-200 hover:-translate-y-px hover:border-stone-300 hover:bg-white hover:shadow-[0_14px_32px_rgba(28,25,23,0.07)] dark:border-stone-800 dark:bg-stone-900/25 dark:shadow-none dark:hover:border-stone-700 dark:hover:bg-stone-900/55 sm:px-5"
             >
               <div className="flex items-start justify-between gap-3">
                 <h3 className="min-w-0 font-medium leading-snug text-stone-900 group-hover:underline dark:text-stone-100">
@@ -40,7 +41,7 @@ export function DocumentList({
                 </h3>
                 {doc.favorite ? (
                   <span className="shrink-0 text-amber-500" title="Favori">
-                    ★
+                    <StarIcon size={16} filled />
                   </span>
                 ) : null}
               </div>

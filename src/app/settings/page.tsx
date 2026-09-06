@@ -6,9 +6,9 @@ export const metadata = { title: "Ayarlar · Readflow" };
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight">Ayarlar</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.025em]">AI ayarları</h1>
         <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
           Yerel AI bağlantı profilleri. Kimlik bilgileri CLI&apos;ın kendi oturumunda kalır;
           Readflow yalnızca CLI&apos;ı çalıştırır.

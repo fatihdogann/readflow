@@ -33,10 +33,34 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
   const [preview, setPreview] = useState(false);
   const [conflict, setConflict] = useState<{ currentContent: string; currentRevision: number } | null>(null);
   const [status, setStatus] = useState<string>("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dirtyRef = useRef(dirty);
+  const draftRef = useRef(draft);
+  const revisionRef = useRef(revision);
+  const savingRef = useRef(false);
   useEffect(() => {
     dirtyRef.current = dirty;
   }, [dirty]);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+  useEffect(() => {
+    revisionRef.current = revision;
+  }, [revision]);
+
+  useEffect(() => {
+    if (dirtyRef.current) return;
+    const nextDraft = edit?.content ?? originalText;
+    setDraft(nextDraft);
+    setRevision(edit?.revision ?? 0);
+  }, [edit, originalText]);
+
+  useEffect(() => {
+    if (preview || !textareaRef.current) return;
+    const textarea = textareaRef.current;
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.max(textarea.scrollHeight, 520)}px`;
+  }, [draft, preview]);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -46,20 +70,28 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
-  async function save(): Promise<void> {
-    if (saving) return;
+  async function save(overrides?: { content?: string; revision?: number | null }): Promise<void> {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setStatus("Kaydediliyor…");
+    const submittedContent = overrides?.content ?? draftRef.current;
+    const submittedRevision = overrides?.revision ?? revisionRef.current;
     try {
       const body = await mutateJson<{ edit: DocumentEditInfo }>(
         `/api/documents/${documentId}/edit`,
         "PUT",
-        { content: draft, revision },
+        { content: submittedContent, revision: submittedRevision },
       );
       setRevision(body.edit.revision);
-      setDirty(false);
+      const unchangedSinceRequest = draftRef.current === submittedContent;
+      setDirty(!unchangedSinceRequest);
       setConflict(null);
-      setStatus(`Kaydedildi · ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`);
+      setStatus(
+        unchangedSinceRequest
+          ? `Kaydedildi · ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
+          : "Yeni değişiklikler kaydedilmeyi bekliyor…",
+      );
       onEditChange(body.edit);
       onNotice("");
     } catch (error) {
@@ -75,6 +107,7 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
         onNotice(apiError.message);
       }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -88,8 +121,9 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // `save` ref'lerden güncel taslak/revision okur; listener yalnız kayıt durumuna bağlıdır.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, dirty, revision, saving]);
+  }, [dirty]);
 
   async function removeEdit(): Promise<void> {
     try {
@@ -108,12 +142,12 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="no-print flex flex-wrap items-center gap-2 text-xs">
+      <div className="no-print flex flex-wrap items-center gap-3 border-b border-stone-200 pb-3 text-xs dark:border-stone-800">
         <button
           type="button"
           onClick={() => setPreview((value) => !value)}
           aria-pressed={preview}
-          className="min-h-[36px] rounded border border-stone-300 px-3 text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+          className="min-h-[36px] rounded-lg border border-stone-300 bg-white px-3 text-stone-700 shadow-[0_1px_2px_rgba(28,25,23,0.04)] hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
         >
           {preview ? "Düzenle" : "Önizle"}
         </button>
@@ -171,8 +205,7 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
               className="min-h-[36px] rounded border border-stone-300 px-3 py-1 dark:border-stone-700"
               onClick={() => {
                 setRevision(conflict.currentRevision);
-                setConflict(null);
-                void save();
+                void save({ revision: conflict.currentRevision });
               }}
             >
               Taslağımı üzerine yaz
@@ -186,23 +219,22 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft || "_Boş_"}</ReactMarkdown>
         </div>
       ) : (
-        <textarea
+        <div className="relative -mx-3 rounded-2xl bg-white px-3 py-2 shadow-[0_14px_45px_rgba(28,25,23,0.06)] ring-1 ring-stone-200/80 dark:bg-stone-950/30 dark:shadow-none dark:ring-stone-800/80 sm:mx-0 sm:px-8 sm:py-7">
+          <textarea
+          ref={textareaRef}
           value={draft}
           onChange={(event) => {
             setDraft(event.target.value);
             setDirty(true);
             setStatus("");
           }}
-          onKeyDown={(event) => {
-            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
-              event.preventDefault();
-              if (dirty) void save();
-            }
-          }}
-          rows={16}
+          rows={1}
+          spellCheck
           aria-label="Düzenlenmiş metin (kullanıcı sürümü)"
-          className="w-full resize-y rounded-md border border-stone-300 bg-white px-4 py-3 font-serif text-[15px] leading-relaxed outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500"
+          className="article w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-stone-800 outline-none placeholder:text-stone-400 focus:ring-0 dark:text-stone-200"
         />
+          <div className="pointer-events-none absolute inset-y-8 left-3 w-px bg-stone-200/80 dark:bg-stone-800 sm:left-5" aria-hidden />
+        </div>
       )}
 
       <div className="no-print flex items-center gap-2">

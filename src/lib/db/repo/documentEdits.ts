@@ -40,13 +40,13 @@ export function saveEdit(
       if (expectedRevision !== null && expectedRevision !== 0) {
         return { edit: emptyEdit(documentId), applied: false };
       }
-      const result = db
+      db
         .prepare(
           `INSERT INTO document_edits (document_id, content, revision, created_at, updated_at)
            VALUES (?, ?, 1, ?, ?)`,
         )
         .run(documentId, content, ts, ts);
-      return { edit: getEdit(db, Number(result.lastInsertRowid))!, applied: true };
+      return { edit: getEdit(db, documentId)!, applied: true };
     }
     if (expectedRevision === null || expectedRevision !== existing.revision) {
       return { edit: existing, applied: false };

@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { ThemeToggle } from "./ThemeToggle";
 import { NAV_ITEMS } from "./nav-items";
+import { AddDocumentIcon, CloseIcon, FolderIcon, HeartIcon, HistoryIcon, MenuIcon, PlusIcon, SettingsIcon } from "./Icons";
+import { FOLDERS_CHANGED_EVENT, notifyFoldersChanged } from "@/lib/client/events";
 
 interface FolderItem {
   id: number;
@@ -32,7 +34,12 @@ function useFolders() {
 
   useEffect(() => {
     const initial = setTimeout(() => void refreshFolders(), 0);
-    return () => clearTimeout(initial);
+    const onFoldersChanged = () => void refreshFolders();
+    window.addEventListener(FOLDERS_CHANGED_EVENT, onFoldersChanged);
+    return () => {
+      clearTimeout(initial);
+      window.removeEventListener(FOLDERS_CHANGED_EVENT, onFoldersChanged);
+    };
   }, [refreshFolders]);
 
   async function createFolder(event: React.FormEvent): Promise<boolean> {
@@ -52,7 +59,7 @@ function useFolders() {
         return false;
       }
       setNewFolder("");
-      await refreshFolders();
+      notifyFoldersChanged();
       return true;
     } catch {
       setError("Sunucuya ulaşılamadı");
@@ -65,22 +72,30 @@ function useFolders() {
 
 function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const icons = {
+    "/": AddDocumentIcon,
+    "/history": HistoryIcon,
+    "/favorites": HeartIcon,
+    "/settings": SettingsIcon,
+  } as const;
   return (
-    <nav aria-label="Ana gezinme" className="flex flex-col gap-0.5">
+    <nav aria-label="Ana gezinme" className="flex flex-col gap-1">
       {NAV_ITEMS.map((item) => {
         const active = pathname === item.href;
+        const NavIcon = icons[item.href as keyof typeof icons];
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
             onClick={onNavigate}
-            className={`flex min-h-[40px] items-center rounded-md px-2 text-sm ${
+            className={`flex min-h-[42px] items-center gap-3 rounded-xl px-3 text-sm transition ${
               active
-                ? "bg-stone-200/80 font-medium text-stone-900 dark:bg-stone-800 dark:text-stone-100"
-                : "text-stone-600 hover:bg-stone-200/50 dark:text-stone-400 dark:hover:bg-stone-800/50"
+                ? "bg-white font-medium text-stone-950 shadow-[0_5px_18px_rgba(28,25,23,0.07)] ring-1 ring-stone-200/70 dark:bg-stone-800 dark:text-stone-50 dark:shadow-none dark:ring-stone-700"
+                : "text-stone-600 hover:bg-stone-200/55 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"
             }`}
           >
+            {NavIcon ? <NavIcon size={17} /> : null}
             {item.label}
           </Link>
         );
@@ -91,8 +106,8 @@ function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
 
 function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared: ReturnType<typeof useFolders> }) {
   return (
-    <div className="flex flex-col gap-0.5 overflow-y-auto">
-      <div className="mb-1 px-2 text-[11px] font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">
+    <div className="flex flex-col gap-1 overflow-y-auto">
+      <div className="mb-1 px-3 text-[11px] font-medium uppercase tracking-[0.12em] text-stone-500 dark:text-stone-400">
         Klasörler
       </div>
       {shared.folders.map((folder) => (
@@ -100,10 +115,11 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
           key={folder.id}
           href={`/history?folder=${folder.id}`}
           onClick={onNavigate}
-          className="flex min-h-[40px] items-center justify-between rounded-md px-2 text-sm text-stone-600 hover:bg-stone-200/50 dark:text-stone-400 dark:hover:bg-stone-800/50"
+          className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-sm text-stone-600 transition hover:bg-stone-200/55 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"
         >
+          <FolderIcon size={15} className="shrink-0 text-stone-400" />
           <span className="truncate">{folder.name}</span>
-          <span className="ml-2 shrink-0 text-[11px] text-stone-500 dark:text-stone-400">
+          <span className="ml-auto min-w-5 shrink-0 rounded-full bg-stone-200/80 px-1.5 py-0.5 text-center text-[10px] tabular-nums text-stone-600 dark:bg-stone-800 dark:text-stone-400">
             {folder.document_count}
           </span>
         </Link>
@@ -113,7 +129,7 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
           const ok = await shared.createFolder(event);
           if (ok) onNavigate?.();
         }}
-        className="mt-1 flex items-center gap-1 px-1"
+        className="mt-1 flex items-center gap-1 px-2"
       >
         <input
           value={shared.newFolder}
@@ -124,10 +140,10 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
         />
         <button
           type="submit"
-          className="min-h-[36px] rounded px-1.5 text-xs text-stone-500 hover:text-stone-700 dark:hover:text-stone-200"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 hover:text-stone-800 dark:hover:bg-stone-800 dark:hover:text-stone-200"
           title="Klasör oluştur"
         >
-          ＋
+          <PlusIcon size={16} />
         </button>
       </form>
       {shared.folderError ? <p className="px-2 text-[11px] text-red-600">{shared.folderError}</p> : null}
@@ -138,13 +154,16 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
 export function Sidebar() {
   const shared = useFolders();
   return (
-    <aside className="no-print sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-stone-200 px-3 py-6 dark:border-stone-800 md:flex">
-      <Link href="/" className="mb-6 block px-2">
-        <div className="text-lg font-semibold tracking-tight">Readflow</div>
-        <div className="text-[11px] text-stone-500 dark:text-stone-400">oku · düzenle · arşivle</div>
+    <aside className="no-print sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-stone-200 bg-stone-100/35 px-3 py-5 dark:border-stone-800 dark:bg-stone-950/15 md:flex">
+      <Link href="/" className="mb-7 flex items-center gap-3 rounded-xl px-2 py-1.5">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-900 font-serif text-sm font-semibold text-white shadow-[0_6px_18px_rgba(28,25,23,0.18)] dark:bg-stone-100 dark:text-stone-900 dark:shadow-none">R</span>
+        <span>
+          <span className="block text-lg font-semibold tracking-[-0.025em]">Readflow</span>
+          <span className="block text-[11px] text-stone-500 dark:text-stone-400">oku · düzenle · arşivle</span>
+        </span>
       </Link>
       <NavLinkList />
-      <div className="mt-6 flex flex-col gap-0.5">
+      <div className="mt-7 flex flex-col gap-0.5">
         <FolderSection shared={shared} />
       </div>
       <div className="mt-auto flex flex-col gap-0.5 border-t border-stone-200 pt-3 dark:border-stone-800">
@@ -160,32 +179,62 @@ export function MobileNav() {
   const shared = useFolders();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    const trigger = triggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     panelRef.current?.querySelector<HTMLElement>("a, button, input")?.focus();
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
   }, [open]);
 
   return (
-    <header className="no-print sticky top-0 z-30 flex items-center justify-between border-b border-stone-200 bg-[#faf9f7]/95 px-4 py-2 backdrop-blur dark:border-stone-800 dark:bg-[#171512]/95 md:hidden">
-      <Link href="/" className="text-base font-semibold tracking-tight">
+    <header className="no-print sticky top-0 z-30 flex items-center justify-between border-b border-stone-200 bg-[#faf9f7]/95 px-4 py-2.5 backdrop-blur dark:border-stone-800 dark:bg-[#171512]/95 md:hidden">
+      <Link href="/" className="flex items-center gap-2.5 text-base font-semibold tracking-tight">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-900 font-serif text-xs text-white dark:bg-stone-100 dark:text-stone-900">R</span>
         Readflow
       </Link>
       <div className="flex items-center gap-1">
         <AgentStatusBadge />
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen(true)}
           aria-expanded={open}
           aria-label="Menüyü aç"
           className="flex h-11 w-11 items-center justify-center rounded-md text-lg hover:bg-stone-200/60 dark:hover:bg-stone-800/60"
         >
-          ☰
+          <MenuIcon size={20} />
         </button>
       </div>
       {open ? (
@@ -208,7 +257,7 @@ export function MobileNav() {
                 aria-label="Menüyü kapat"
                 className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-stone-200/60 dark:hover:bg-stone-800/60"
               >
-                ×
+                <CloseIcon size={20} />
               </button>
             </div>
             <NavLinkList onNavigate={() => setOpen(false)} />

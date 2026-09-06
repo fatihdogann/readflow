@@ -50,4 +50,27 @@ describe("document_edits", () => {
       handle.cleanup();
     }
   });
+
+  it("düzenleme satırı kimliği belge kimliğinden farklı olsa da yeni sürümü döndürür", () => {
+    const handle = createTestDb();
+    try {
+      insertDocument(handle.db, { title: "İlk", sourceType: "text", originalText: "ilk" });
+      const document = insertDocument(handle.db, {
+        title: "İkinci",
+        sourceType: "text",
+        originalText: "ikinci",
+      });
+
+      const outcome = saveEdit(handle.db, document.id, "ikinci belgenin düzenlemesi", 0);
+
+      expect(outcome.applied).toBe(true);
+      expect(outcome.edit).toMatchObject({
+        document_id: document.id,
+        content: "ikinci belgenin düzenlemesi",
+        revision: 1,
+      });
+    } finally {
+      handle.cleanup();
+    }
+  });
 });

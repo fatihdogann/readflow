@@ -8,6 +8,8 @@ interface AgentStatusResponse {
   lastHeartbeat: string | null;
   agentMode: "command" | "mock" | "none" | null;
   agentName: string | null;
+  fallbackAgentName: string | null;
+  currentJobId: number | null;
   message: string | null;
   lastError: string | null;
   counts: { pending: number; processing: number; completed: number; failed: number };
@@ -40,9 +42,9 @@ function toView(status: AgentStatusResponse | null, fetchFailures: number): Stat
   }
   if (status.counts.processing > 0) {
     return {
-      label: "İş işleniyor",
+      label: `${status.agentName ?? "AI"} çalışıyor`,
       color: "bg-amber-500",
-      detail: `${status.counts.processing} iş sürüyor, ${status.counts.pending} kuyrukta`,
+      detail: `${status.counts.processing} iş sürüyor${status.counts.pending ? `, ${status.counts.pending} kuyrukta` : ""}`,
     };
   }
   if (status.envLock.locked) {

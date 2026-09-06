@@ -291,6 +291,19 @@ const MIGRATIONS: Migration[] = [
       runAll(db, [`ALTER TABLE jobs ADD COLUMN source_images TEXT NOT NULL DEFAULT '[]'`]);
     },
   },
+  {
+    id: 10,
+    name: "job-snapshot-request-key",
+    up: (db) => {
+      runAll(db, [
+        `DROP INDEX IF EXISTS idx_jobs_active_unique`,
+        `ALTER TABLE jobs ADD COLUMN request_key TEXT NOT NULL DEFAULT ''`,
+        `UPDATE jobs SET request_key = 'legacy:' || id WHERE request_key = ''`,
+        `CREATE UNIQUE INDEX idx_jobs_active_request_unique ON jobs (request_key)
+         WHERE status IN ('pending','processing')`,
+      ]);
+    },
+  },
 ];
 
 function runAll(db: SqliteDb, statements: string[]): void {

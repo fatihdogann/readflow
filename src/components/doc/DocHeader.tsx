@@ -6,6 +6,9 @@ import { useState } from "react";
 import type { FolderRow } from "@/lib/db/repo/folders";
 import type { DocumentDetail } from "@/lib/documents/service";
 import { mutateJson } from "@/lib/client/api";
+import { formatAuthorByline } from "@/lib/text/author";
+import { NoteIcon, StarIcon } from "@/components/Icons";
+import { notifyFoldersChanged } from "@/lib/client/events";
 
 export function DocHeader({
   detail,
@@ -30,6 +33,7 @@ export function DocHeader({
     try {
       const next = await mutateJson<DocumentDetail>(`/api/documents/${doc.id}`, "PATCH", body);
       onChange(next);
+      if ("folderId" in body) notifyFoldersChanged();
       return true;
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : "Kaydedilemedi");
@@ -54,6 +58,7 @@ export function DocHeader({
     setError(null);
     try {
       await mutateJson(`/api/documents/${doc.id}`, "DELETE");
+      notifyFoldersChanged();
       router.push("/history");
     } catch (mutationError) {
       // Silme başarılı olmadan yönlendirme yapılmaz.
@@ -62,59 +67,57 @@ export function DocHeader({
   }
 
   const metaParts: string[] = [];
-  if (doc.author) metaParts.push(doc.author);
+  if (doc.author) metaParts.push(formatAuthorByline(doc.author));
   if (doc.published_at) metaParts.push(`Yayın: ${doc.published_at.slice(0, 10)}`);
   metaParts.push(`Arşiv: ${doc.created_at.slice(0, 10)}`);
 
   return (
-    <header className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-4">
-        <h1 className="min-w-0 text-xl font-semibold leading-snug tracking-tight md:text-2xl">
+    <header className="flex flex-col gap-4 border-b border-stone-200 pb-5 dark:border-stone-800">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
+        <h1 className="min-w-0 max-w-[28ch] text-2xl font-semibold leading-[1.18] tracking-[-0.028em] md:text-3xl">
           {doc.title}
         </h1>
-        <div className="no-print flex shrink-0 items-center gap-1">
+        <div className="no-print flex shrink-0 items-center gap-1 sm:pt-0.5">
           <button
             type="button"
             onClick={() => void patch({ favorite: doc.favorite === 0 })}
-            className="flex h-10 w-10 items-center justify-center rounded text-lg leading-none hover:bg-stone-200/60 dark:hover:bg-stone-800"
+            className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-stone-200/70 dark:hover:bg-stone-800"
             title={doc.favorite ? "Favoriden çıkar" : "Favoriye ekle"}
             aria-pressed={doc.favorite === 1}
             aria-label={doc.favorite ? "Favoriden çıkar" : "Favoriye ekle"}
           >
-            {doc.favorite ? (
-              <span className="text-amber-500" aria-hidden>
-                ★
-              </span>
-            ) : (
-              <span className="text-stone-400" aria-hidden>
-                ☆
-              </span>
-            )}
+            <StarIcon filled={doc.favorite === 1} className={doc.favorite ? "text-amber-500" : "text-stone-400"} />
           </button>
           <button
             type="button"
             onClick={() => void onNotesToggle()}
             aria-expanded={notesOpen}
-            className={`flex h-10 min-h-[40px] items-center gap-1 rounded px-3 text-sm hover:bg-stone-200/60 dark:hover:bg-stone-800 ${
+            className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
               notesOpen ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
             }`}
             title="Kişisel notu aç/kapat"
           >
-            📝 Not
+            <NoteIcon size={16} /> Not
             {doc.note ? <span className="text-[10px] text-amber-600 dark:text-amber-400" aria-hidden>●</span> : null}
           </button>
-          <button
-            type="button"
-            onClick={() => void remove()}
-            className="flex h-10 items-center rounded px-3 text-sm text-stone-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
-            title="Dokümanı sil"
-          >
-            Sil
-          </button>
+          <details className="group relative">
+            <summary className="flex h-10 cursor-pointer list-none items-center rounded-lg px-3 text-sm text-stone-500 marker:hidden hover:bg-stone-200/70 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100">
+              Diğer
+            </summary>
+            <div className="absolute right-0 top-11 z-20 min-w-36 rounded-xl border border-stone-200 bg-white p-1.5 shadow-[0_14px_38px_rgba(28,25,23,0.14)] dark:border-stone-700 dark:bg-stone-900">
+              <button
+                type="button"
+                onClick={() => void remove()}
+                className="flex min-h-[38px] w-full items-center rounded-lg px-3 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+              >
+                Dokümanı sil
+              </button>
+            </div>
+          </details>
         </div>
       </div>
 
-      <div className="no-print flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-stone-600 dark:text-stone-400">
+      <div className="no-print flex flex-wrap items-center gap-x-2.5 gap-y-2 text-xs text-stone-600 dark:text-stone-400">
         {doc.source_url ? (
           <a
             href={doc.source_url}
@@ -129,12 +132,12 @@ export function DocHeader({
         )}
         {metaParts.map((part, index) => (
           <span key={index} className="flex items-center gap-3">
-            {index === 0 && doc.source_url ? <span aria-hidden>·</span> : null}
-            {index > 0 ? <span aria-hidden>·</span> : null}
+            {index === 0 && doc.source_url ? <span className="hidden sm:inline" aria-hidden>·</span> : null}
+            {index > 0 ? <span className="hidden sm:inline" aria-hidden>·</span> : null}
             {part}
           </span>
         ))}
-        <label className="ml-auto flex min-h-[32px] items-center gap-1">
+        <label className="flex min-h-[32px] items-center gap-1 sm:ml-auto">
           <span>Klasör:</span>
           <select
             value={doc.folder_id === null ? "" : String(doc.folder_id)}

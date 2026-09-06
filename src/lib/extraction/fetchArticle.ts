@@ -1,5 +1,6 @@
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
+import { formatAuthorByline } from "../text/author";
 import { InputError } from "../types";
 import { sanitizeArticleHtml } from "./sanitize";
 
@@ -227,7 +228,7 @@ export function extractFromHtml(html: string, baseUrl: string): ArticleExtractio
 
   return {
     title: firstLine(headlineClean || article?.title || pageTitle || "Adsız sayfa", 300),
-    author: firstLine(article?.byline ?? "", 200) || null,
+    author: formatAuthorByline(firstLine(article?.byline ?? "", 200)) || null,
     publishedAt: article?.publishedTime ?? null,
     originalText: originalText.slice(0, MAX_TEXT_CHARS),
     originalHtml: sanitized ? sanitized.slice(0, MAX_HTML_CHARS) : null,

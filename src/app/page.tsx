@@ -15,10 +15,10 @@ export default function HomePage() {
   ) as Map<number, OutputBadge[]>;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-10">
-      <section>
-        <h1 className="mb-1 text-xl font-semibold tracking-tight">Yeni</h1>
-        <p className="mb-5 text-sm text-stone-500 dark:text-stone-400">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-12">
+      <section className="pt-4 md:pt-8">
+        <h1 className="mb-2 max-w-xl text-3xl font-semibold leading-tight tracking-[-0.03em] md:text-4xl">Okumak istediğin şeyi buraya bırak.</h1>
+        <p className="mb-6 max-w-2xl text-sm leading-relaxed text-stone-600 dark:text-stone-400">
           Bir bağlantı yapıştır; sayfa burada indirilip ana makaleye ayrıştırılır. Ya da doğrudan
           metin bırak. Sonra <strong>Okunabilirliği Artır</strong> veya <strong>Özetle</strong>{" "}
           ile yerel agent&apos;ını iş yaptır.
@@ -27,7 +27,7 @@ export default function HomePage() {
       </section>
 
       <section>
-        <h2 className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-stone-400">
+        <h2 className="mb-3 px-1 text-sm font-semibold tracking-tight text-stone-700 dark:text-stone-300">
           Son eklenenler
         </h2>
         <DocumentList docs={docs} outputsByDoc={outputsByDoc} />

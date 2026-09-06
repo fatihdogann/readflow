@@ -88,6 +88,25 @@ describe("job queue: claim & sahiplik", () => {
     }
   });
 
+  it("süresi dolup kuyruğa dönen işi eski sahibi başarısız yapamaz", () => {
+    const { handle, doc } = setup();
+    try {
+      const job = createJob(handle.db, { documentId: doc.id, operation: "readability" });
+      claimNextJob(handle.db, W1);
+      handle.db
+        .prepare(`UPDATE jobs SET lease_expires_at = ? WHERE id = ?`)
+        .run(new Date(Date.now() - 1000).toISOString(), job.id);
+      recoverExpiredLeases(handle.db);
+
+      expect(() => failJob(handle.db, job.id, W1, "geç kalan hata")).toThrow(/sahipliği|işlenmiyor/);
+      expect(handle.db.prepare(`SELECT status FROM jobs WHERE id = ?`).get(job.id)).toMatchObject({
+        status: "pending",
+      });
+    } finally {
+      handle.cleanup();
+    }
+  });
+
   it("yalnızca süresi dolmuş lease'ler kurtarılır; aktif iş korunur", () => {
     const { handle, doc } = setup();
     try {
@@ -187,6 +206,44 @@ describe("job queue: idempotency & snapshot", () => {
     }
   });
 
+  it("farklı kaynak veya AI snapshot'ları ayrı aktif işler oluşturur", () => {
+    const { handle, doc } = setup();
+    try {
+      const original = createJob(handle.db, {
+        documentId: doc.id,
+        operation: "summary",
+        summaryLevel: "normal",
+        sourceKind: "original",
+        sourceText: "orijinal",
+        sourceRevision: 0,
+        aiConfig: { kind: "profile", profile_id: 1, cli: "claude", config_revision: 1 },
+      });
+      const edited = createJob(handle.db, {
+        documentId: doc.id,
+        operation: "summary",
+        summaryLevel: "normal",
+        sourceKind: "edited",
+        sourceText: "düzenlenmiş",
+        sourceRevision: 2,
+        aiConfig: { kind: "profile", profile_id: 2, cli: "codex", config_revision: 3 },
+      });
+      const duplicate = createJob(handle.db, {
+        documentId: doc.id,
+        operation: "summary",
+        summaryLevel: "normal",
+        sourceKind: "edited",
+        sourceText: "düzenlenmiş",
+        sourceRevision: 2,
+        aiConfig: { kind: "profile", profile_id: 2, cli: "codex", config_revision: 3 },
+      });
+
+      expect(edited.id).not.toBe(original.id);
+      expect(duplicate.id).toBe(edited.id);
+    } finally {
+      handle.cleanup();
+    }
+  });
+
   it("not dahil etme seçimi snapshot'a girer", () => {
     const { handle, doc } = setup();
     try {
@@ -258,6 +315,36 @@ describe("job queue: tamamlama ve revizyonlar", () => {
         .get(job.id) as { status: string; agent_name: string };
       expect(detail.status).toBe("completed");
       expect(detail.agent_name).toBe("mock");
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("processJob profil snapshot'ındaki timeout değerini adapter'a iletir", async () => {
+    const { handle, doc } = setup();
+    try {
+      createJob(handle.db, {
+        documentId: doc.id,
+        operation: "readability",
+        sourceText: "gövde",
+        aiConfig: { kind: "profile", cli: "codex", timeout_ms: 42_000 },
+      });
+      const claimed = claimNextJob(handle.db, W1)!;
+      let receivedTimeout = 0;
+      await processJob(
+        handle.db,
+        {
+          name: "capture",
+          async run(task) {
+            receivedTimeout = task.timeoutMs;
+            return { text: "çıktı", meta: {} };
+          },
+        },
+        claimed,
+        W1,
+      );
+
+      expect(receivedTimeout).toBe(42_000);
     } finally {
       handle.cleanup();
     }
