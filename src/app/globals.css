@@ -1,26 +1,168 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-serif: Charter, "Iowan Old Style", Georgia, Cambria, "Times New Roman", serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+}
+
+/* ---- Uzun içerik okuma alanı ---- */
+.article {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.78;
+  overflow-wrap: break-word;
+}
+.article p {
+  margin: 0 0 1.15em;
+}
+.article h1,
+.article h2,
+.article h3,
+.article h4 {
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 1.7em 0 0.55em;
+}
+.article h1 {
+  font-size: 1.55em;
+}
+.article h2 {
+  font-size: 1.32em;
+}
+.article h3 {
+  font-size: 1.12em;
+}
+.article h4 {
+  font-size: 1em;
+}
+.article ul,
+.article ol {
+  margin: 0 0 1.15em 1.5em;
+}
+.article ul {
+  list-style: disc;
+}
+.article ol {
+  list-style: decimal;
+}
+.article li {
+  margin-bottom: 0.35em;
+}
+.article blockquote {
+  border-left: 3px solid #a8a29e;
+  padding-left: 1em;
+  margin: 0 0 1.15em;
+  opacity: 0.85;
+}
+.article pre {
+  background: #f3f1ee;
+  border: 1px solid #e7e5e4;
+  padding: 0.9em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.85em;
+  line-height: 1.5;
+  margin: 0 0 1.15em;
+}
+.article code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+  background: #f3f1ee;
+  border-radius: 4px;
+  padding: 0.12em 0.36em;
+}
+.article pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 1em;
+}
+.article img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.35em 0;
+}
+.article a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.article hr {
+  margin: 2.2em 0;
+  border-color: #d6d3d1;
+}
+.article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1.15em;
+  font-size: 0.92em;
+}
+.article th,
+.article td {
+  border: 1px solid #d6d3d1;
+  padding: 0.4em 0.65em;
+  text-align: left;
+}
+.article figure {
+  margin: 0 0 1.2em;
+}
+.article figcaption {
+  font-size: 0.85em;
+  opacity: 0.75;
+  margin-top: 0.3em;
+}
+
+.dark .article {
+  color: #d6d3d1;
+}
+.dark .article pre {
+  background: #26221e;
+  border-color: #3c3733;
+}
+.dark .article code {
+  background: #26221e;
+}
+.dark .article hr,
+.dark .article th,
+.dark .article td {
+  border-color: #44403c;
+}
+
+/* ---- Yazdır / PDF ---- */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #print-root,
+  #print-root * {
+    visibility: visible !important;
+  }
+  #print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    background: #fff;
+  }
+  .article,
+  .article * {
+    color: #000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
 }

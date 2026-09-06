@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Readflow
 
-## Getting Started
+Local-first, AI destekli kişisel okuma ve metin işleme alanı. Chatbot değil; **reader + article extractor + summarizer + archive + export workspace**.
 
-First, run the development server:
+<!-- TODO: Ekran görüntüleri buraya -->
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Tarayıcı ──▶ Web uygulaması (localhost:3000)
+                │  doküman + job yazar
+                ▼
+            SQLite (WAL)  ◀──  Yerel worker (job kuyruğu)
+                ▲                    │ prompt via stdin / stdout
+                └── çıktılar         ▼
+                          Coding-agent CLI (claude / codex / jcode / …)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Readflow nedir?
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Bir **URL yapıştırırsın**: sayfa sunucu tarafında indirilir, Mozilla Readability ile ana makaleye ayrıştırılır (navigation, reklam, cookie banner gürültüsü atılır, HTML sanitize edilir).
+- Bir **metin yapıştırırsın**: doğrudan arşive kaydedilir.
+- Sonra iki AI işlemi çalıştırırsın: **Okunabilirliği Artır** (yeniden yazım değil; sadece yapılandırma) ve **Özetle** (Kısa / Normal / Detaylı).
+- AI işlemleri **remote LLM API'si ile değil**, kendi bilgisayarında açık olan coding-agent CLI üzerinden yapılır. **Hiçbir LLM API key istemez.**
+- Her şey `~/.readflow/` altındaki tek bir SQLite dosyasında kalır. Geçmiş kalıcıdır; arama, favoriler, klasörler, etiketler ve domain filtresi ile gezilir.
+- Çıktılar panoya, TXT, Markdown, PDF (yazdır), DOCX olarak yerel olarak dışa aktarılır; Notion/Telegram adapter'ları env ile kurulur.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Gereksinimler
 
-## Learn More
+- Node.js 20.9+ (önerilen: 22/24 LTS)
+- pnpm 9+
+- AI işlemleri için: authenticated bir coding-agent CLI (`claude`, `codex`, `jcode`, …) **veya** MCP destekleyen bir agent
+- GitHub CLI (`gh`) yalnızca repo oluşturmayı otomatikleştirmek istersen
 
-To learn more about Next.js, take a look at the following resources:
+## Kurulum
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+git clone <repo-url> readflow && cd readflow
+pnpm install
+pnpm db:migrate   # opsiyonel: ilk açılışta migration otomatik çalışır
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Geliştirme
 
-## Deploy on Vercel
+```bash
+pnpm dev:all      # web + worker birlikte
+pnpm dev:web      # yalnızca web (localhost:3000)
+pnpm dev:worker   # yalnızca job worker
+pnpm dev:mcp      # MCP sunucusu (stdio) — agent konfigürasyonundan çalıştırılır
+pnpm test         # vitest
+pnpm typecheck    # tsc --noEmit
+pnpm lint         # eslint
+pnpm build        # production build
+pnpm db:migrate   # şema sürümünü yazdırır
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Agent CLI bağlantısı
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Worker, sıradaki `pending` job'ı alır; prompt'u agent CLI'nın **stdin**'ine yazar, sonucu **stdout**'tan okur.
+
+**Sıfır yapılandırma:** `READFLOW_AGENT_CMD` boşsa worker bilinen CLI'ları (`claude`, `codex`, `jcode`) PATH'te arar, `--help` çıktısındaki non-interactive imzasını doğrular ve uygun olanı bağlar. Hiçbiri doğrulanamazsa site çalışmaya devam eder, job'lar `pending` kalır ve arayüzde **"Agent bağlı değil"** görünür; agent açıldığında bekleyen işler işlenir.
+
+**Manuel bağlama** (`.env.local`):
+
+```bash
+READFLOW_AGENT_CMD="claude -p"          # prompt stdin'den, sonuç stdout'tan
+READFLOW_AGENT_CMD="codex exec -"       # dizin git repo / trusted olmalı
+READFLOW_AGENT_CMD="jcode run"          # jcode mesajı argüman ister: READFLOW_AGENT_PROMPT_VIA=argv
+READFLOW_AGENT_TIMEOUT_MS=120000
+```
+
+Kendi script'in de olur — sözleşme basit: stdin → prompt, stdout → Markdown çıktı. Denemek için: `READFLOW_AGENT_CMD="node scripts/mock-agent.mjs"`.
+
+## MCP kurulumu
+
+MCP destekleyen agent'lara (ör. `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "readflow": {
+      "command": "pnpm",
+      "args": ["--dir", "/Users/sen/Desktop/Projeler/readflow", "dev:mcp"]
+    }
+  }
+}
+```
+
+Tool'lar: `readflow_list_pending_jobs`, `readflow_get_job`, `readflow_claim_job`, `readflow_complete_job`, `readflow_fail_job`, `readflow_get_document`, `readflow_create_document`, `readflow_list_documents`. Böylece agent, Readflow'un kuyruğunu kendisi çekebilir (worker'a alternatif ikinci entegrasyon yolu).
+
+## Yerel veri
+
+- Veritabanı: `~/.readflow/readflow.sqlite` (WAL modu)
+- `READFLOW_DATA_DIR` ile değiştirilebilir
+- `.gitignore` yanlışlıkla oluşabilecek `*.sqlite*` ve veri dizinlerini repo dışında tutar
+
+## Dışa aktarma
+
+Her çıktı için **Dışa Aktar** menüsü: Panoya Kopyala, TXT, Markdown, PDF (tarayıcı yazdırma → PDF olarak kaydet; tamamen yerel), DOCX (yerelde üretilir). Notion ve Telegram için `.env.local` içine `READFLOW_NOTION_TOKEN`, `READFLOW_NOTION_DATABASE_ID`, `READFLOW_TELEGRAM_BOT_TOKEN`, `READFLOW_TELEGRAM_CHAT_ID` girilmeden butonlar uygulamanın geri kalanını bozmadan "kurulmadı" der.
+
+## Gizlilik
+
+Tüm veri (dokümanlar, çıktılar, job geçmişi) yalnızca `~/.readflow/` içinde durur, hiçbir cloud servise gitmez. Repoyu public yapmadan önce `.env.local` dosyası ve veri dizini Git'e asla girmez (gitignore koruması var); yine de `git log --diff-filter=A -- "*.sqlite*" "data/"` ile bir kontrol önerilir.
+
+## Sorun giderme
+
+- **"Agent bağlı değil"**: `READFLOW_AGENT_CMD` tanımla veya CLI'ının authenticated olduğundan emin ol (`claude` OAuth oturumu dolabilir — terminalden `claude doctor`).
+- **better-sqlite3 kurulmuyor**: `pnpm rebuild better-sqlite3` — Node sürümün için prebuilt binary yoksa Xcode CLT gerekir.
+- **codex "Not inside a trusted directory"**: worker'ı repo kökünden çalıştırdığından emin ol (varsayılan öyle) veya dizini codex'te trust et.
+- **Port 3000 dolu**: `pnpm dev:web -- -p 3001`.
+- **URL eklenemiyor (HTTP 403 vb.)**: bazı siteler bot engeli uygular; sayfayı kopyalayıp metin olarak yapıştır.
+
+## Mimari (kısa)
+
+`src/lib/db` (SQLite + migration + repo) · `src/lib/jobs` (atomic job queue + worker) · `src/lib/agent` (AgentAdapter: command/mock/detect) · `src/lib/ai/instructions` (prompt'lar) · `src/lib/extraction` (fetch + Readability + sanitize) · `src/lib/export` (format/docx/notion/telegram) · `src/mcp` (MCP server) · `src/app` (Next.js UI). Ayrıntı ve "projeyi çalıştır" protokolü için [AGENTS.md](AGENTS.md).
