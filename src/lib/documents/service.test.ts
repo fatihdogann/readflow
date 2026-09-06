@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestDb } from "../db/testDb";
 import { createDocumentFromInput, getDocumentDetail, titleFromText } from "./service";
-import { listDocuments } from "../db/repo/documents";
+import { listDocuments, updateNote } from "../db/repo/documents";
 import { createJob } from "../db/repo/jobs";
 import { InputError, looksLikeUrl } from "../types";
 
@@ -64,6 +64,26 @@ describe("createDocumentFromInput", () => {
 });
 
 describe("getDocumentDetail + FTS arama", () => {
+  it("kişisel notu kaydeder, günceller ve boşaltınca zaman damgasını sıfırlar", async () => {
+    const handle = createTestDb();
+    try {
+      const doc = await createDocumentFromInput(handle.db, { text: "Not Testi\n\ngövde" });
+      expect(getDocumentDetail(handle.db, doc.id)?.document.note).toBe("");
+
+      updateNote(handle.db, doc.id, "Önemli: veriler 2026'dan.");
+      const withNote = getDocumentDetail(handle.db, doc.id)!.document;
+      expect(withNote.note).toBe("Önemli: veriler 2026'dan.");
+      expect(withNote.note_updated_at).toBeTruthy();
+
+      updateNote(handle.db, doc.id, "   ");
+      const cleared = getDocumentDetail(handle.db, doc.id)!.document;
+      expect(cleared.note).toBe("");
+      expect(cleared.note_updated_at).toBeNull();
+    } finally {
+      handle.cleanup();
+    }
+  });
+
   it("detay dokümanı, çıktıları ve job'ları birleştirir", async () => {
     const handle = createTestDb();
     try {

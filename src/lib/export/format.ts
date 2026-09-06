@@ -33,7 +33,12 @@ export function buildMarkdown(payload: ExportPayload): string {
     "---",
     "",
   ];
-  return [...header, content.trim(), ""].join("\n");
+  const parts = [...header, content.trim()];
+  if (document.note.trim()) {
+    parts.push("", "---", "", "## Kişisel Not", "", document.note.trim());
+  }
+  parts.push("");
+  return parts.join("\n");
 }
 
 export function buildTxt(payload: ExportPayload): string {
@@ -47,7 +52,12 @@ export function buildTxt(payload: ExportPayload): string {
     "----------------------------------------",
     "",
   ];
-  return [...header, content.trim(), ""].join("\n");
+  const parts = [...header, content.trim()];
+  if (document.note.trim()) {
+    parts.push("", "----------------------------------------", "KIŞISEL NOT", "", document.note.trim());
+  }
+  parts.push("");
+  return parts.join("\n");
 }
 
 export function outputLabel(payload: ExportPayload): string {

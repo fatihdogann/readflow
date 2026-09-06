@@ -166,4 +166,14 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    id: 3,
+    name: "document-note",
+    up: (db) => {
+      runAll(db, [
+        `ALTER TABLE documents ADD COLUMN note TEXT NOT NULL DEFAULT ''`,
+        `ALTER TABLE documents ADD COLUMN note_updated_at TEXT`,
+      ]);
+    },
+  },
 ];

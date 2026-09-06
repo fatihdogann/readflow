@@ -57,6 +57,9 @@ export function DocWorkspace({
   const [notice, setNotice] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [busyAction, setBusyAction] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(initial.document.note ?? "");
+  const [noteDirty, setNoteDirty] = useState(false);
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const { document: doc, outputs, jobs, tags } = detail;
   const hasActiveJobs = jobs.some((job) => job.status === "pending" || job.status === "processing");
@@ -153,6 +156,17 @@ export function DocWorkspace({
       body: JSON.stringify(body),
     });
     if (response.ok) setDetail((await response.json()) as DocumentDetail);
+  }
+
+  async function saveNote() {
+    setNoteSaving(true);
+    setNotice(null);
+    try {
+      await patchDocument({ note: noteDraft });
+      setNoteDirty(false);
+    } finally {
+      setNoteSaving(false);
+    }
   }
 
   async function saveTags(next: string[]) {
@@ -432,6 +446,48 @@ export function DocWorkspace({
           )
         ) : null}
       </div>
+
+      {/* Kişisel not */}
+      <section className="no-print rounded-lg border border-stone-200 bg-stone-100/50 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-stone-400">
+            Kişisel Not
+          </h2>
+          <span className="text-[11px] text-stone-400">
+            {noteDirty
+              ? "kaydedilmedi"
+              : doc.note_updated_at
+                ? `son düzenleme: ${doc.note_updated_at.slice(0, 16).replace("T", " ")}`
+                : ""}
+          </span>
+        </div>
+        <textarea
+          value={noteDraft}
+          onChange={(event) => {
+            setNoteDraft(event.target.value);
+            setNoteDirty(true);
+          }}
+          onKeyDown={(event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              event.preventDefault();
+              if (noteDirty && !noteSaving) void saveNote();
+            }
+          }}
+          placeholder="Bu dokümanla ilgili kendi notunu ekle… (⌘/Ctrl+Enter kaydeder)"
+          rows={3}
+          className="w-full resize-y rounded-md border border-stone-300 bg-white px-3 py-2 text-sm leading-relaxed outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:placeholder:text-stone-500 dark:focus:border-stone-500"
+        />
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void saveNote()}
+            disabled={!noteDirty || noteSaving}
+            className={buttonPrimary}
+          >
+            {noteSaving ? "Kaydediliyor…" : "Notu Kaydet"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

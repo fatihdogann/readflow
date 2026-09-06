@@ -14,6 +14,8 @@ export interface DocumentRow {
   original_html: string | null;
   favorite: 0 | 1;
   folder_id: number | null;
+  note: string;
+  note_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -172,6 +174,13 @@ export function setTitle(db: SqliteDb, id: number, title: string): void {
     nowIso(),
     id,
   );
+}
+
+export function updateNote(db: SqliteDb, id: number, note: string): void {
+  const trimmed = note.trim();
+  db.prepare(
+    `UPDATE documents SET note = ?, note_updated_at = ?, updated_at = ? WHERE id = ?`,
+  ).run(trimmed, trimmed ? nowIso() : null, nowIso(), id);
 }
 
 export function deleteDocument(db: SqliteDb, id: number): void {

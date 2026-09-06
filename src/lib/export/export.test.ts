@@ -18,6 +18,8 @@ const payload: ExportPayload = {
     original_html: "<p>orijinal metin</p>",
     favorite: 0,
     folder_id: null,
+    note: "",
+    note_updated_at: null,
     created_at: "2026-09-06T10:00:00.000Z",
     updated_at: "2026-09-06T10:00:00.000Z",
   },
@@ -52,6 +54,18 @@ describe("format", () => {
 
   it("slugify Türkçe karakterleri sadeleştirir", () => {
     expect(slugify("Örnek Çağrı: ŞİMDİ!")).toBe("ornek-cagri-simdi");
+  });
+
+  it("boş not exportlara girmez, dolu not bölüm olarak eklenir", () => {
+    expect(buildMarkdown(payload)).not.toContain("Kişisel Not");
+    const withNote = {
+      ...payload,
+      document: { ...payload.document, note: "Fiyat verisi 2026'ya ait, teyit et." },
+    };
+    const md = buildMarkdown(withNote);
+    expect(md).toContain("## Kişisel Not");
+    expect(md).toContain("teyit et");
+    expect(buildTxt(withNote)).toContain("KIŞISEL NOT");
   });
 });
 

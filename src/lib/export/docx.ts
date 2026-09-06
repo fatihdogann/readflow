@@ -137,6 +137,24 @@ export async function buildDocxBuffer(payload: ExportPayload): Promise<Buffer> {
     }
   }
 
+  if (document.note.trim()) {
+    children.push(
+      new Paragraph({
+        heading: HEADING_MAP[2],
+        spacing: { before: 360, after: 120 },
+        children: [new TextRun({ text: "Kişisel Not", bold: true })],
+      }),
+    );
+    for (const paragraph of document.note.trim().split(/\n{2,}/)) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 120, line: 320 },
+          children: [new TextRun({ text: paragraph.replace(/\n/g, " ") })],
+        }),
+      );
+    }
+  }
+
   const doc = new Document({
     creator: "Readflow",
     title: document.title,

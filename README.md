@@ -134,7 +134,7 @@ Tarayıcı ──▶ Web (Next.js) ──▶ documents + pending jobs
 
 | Tablo | İçerik |
 |---|---|
-| `documents` | Kaynak içerik: başlık, `source_type` (url/text), source_url/domain, yazar, yayın tarihi, `original_text`, sanitize edilmiş `original_html`, favorite, folder |
+| `documents` | Kaynak içerik: başlık, `source_type` (url/text), source_url/domain, yazar, yayın tarihi, `original_text`, sanitize edilmiş `original_html`, favorite, folder, kişisel `note` (+ `note_updated_at`) |
 | `document_outputs` | AI çıktıları: `readability` veya `summary`; özette `summary_level` (short/normal/detailed). `UNIQUE(document, operation, level)` — aynı işlem yeniden çalıştırılırsa **upsert** olur, orijinal içerik asla overwrite edilmez |
 | `jobs` | Kuyruk: status (`pending → processing → completed/failed`), attempts, error, zaman damgaları |
 | `folders`, `tags`, `document_tags` | Arşiv organizasyonu (many-to-many etiketler, FK `ON DELETE CASCADE/SET NULL`) |
