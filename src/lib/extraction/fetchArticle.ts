@@ -152,6 +152,24 @@ function firstLine(text: string, max = 120): string {
   return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 }
 
+const MAX_IMAGES = 10;
+
+/**
+ * Sanitize edilmiş makale HTML'inden mutlak görsel adreslerini çıkarır.
+ * İş anında snapshot'a yazılır; AI yalnızca bu adresleri kullanabilir.
+ */
+export function extractImageUrls(sanitizedHtml: string | null, max = MAX_IMAGES): string[] {
+  if (!sanitizedHtml) return [];
+  const urls: string[] = [];
+  const pattern = /<img\s[^>]*src="(https?:\/\/[^"]+)"/g;
+  for (const match of sanitizedHtml.matchAll(pattern)) {
+    const url = match[1];
+    if (url && !urls.includes(url)) urls.push(url);
+    if (urls.length >= max) break;
+  }
+  return urls;
+}
+
 /** JSDOM + Readability ile ana makaleyi çıkarır; HTML'i sanitize eder. */
 export function extractFromHtml(html: string, baseUrl: string): ArticleExtraction {
   const dom = new JSDOM(html, { url: baseUrl });

@@ -18,6 +18,8 @@ export interface CliCapabilities {
   sandboxReadonlyFlag: boolean;
   /** Prompt mutlaka konumsal argüman olarak mı verilmeli (jcode: <MESSAGE>) */
   argvRequired: boolean;
+  /** `--json` makine-okur sonuç bayrağı doğrulandı mı (jcode) */
+  jsonFlag: boolean;
   /** CLI'ın kendi doğrulanabilir model kataloğu (jcode `model list`) */
   modelOptions: string[] | null;
   /** Help metnine dayalı ek not (bayrak uydurmak için değil) */
@@ -62,6 +64,7 @@ export function discoverCapabilities(cli: SupportedCli, runner: HelpRunner = def
     providerFlag: false,
     sandboxReadonlyFlag: false,
     argvRequired: false,
+    jsonFlag: false,
     modelOptions: null,
     notes: [],
   };
@@ -88,6 +91,7 @@ export function discoverCapabilities(cli: SupportedCli, runner: HelpRunner = def
     caps.nonInteractive = /Run a single message and exit/i.test(help.output);
     caps.modelFlag = /(^|\s)--model\b/.test(combined);
     caps.providerFlag = /(^|\s)-p, --provider\b/.test(combined);
+    caps.jsonFlag = /(^|\s)--json\b/.test(combined);
     // jcode run <MESSAGE>: prompt konumsal argüman olarak zorunlu.
     caps.argvRequired = runHelp?.ok === true && /<MESSAGE>/.test(runHelp.output);
   }

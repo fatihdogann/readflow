@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { assertPublicHttpUrl, extractFromHtml } from "./fetchArticle";
+import { assertPublicHttpUrl, extractFromHtml, extractImageUrls } from "./fetchArticle";
 import { textToSafeHtml } from "./sanitize";
 import { InputError } from "../types";
 
@@ -71,5 +71,16 @@ describe("textToSafeHtml", () => {
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
     expect(html).toContain("<p>ikinci paragraf</p>");
+  });
+});
+
+describe("extractImageUrls", () => {
+  it("sanitize edilmiş HTML'den mutlak görsel adreslerini sırayla çıkarır", () => {
+    const html =
+      '<p><img src="https://ornek.com/a.png" alt="a"></p><img src="https://ornek.com/b.png"><img src="https://ornek.com/a.png">';
+    expect(extractImageUrls(html)).toEqual(["https://ornek.com/a.png", "https://ornek.com/b.png"]);
+    expect(extractImageUrls(null)).toEqual([]);
+    // Görsel adresi olmayan relatif src düşer
+    expect(extractImageUrls('<img src="/relatif.png">')).toEqual([]);
   });
 });

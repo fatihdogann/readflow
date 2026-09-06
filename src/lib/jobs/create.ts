@@ -9,6 +9,7 @@ import {
 } from "../db/repo/jobs";
 import { getDefaultProfileId, getProfile } from "../db/repo/agentProfiles";
 import { getEnvironmentLock, profileToSnapshot } from "../agent/profiles";
+import { extractImageUrls } from "../extraction/fetchArticle";
 import { InputError, operationSchema, summaryLevelSchema, type StoredSummaryLevel } from "../types";
 import { z } from "zod";
 
@@ -70,6 +71,10 @@ export function createJobWithSnapshot(db: SqliteDb, request: JobCreateRequest): 
   const notesIncluded = request.includeNotes === true && doc.note.trim().length > 0;
   const notesText = notesIncluded ? doc.note : null;
 
+  // URL kaynaklı dokümanlarda makale görselleri iş anında snapshot'a girer;
+  // AI yalnızca bu adresleri Markdown görseli olarak kullanabilir.
+  const sourceImages = extractImageUrls(doc.original_html);
+
   const aiConfig = resolveAiConfig(db, request.aiProfileId ?? null);
 
   return createJob(db, {
@@ -81,6 +86,7 @@ export function createJobWithSnapshot(db: SqliteDb, request: JobCreateRequest): 
     sourceRevision,
     notesIncluded,
     notesText,
+    sourceImages,
     aiConfig,
     forceNew: request.forceNew === true,
   });

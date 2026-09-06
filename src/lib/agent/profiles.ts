@@ -63,9 +63,29 @@ export function buildArgvForProfile(input: {
   }
   // jcode: mesaj konumsal argüman olarak zorunlu (transport argv).
   const argv = ["jcode", "run"];
+  if (caps.jsonFlag) argv.push("--json");
   if (input.provider && caps.providerFlag) argv.push("--provider", input.provider.trim().slice(0, 120));
   if (input.model && caps.modelFlag) argv.push("--model", input.model.trim().slice(0, 160));
   return argv;
+}
+
+/**
+ * jcode --json çıktısından yalnızca nihai mesaj metnini çıkarır; düşünme
+ * (reasoning) akışı ve [Tokens] metadata satırı böylece çıktıya bulaşmaz.
+ * JSON çözülemezse düz metne döner (fallback).
+ */
+export function parseJcodeJsonOutput(raw: string): string {
+  const start = raw.indexOf("{");
+  if (start === -1) return stripTrailingTokenLine(raw);
+  try {
+    const parsed = JSON.parse(raw.slice(start)) as { text?: unknown };
+    if (typeof parsed.text === "string" && parsed.text.trim()) {
+      return parsed.text.trim();
+    }
+  } catch {
+    /* düz metne düş */
+  }
+  return stripTrailingTokenLine(raw);
 }
 
 /**
@@ -109,7 +129,7 @@ export function createProfileAdapter(config: {
     promptVia: resolveTransport(caps, config.transport),
     label: config.cli,
     argv,
-    postProcess: config.cli === "jcode" ? stripTrailingTokenLine : undefined,
+    postProcess: config.cli === "jcode" ? parseJcodeJsonOutput : undefined,
   });
 }
 

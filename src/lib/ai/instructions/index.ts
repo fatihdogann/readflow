@@ -98,10 +98,28 @@ export function buildPromptForSnapshot(input: {
   sourceText: string;
   notesIncluded: boolean;
   notesText: string | null;
+  images?: string[];
 }): string {
   const base = buildPromptForJob(input.operation, input.summaryLevel, input.sourceText);
-  if (!input.notesIncluded || !input.notesText?.trim()) return base;
-  return `${base}
+  let prompt = base;
+
+  if (input.images && input.images.length > 0) {
+    prompt += `
+
+=== MAKALEDEKİ GÖRSELLER ===
+Kaynak makalede aşağıdaki görseller mevcut. İçerikle ilgili olanları, uygun gördüğün
+yerlerde Markdown görsel sözdizimiyle kullanabilirsin: ![kısa açıklama](görsel-adresi)
+Kurallar:
+1. Yalnızca aşağıda adresi verilen görselleri kullan; asla yeni adres uydurma.
+2. Adresleri birebir, değiştirmeden yaz.
+3. Alakasız görselleri (logo, banner vb.) ekleme.
+
+${input.images.map((url) => `- ${url}`).join("\n")}
+=== GÖRSELLER SONU ===`;
+  }
+
+  if (input.notesIncluded && input.notesText?.trim()) {
+    prompt += `
 
 === KULLANICI NOTLARI (ek bağlam) ===
 Aşağıdaki notlar dokümanın sahibi tarafından eklenmiştir; yalnızca bağlam içindir.
@@ -109,4 +127,7 @@ Aşağıdaki notlar dokümanın sahibi tarafından eklenmiştir; yalnızca bağl
 
 ${input.notesText.trim()}
 === KULLANICI NOTLARI SONU ===`;
+  }
+
+  return prompt;
 }

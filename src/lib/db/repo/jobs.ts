@@ -39,6 +39,8 @@ export interface JobRow {
   notes_included: 0 | 1;
   notes_text: string | null;
   ai_config: string | null;
+  /** İş anında sabitlenen makale görsel adresleri (JSON dizi). */
+  source_images: string;
 }
 
 export const DEFAULT_LEASE_MS = 10 * 60 * 1000;
@@ -52,6 +54,7 @@ export interface CreateJobInput {
   sourceRevision?: number;
   notesIncluded?: boolean;
   notesText?: string | null;
+  sourceImages?: string[];
   aiConfig?: AiConfigSnapshot | null;
   /** true ise aynı anahtarlı aktif iş iptal edilip yenisi açılır ("başka AI ile yeniden çalıştır"). */
   forceNew?: boolean;
@@ -86,8 +89,8 @@ export function createJob(db: SqliteDb, input: CreateJobInput): JobRow {
       .prepare(
         `INSERT INTO jobs
            (document_id, operation, summary_level, status, attempts, created_at,
-            source_kind, source_text, source_revision, notes_included, notes_text, ai_config)
-         VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?, ?)`,
+            source_kind, source_text, source_revision, notes_included, notes_text, ai_config, source_images)
+         VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.documentId,
@@ -100,6 +103,7 @@ export function createJob(db: SqliteDb, input: CreateJobInput): JobRow {
         input.notesIncluded ? 1 : 0,
         input.notesText ?? null,
         input.aiConfig ? JSON.stringify(input.aiConfig) : null,
+        JSON.stringify(input.sourceImages ?? []),
       );
     return getJob(db, Number(result.lastInsertRowid))!;
   });

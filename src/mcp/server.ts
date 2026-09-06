@@ -84,18 +84,27 @@ server.registerTool(
     }
     const document = getDocument(db, job.document_id);
     const sourceText = job.source_text.trim() ? job.source_text : document?.original_text ?? "";
+    let images: string[] = [];
+    try {
+      const parsed = JSON.parse(job.source_images) as unknown;
+      images = Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
+    } catch {
+      images = [];
+    }
     const prompt = buildPromptForSnapshot({
       operation: job.operation,
       summaryLevel: job.summary_level,
       sourceText,
       notesIncluded: job.notes_included === 1,
       notesText: job.notes_text,
+      images,
     });
     return textResult({
       job,
       documentTitle: document?.title ?? null,
       sourceKind: job.source_kind,
       notesIncluded: job.notes_included === 1,
+      images,
       prompt,
       note: "complete_job yalnızca bu claim'in sahibi (mcp) tarafından çağrılabilir.",
     });

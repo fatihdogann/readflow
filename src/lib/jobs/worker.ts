@@ -65,6 +65,15 @@ function ensureSnapshotText(db: SqliteDb, job: JobRow): string {
   return text;
 }
 
+function parseImages(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Tek job'ı uçtan uca işletir: snapshot'tan prompt üret -> adapter çalıştır -> çıktı kaydet. */
 export async function processJob(
   db: SqliteDb,
@@ -80,6 +89,7 @@ export async function processJob(
     sourceText,
     notesIncluded: job.notes_included === 1,
     notesText: job.notes_text,
+    images: parseImages(job.source_images),
   });
   const result = await adapter.run({ prompt, timeoutMs: agentTimeoutMs() });
   completeWithProvenance(db, job, workerId, aiConfig, adapter.name, result.text, result.meta);

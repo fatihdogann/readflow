@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPromptForJob,
+  buildPromptForSnapshot,
   buildReadabilityPrompt,
   buildSummaryPrompt,
 } from "./index";
@@ -44,5 +45,31 @@ describe("AI instructions", () => {
     const prompt = buildReadabilityPrompt(huge);
     expect(prompt).toContain("[NOT: Kaynak metin çok uzun");
     expect(prompt.length).toBeLessThan(huge.length);
+  });
+
+  it("snapshot görselleri ve notlar prompt'a kural listesiyle girer", () => {
+    const prompt = buildPromptForSnapshot({
+      operation: "summary",
+      summaryLevel: "normal",
+      sourceText: "kısa metin",
+      notesIncluded: true,
+      notesText: "kullanıcı notu",
+      images: ["https://ornek.com/grafik.png"],
+    });
+    expect(prompt).toContain("=== MAKALEDEKİ GÖRSELLER ===");
+    expect(prompt).toContain("https://ornek.com/grafik.png");
+    expect(prompt).toContain("![kısa açıklama](görsel-adresi)");
+    expect(prompt).toContain("asla yeni adres uydurma");
+    expect(prompt).toContain("=== KULLANICI NOTLARI (ek bağlam) ===");
+
+    const without = buildPromptForSnapshot({
+      operation: "summary",
+      summaryLevel: "normal",
+      sourceText: "kısa metin",
+      notesIncluded: false,
+      notesText: null,
+    });
+    expect(without).not.toContain("MAKALEDEKİ GÖRSELLER");
+    expect(without).not.toContain("KULLANICI NOTLARI");
   });
 });

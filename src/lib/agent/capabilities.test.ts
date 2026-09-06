@@ -3,6 +3,7 @@ import { discoverCapabilities, type HelpRunner } from "./capabilities";
 import {
   buildArgvForProfile,
   buildCommandForProfile,
+  parseJcodeJsonOutput,
   resolveTransport,
   stripTrailingTokenLine,
 } from "./profiles";
@@ -30,6 +31,9 @@ Usage: jcode run [OPTIONS] <MESSAGE>
 Arguments:
   <MESSAGE>
           The message to send
+Options:
+  --json
+          Emit a machine-readable JSON result
   --model <model>
 `;
 
@@ -117,10 +121,18 @@ describe("profil komut üretimi (shellsiz argv kaynağı)", () => {
     expect(argv).toEqual(["claude", "-p", "--model", "x y z"]);
   });
 
-  it("jcode argv'sı provider/model bayraklarını taşır", () => {
+  it("jcode argv'sı --json + provider/model bayraklarını taşır", () => {
     const caps = discoverCapabilities("jcode", runnerFor(jcodeHelp, undefined, jcodeRunHelp));
+    expect(caps.jsonFlag).toBe(true);
     const argv = buildArgvForProfile({ cli: "jcode", provider: "zai", model: "glm-5.3-flash" }, caps);
-    expect(argv).toEqual(["jcode", "run", "--provider", "zai", "--model", "glm-5.3-flash"]);
+    expect(argv).toEqual(["jcode", "run", "--json", "--provider", "zai", "--model", "glm-5.3-flash"]);
+  });
+
+  it("jcode --json çıktısından yalnızca mesaj metni alınır (reasoning/token temizliği)", () => {
+    expect(parseJcodeJsonOutput('{"session_id":"s","text":"TAMAM","usage":{}}')).toBe("TAMAM");
+    // JSON çözülemezse düz metne düşer ve [Tokens] satırı kırpılır
+    expect(parseJcodeJsonOutput("TAMAM\n[Tokens] upload: 17507")).toBe("TAMAM");
+    expect(parseJcodeJsonOutput("TAMAM")).toBe("TAMAM");
   });
 
   it("jcode token metadata satırı yalnızca sondaysa kırpılır", () => {

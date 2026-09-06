@@ -284,6 +284,13 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    id: 9,
+    name: "job-source-images",
+    up: (db) => {
+      runAll(db, [`ALTER TABLE jobs ADD COLUMN source_images TEXT NOT NULL DEFAULT '[]'`]);
+    },
+  },
 ];
 
 function runAll(db: SqliteDb, statements: string[]): void {
