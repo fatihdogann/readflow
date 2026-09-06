@@ -33,7 +33,8 @@ function parseConfig(raw: string | null): { name?: string; cli?: string; model?:
   }
 }
 
-function statusBadgeClass(status: JobStatus): string {
+function statusBadgeClass(status: JobStatus, cancelled?: boolean): string {
+  if (cancelled) return "bg-stone-200 text-stone-600 dark:bg-stone-700 dark:text-stone-300";
   switch (status) {
     case "pending":
       return "bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200";
@@ -134,6 +135,17 @@ export function AiActions({
       onJobsChange([body.job, ...detail.jobs.filter((job) => job.id !== jobId)]);
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Yeniden deneme başarısız");
+    }
+  }
+
+  async function cancel(jobId: number): Promise<void> {
+    onNotice("");
+    try {
+      const body = await mutateJson<{ job: JobRow }>(`/api/jobs/${jobId}/cancel`, "POST");
+      onJobsChange([body.job, ...detail.jobs.filter((job) => job.id !== jobId)]);
+      onNotice(body.job.cancelled === 1 ? "İş iptal edildi." : "İptal talebi alındı; süreç sonlandırılıyor.");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "İptal edilemedi");
     }
   }
 
@@ -323,6 +335,7 @@ export function AiActions({
         <div className="flex flex-col gap-1" aria-live="polite">
           {recentJobs.map((job) => {
             const config = parseConfig(job.ai_config);
+            const cancelled = job.cancelled === 1;
             const pendingReason =
               job.status === "pending" && status && !status.workerAlive
                 ? "Agent bağlı değil — worker açılınca işlenir"
@@ -331,15 +344,15 @@ export function AiActions({
                   : null;
             return (
               <div key={job.id} className="flex flex-wrap items-center gap-2 border-t border-stone-200/80 pt-2 text-xs first:border-0 first:pt-0 dark:border-stone-800">
-                <span className={`rounded px-1.5 py-0.5 font-medium ${statusBadgeClass(job.status)}`}>
+                <span className={`rounded px-1.5 py-0.5 font-medium ${statusBadgeClass(job.status, cancelled)}`}>
                   {operationLabel[job.operation]}
                   {job.operation === "summary" && job.summary_level
                     ? ` · ${summaryLevelLabel[job.summary_level as SummaryLevel]}`
                     : ""}
                 </span>
-                <span className={job.status === "failed" ? "text-red-600 dark:text-red-400" : "text-stone-600 dark:text-stone-400"}>
-                  {pendingReason ?? jobStatusLabel[job.status]}
-                  {job.status === "failed" && job.error ? `: ${job.error}` : ""}
+                <span className={job.status === "failed" && !cancelled ? "text-red-600 dark:text-red-400" : "text-stone-600 dark:text-stone-400"}>
+                  {cancelled ? "İptal edildi" : (pendingReason ?? jobStatusLabel[job.status])}
+                  {job.status === "failed" && !cancelled && job.error ? `: ${job.error}` : ""}
                 </span>
                 {config?.name || config?.cli ? (
                   <span className="text-stone-500 dark:text-stone-400">
@@ -352,7 +365,7 @@ export function AiActions({
                     {detail.jobs.filter((candidate) => candidate.operation === job.operation && candidate.summary_level === job.summary_level).length} çalışma
                   </span>
                 ) : null}
-                {job.status === "failed" ? (
+                {job.status === "failed" && !cancelled ? (
                   <>
                     <button
                       type="button"
@@ -370,20 +383,30 @@ export function AiActions({
                     </button>
                   </>
                 ) : job.status === "pending" || job.status === "processing" ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className="min-h-[32px] underline underline-offset-2 hover:text-stone-900 disabled:opacity-40 dark:hover:text-stone-100"
-                    onClick={() =>
-                      void createJob(
-                        job.operation,
-                        (job.summary_level || undefined) as SummaryLevel | undefined,
-                        true,
-                      )
-                    }
-                  >
-                    İptal et ve mevcut ayarlarla yeniden başlat
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="min-h-[32px] underline underline-offset-2 hover:text-stone-900 disabled:opacity-40 dark:hover:text-stone-100"
+                      onClick={() => void cancel(job.id)}
+                    >
+                      İptal et
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="min-h-[32px] underline underline-offset-2 hover:text-stone-900 disabled:opacity-40 dark:hover:text-stone-100"
+                      onClick={() =>
+                        void createJob(
+                          job.operation,
+                          (job.summary_level || undefined) as SummaryLevel | undefined,
+                          true,
+                        )
+                      }
+                    >
+                      İptal et ve mevcut ayarlarla yeniden başlat
+                    </button>
+                  </>
                 ) : null}
               </div>
             );

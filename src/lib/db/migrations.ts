@@ -304,6 +304,18 @@ const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    id: 11,
+    name: "job-cancellation",
+    up: (db) => {
+      runAll(db, [
+        // status CHECK kısıtı değiştirilemediği için iptal, failed + cancelled=1 ile temsil edilir;
+        // UI bunu hatadan ayırt ederek "İptal edildi" gösterir.
+        `ALTER TABLE jobs ADD COLUMN cancelled INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE jobs ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0`,
+      ]);
+    },
+  },
 ];
 
 function runAll(db: SqliteDb, statements: string[]): void {

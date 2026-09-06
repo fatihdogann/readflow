@@ -42,6 +42,10 @@ export interface JobRow {
   /** İş anında sabitlenen makale görsel adresleri (JSON dizi). */
   source_images: string;
   request_key: string;
+  /** Kullanıcı iptali: failed + cancelled=1 (UI "Hata" değil "İptal edildi" gösterir). */
+  cancelled: 0 | 1;
+  /** Worker'ın çalışan süreci sonlandırması için istek bayrağı. */
+  cancel_requested: 0 | 1;
 }
 
 export const DEFAULT_LEASE_MS = 10 * 60 * 1000;
@@ -83,7 +87,7 @@ export function createJob(db: SqliteDb, input: CreateJobInput): JobRow {
     if (input.forceNew) {
       // "Başka AI ile yeniden çalıştır": bekleyen işi açıkça iptal et, yenisini aç.
       db.prepare(
-        `UPDATE jobs SET status = 'failed', error = ?, completed_at = ?
+        `UPDATE jobs SET status = 'failed', error = ?, completed_at = ?, cancelled = 1
          WHERE document_id = ? AND operation = ? AND summary_level = ?
            AND status IN ('pending','processing')`,
       ).run(
@@ -219,7 +223,8 @@ export interface CompleteOutcome {
 /**
  * Job'ı tamamlar ve çıktıyı kaydeder. İş sahipliği doğrulanır: lease süresi
  * dolup işi başka sahip aldıysa geç gelen sonuç reddedilir ve mevcut çıktı
- * ezilmez. Aynı anda değişmez bir çıktı revizyonu da kaydedilir.
+ * ezilmez. İptal edilen işin geç gelen çıktısı da kaydedilmez. Aynı anda
+ * değişmez bir çıktı revizyonu da kaydedilir.
  */
 export function completeJob(db: SqliteDb, input: CompleteJobInput): CompleteOutcome {
   const tx = db.transaction((): CompleteOutcome => {
@@ -230,6 +235,9 @@ export function completeJob(db: SqliteDb, input: CompleteJobInput): CompleteOutc
     }
     if (job.owner !== input.owner) {
       throw new Error("İş sahipliği değişti; geç gelen sonuç kabul edilmedi");
+    }
+    if (job.cancelled === 1) {
+      throw new Error("İş iptal edildi; geç gelen sonuç kabul edilmedi");
     }
     const output = upsertOutput(db, {
       documentId: job.document_id,
@@ -291,12 +299,61 @@ export function retryJob(db: SqliteDb, jobId: number): JobRow {
     // Snapshot alanları (source_text, notes, ai_config) aynen korunur.
     const result = db.prepare(
       `UPDATE jobs SET status = 'pending', error = NULL, started_at = NULL, completed_at = NULL,
-         owner = NULL, lease_expires_at = NULL WHERE id = ? AND status = 'failed' AND attempts < 5`,
+         owner = NULL, lease_expires_at = NULL, cancelled = 0, cancel_requested = 0
+       WHERE id = ? AND status = 'failed' AND attempts < 5`,
     ).run(jobId);
     if (result.changes === 0) throw new Error("İş durumu değişti; yeniden deneme başlatılamadı");
     return getJob(db, jobId)!;
   });
   return tx.immediate();
+}
+
+export type CancelOutcome =
+  | { action: "cancelled"; job: JobRow }
+  | { action: "abort-requested"; job: JobRow }
+  | { action: "already-finished"; job: JobRow };
+
+/**
+ * Bağımsız "İptal et":
+ * - pending → anında iptal (failed + cancelled=1; UI "Hata" değil "İptal edildi" gösterir)
+ * - processing → cancel_requested bayrağı; worker CLI sürecini sonlandırıp finalizeCancel çağırır
+ * - sonuçlanmış iş → dokunulmaz
+ */
+export function cancelJob(db: SqliteDb, jobId: number): CancelOutcome {
+  const tx = db.transaction((): CancelOutcome => {
+    const job = getJob(db, jobId);
+    if (!job) throw new Error(`Job bulunamadı: ${jobId}`);
+    if (job.status === "pending") {
+      db.prepare(
+        `UPDATE jobs SET status = 'failed', cancelled = 1, error = ?, completed_at = ? WHERE id = ? AND status = 'pending'`,
+      ).run("İptal edildi", nowIso(), jobId);
+      return { action: "cancelled", job: getJob(db, jobId)! };
+    }
+    if (job.status === "processing") {
+      db.prepare(`UPDATE jobs SET cancel_requested = 1 WHERE id = ? AND status = 'processing'`).run(jobId);
+      return { action: "abort-requested", job: getJob(db, jobId)! };
+    }
+    return { action: "already-finished", job };
+  });
+  return tx.immediate();
+}
+
+/** Worker, CLI sürecini sonlandırdıktan sonra iptali kesinleştirir (sahiplik kontrollü). */
+export function finalizeCancel(db: SqliteDb, jobId: number, owner: string): boolean {
+  const result = db
+    .prepare(
+      `UPDATE jobs SET status = 'failed', cancelled = 1, error = ?, completed_at = ?
+       WHERE id = ? AND owner = ? AND status = 'processing'`,
+    )
+    .run("İptal edildi", nowIso(), jobId, owner);
+  return result.changes > 0;
+}
+
+export function isCancelRequested(db: SqliteDb, jobId: number): boolean {
+  const row = db.prepare(`SELECT cancel_requested FROM jobs WHERE id = ?`).get(jobId) as
+    | { cancel_requested: 0 | 1 }
+    | undefined;
+  return row?.cancel_requested === 1;
 }
 
 /**

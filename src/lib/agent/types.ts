@@ -11,6 +11,8 @@ export interface AgentRunResult {
 export interface AgentAdapter {
   readonly name: string;
   run(task: AgentRunTask): Promise<AgentRunResult>;
+  /** Destekleyen adapter, çalışan CLI sürecini (ve yalnızca kendi alt süreçlerini) sonlandırır. */
+  abort?(): void;
 }
 
 export interface AgentRuntimeInfo {

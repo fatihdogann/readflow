@@ -3,6 +3,7 @@ import { createTestDb } from "../../db/testDb";
 import { insertDocument, getDocument } from "./documents";
 import { saveEdit } from "./documentEdits";
 import {
+  cancelJob,
   claimJobById,
   claimNextJob,
   completeJob,
@@ -10,6 +11,8 @@ import {
   countsByStatus,
   DEFAULT_LEASE_MS,
   failJob,
+  finalizeCancel,
+  isCancelRequested,
   newWorkerId,
   recoverExpiredLeases,
   releaseJob,
@@ -365,6 +368,50 @@ describe("job queue: tamamlama ve revizyonlar", () => {
       expect(failed.error).toContain("agent patladı");
       expect(retryJob(handle.db, job.id).status).toBe("pending");
       expect(() => retryJob(handle.db, job.id)).toThrow(/Yalnızca başarısız/);
+    } finally {
+      handle.cleanup();
+    }
+  });
+});
+
+describe("job iptali", () => {
+  it("pending iş anında iptal olur; sonuclanan işe dokunmaz", () => {
+    const { handle, doc } = setup();
+    try {
+      const job = createJob(handle.db, { documentId: doc.id, operation: "readability" });
+      const outcome = cancelJob(handle.db, job.id);
+      expect(outcome.action).toBe("cancelled");
+      const row = handle.db
+        .prepare(`SELECT status, cancelled, error FROM jobs WHERE id = ?`)
+        .get(job.id) as { status: string; cancelled: number; error: string };
+      expect(row.status).toBe("failed");
+      expect(row.cancelled).toBe(1);
+      expect(row.error).toBe("İptal edildi");
+      expect(cancelJob(handle.db, job.id).action).toBe("already-finished");
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("processing iptali: sahiplikli kesinleştirme, lease kurtarması yeniden başlatmaz, geç gelen sonuç reddedilir", () => {
+    const { handle, doc } = setup();
+    try {
+      const job = createJob(handle.db, { documentId: doc.id, operation: "readability" });
+      claimNextJob(handle.db, W1);
+      expect(cancelJob(handle.db, job.id).action).toBe("abort-requested");
+      expect(isCancelRequested(handle.db, job.id)).toBe(true);
+
+      expect(finalizeCancel(handle.db, job.id, W2)).toBe(false);
+      expect(finalizeCancel(handle.db, job.id, W1)).toBe(true);
+      expect(countsByStatus(handle.db)).toMatchObject({ processing: 0 });
+      expect(recoverExpiredLeases(handle.db)).toBe(0);
+      expect(() =>
+        completeJob(handle.db, { jobId: job.id, owner: W1, content: "geç gelen" }),
+      ).toThrow(/işlenmiyor durumda değil/);
+
+      const retried = retryJob(handle.db, job.id);
+      expect(retried.cancelled).toBe(0);
+      expect(retried.status).toBe("pending");
     } finally {
       handle.cleanup();
     }

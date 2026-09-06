@@ -75,6 +75,8 @@ export class CommandAgentAdapter implements AgentAdapter {
   private readonly promptVia: "stdin" | "argv";
   private readonly argvOverride?: string[];
   private readonly postProcess?: (text: string) => string;
+  /** İptal (abort) için o an çalışan child sürecin referansı. */
+  private currentChild: ReturnType<typeof spawn> | null = null;
 
   constructor(
     readonly command: string,
@@ -85,6 +87,17 @@ export class CommandAgentAdapter implements AgentAdapter {
     this.postProcess = options.postProcess;
     const program = (options.argv?.[0] ?? tokenizeCommand(command)[0]) ?? "bilinmeyen";
     this.name = options.label ?? program;
+  }
+
+  /**
+   * İptal: bu işin başlattığı CLI sürecini SIGKILL ile sonlandırır. Yalnızca
+   * kendi child sürecine dokunur; başka oturumlar etkilenmez.
+   */
+  abort(): void {
+    const child = this.currentChild;
+    if (!child || child.pid === undefined) return;
+    child.kill("SIGKILL");
+    this.currentChild = null;
   }
 
   run(task: AgentRunTask): Promise<AgentRunResult> {
@@ -108,6 +121,7 @@ export class CommandAgentAdapter implements AgentAdapter {
         stdio: ["pipe", "pipe", "pipe"],
         cwd: process.env.READFLOW_AGENT_CWD?.trim() || process.cwd(),
       });
+      this.currentChild = child;
 
       let stdout = "";
       let stderr = "";
@@ -138,6 +152,7 @@ export class CommandAgentAdapter implements AgentAdapter {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        if (this.currentChild === child) this.currentChild = null;
         const text = stdout.trim();
         if (code !== 0) {
           const detail = stderr.trim().slice(-400) || text.slice(-400);

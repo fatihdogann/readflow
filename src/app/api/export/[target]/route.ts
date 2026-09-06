@@ -5,6 +5,7 @@ import { getDocument } from "@/lib/db/repo/documents";
 import { getEdit } from "@/lib/db/repo/documentEdits";
 import { getOutput, getOutputRevision } from "@/lib/db/repo/outputs";
 import { buildDocxBuffer } from "@/lib/export/docx";
+import { buildPdf } from "@/lib/export/pdf";
 import { getRemoteExporter } from "@/lib/export/registry";
 import type { ExportPayload } from "@/lib/export/types";
 import { slugify } from "@/lib/export/format";
@@ -85,6 +86,24 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
           "content-disposition": `attachment; filename="${filename}"`,
         },
       });
+    }
+    if (target === "pdf") {
+      try {
+        const bytes = await buildPdf(payload, label);
+        const filename = `${slugify(payload.document.title)}-${slugify(label)}.pdf`;
+        return new Response(new Uint8Array(bytes), {
+          headers: {
+            "content-type": "application/pdf",
+            "content-disposition": `attachment; filename="${filename}"`,
+          },
+        });
+      } catch (pdfError) {
+        console.error("[export/pdf]", pdfError);
+        return Response.json(
+          { ok: false, message: "PDF oluşturulamadı — içerik çok uzun olabilir; tekrar dene." },
+          { status: 500 },
+        );
+      }
     }
 
     const exporter = getRemoteExporter(target);

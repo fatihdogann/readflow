@@ -1,4 +1,5 @@
 import type { ExportPayload } from "./types";
+import { payloadContent } from "./content";
 import { isSummaryLevel, operationLabel, summaryLevelLabel } from "../types";
 
 function outputTitle(output: ExportPayload["output"]): string {
@@ -23,8 +24,8 @@ function metaLines(payload: ExportPayload, variantLabel?: string): string[] {
 }
 
 export function buildMarkdown(payload: ExportPayload, variantLabel?: string): string {
-  const { document, output } = payload;
-  const content = output ? output.content : (payload.editedContent ?? document.original_text);
+  const { document } = payload;
+  const content = payloadContent(payload);
   const header = [
     `# ${document.title}`,
     "",
@@ -42,8 +43,8 @@ export function buildMarkdown(payload: ExportPayload, variantLabel?: string): st
 }
 
 export function buildTxt(payload: ExportPayload, variantLabel?: string): string {
-  const { document, output } = payload;
-  const content = output ? output.content : (payload.editedContent ?? document.original_text);
+  const { document } = payload;
+  const content = payloadContent(payload);
   const header = [
     document.title.toUpperCase(),
     "",

@@ -42,7 +42,7 @@ export function ExportMenu({
   const content = output ? output.content : (editedContent ?? doc.original_text);
   const base = `${slugify(doc.title)}-${slugify(variantLabel)}`;
 
-  async function postTarget(target: "docx" | "notion" | "telegram"): Promise<void> {
+  async function postTarget(target: "pdf" | "docx" | "notion" | "telegram"): Promise<void> {
     setBusy(target);
     try {
       const response = await fetch(`/api/export/${target}`, {
@@ -55,15 +55,15 @@ export function ExportMenu({
           variantLabel,
         }),
       });
-      if (target === "docx") {
+      if (target === "pdf" || target === "docx") {
         if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          onMessage(body?.error ?? "DOCX üretilemedi");
+          const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+          onMessage(body?.error ?? body?.message ?? (target === "pdf" ? "PDF oluşturulamadı" : "DOCX üretilemedi"));
           return;
         }
         const blob = await response.blob();
-        downloadFile(`${base}.docx`, blob, "application/octet-stream");
-        onMessage(`${variantLabel} DOCX indirildi.`);
+        downloadFile(`${base}.${target}`, blob, "application/octet-stream");
+        onMessage(`${variantLabel} ${target.toUpperCase()} indirildi.`);
         return;
       }
       const body = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
@@ -111,7 +111,10 @@ export function ExportMenu({
           Markdown indir
         </button>
         <button type="button" className={itemClass} onClick={() => window.print()}>
-          PDF (Yazdır)
+          Yazdır…
+        </button>
+        <button type="button" className={itemClass} disabled={busy !== null} onClick={() => void postTarget("pdf")}>
+          {busy === "pdf" ? "PDF hazırlanıyor…" : "PDF indir"}
         </button>
         <button type="button" className={itemClass} disabled={busy !== null} onClick={() => void postTarget("docx")}>
           {busy === "docx" ? "DOCX üretiliyor…" : "DOCX indir"}

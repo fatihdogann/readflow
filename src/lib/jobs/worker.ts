@@ -6,6 +6,8 @@ import {
   completeJob,
   DEFAULT_LEASE_MS,
   failJob,
+  finalizeCancel,
+  isCancelRequested,
   recoverExpiredLeases,
   releaseJob,
   renewLease,
@@ -136,6 +138,7 @@ export class ReadflowWorker {
   private stopped = false;
   private currentJobId: number | null = null;
   private currentAgentName: string | null = null;
+  private currentJobAdapter: AgentAdapter | null = null;
   private current: Promise<void> | null = null;
   private lastError: string | undefined;
 
@@ -173,6 +176,10 @@ export class ReadflowWorker {
         });
         if (this.currentJobId !== null) {
           renewLease(this.db, this.currentJobId, this.workerId, DEFAULT_LEASE_MS);
+          // Kullanıcı iptal ettiyse çalışan CLI sürecini gerçekten sonlandır.
+          if (isCancelRequested(this.db, this.currentJobId)) {
+            this.currentJobAdapter?.abort?.();
+          }
         }
       } catch {
         /* kalp atışı hatası döngüyü bozmaz */
@@ -215,12 +222,18 @@ export class ReadflowWorker {
 
           this.currentJobId = job.id;
           this.currentAgentName = jobAdapter.name;
+          this.currentJobAdapter = jobAdapter;
           this.current = processJob(this.db, jobAdapter, job, this.workerId)
             .then(() => {
               this.lastError = undefined;
             })
             .catch((error: unknown) => {
               const message = error instanceof Error ? error.message : String(error);
+              // Kullanıcı iptal ettiyse bunu "Hata" olarak yazma; iptali kesinleştir.
+              if (isCancelRequested(this.db, job.id) && finalizeCancel(this.db, job.id, this.workerId)) {
+                this.lastError = undefined;
+                return;
+              }
               this.lastError = message;
               try {
                 failJob(this.db, job.id, this.workerId, message);
@@ -232,6 +245,7 @@ export class ReadflowWorker {
             .finally(() => {
               this.currentJobId = null;
               this.currentAgentName = null;
+              this.currentJobAdapter = null;
               this.current = null;
             });
           await this.current;

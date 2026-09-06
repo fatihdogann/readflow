@@ -8,65 +8,15 @@ import {
   TextRun,
 } from "docx";
 import type { ExportPayload } from "./types";
-
-interface Line {
-  kind: "heading" | "paragraph" | "bullet" | "quote" | "code";
-  text: string;
-}
-
-/** "#", "##" … başlık seviyesini döndürür; başlık değilse 0. */
-function headingLevelOf(raw: string): number {
-  let level = 0;
-  while (level < 6 && raw.startsWith("#", level)) {
-    level += 1;
-  }
-  if (level === 0) return 0;
-  if (level === raw.length) return level; // yalnızca #'ler
-  return raw[level] === " " ? level : 0;
-}
-
-/** Basit markdown satır ayrıştırıcı (başlık, madde, alıntı, kod, paragraf). */
-function parseLines(markdown: string): Line[] {
-  const lines: Line[] = [];
-  let inFence = false;
-  for (const raw of markdown.split(/\r?\n/)) {
-    if (raw.trim().startsWith("```")) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) {
-      lines.push({ kind: "code", text: raw });
-      continue;
-    }
-    const headingLevel = headingLevelOf(raw);
-    if (headingLevel > 0) {
-      lines.push({ kind: "heading", text: raw.slice(headingLevel).trim() });
-      continue;
-    }
-    const trimmed = raw.trimStart();
-    if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("+ ")) {
-      lines.push({ kind: "bullet", text: trimmed.slice(2).trim() });
-      continue;
-    }
-    if (trimmed.startsWith("> ")) {
-      lines.push({ kind: "quote", text: trimmed.slice(2).trim() });
-      continue;
-    }
-    if (trimmed === ">") {
-      lines.push({ kind: "quote", text: "" });
-      continue;
-    }
-    lines.push({ kind: "paragraph", text: raw });
-  }
-  return lines;
-}
+import { payloadContent } from "./content";
+import { parseMarkdownLines } from "./markdown-lines";
 
 const HEADING_MAP = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3];
 
 /** DOCX'i tamamen lokalde üretir (harici servis yok). */
 export async function buildDocxBuffer(payload: ExportPayload): Promise<Buffer> {
-  const { document, output } = payload;
-  const content = output ? output.content : (payload.editedContent ?? document.original_text);
+  const { document } = payload;
+  const content = payloadContent(payload);
 
   const metaTexts = [
     document.source_url ? `Kaynak: ${document.source_url}` : "Kaynak: Yapıştırılan metin",
@@ -94,7 +44,7 @@ export async function buildDocxBuffer(payload: ExportPayload): Promise<Buffer> {
     }),
   ];
 
-  for (const line of parseLines(content)) {
+  for (const line of parseMarkdownLines(content)) {
     if (line.kind === "heading") {
       children.push(
         new Paragraph({
