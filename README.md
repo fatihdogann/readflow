@@ -108,6 +108,90 @@ Tüm veri (dokümanlar, çıktılar, job geçmişi) yalnızca `~/.readflow/` iç
 - **Port 3000 dolu**: `pnpm dev:web -- -p 3001`.
 - **URL eklenemiyor (HTTP 403 vb.)**: bazı siteler bot engeli uygular; sayfayı kopyalayıp metin olarak yapıştır.
 
-## Mimari (kısa)
+## Mimari
 
-`src/lib/db` (SQLite + migration + repo) · `src/lib/jobs` (atomic job queue + worker) · `src/lib/agent` (AgentAdapter: command/mock/detect) · `src/lib/ai/instructions` (prompt'lar) · `src/lib/extraction` (fetch + Readability + sanitize) · `src/lib/export` (format/docx/notion/telegram) · `src/mcp` (MCP server) · `src/app` (Next.js UI). Ayrıntı ve "projeyi çalıştır" protokolü için [AGENTS.md](AGENTS.md).
+Readflow bağımsız süreçler halinde çalışır; hepsi aynı SQLite dosyasını **WAL** modunda paylaşır ve birbirine yalnızca veritabanı üzerinden konuşur:
+
+| Süreç | Komut | Sorumluluk |
+|---|---|---|
+| Web uygulaması | `pnpm dev:web` | Next.js 16 (App Router): UI, REST API, URL extraction, export servisleri |
+| Worker | `pnpm dev:worker` | `pending` job'ları atomik claim eder, agent CLI'ı çalıştırır, çıktıyı yazar |
+| MCP sunucusu | `pnpm dev:mcp` | Coding agent'lara stdio üzerinden job/doküman tool'ları sunar |
+| Agent CLI | senin makinen | AI işini gerçekleştiren `claude` / `codex` / `jcode` / özel script |
+
+```
+Tarayıcı ──▶ Web (Next.js) ──▶ documents + pending jobs
+                                   │
+             Worker ◀── claim (BEGIN IMMEDIATE, atomik)
+               │  prompt → stdin, sonuç ← stdout
+               ▼
+          Agent CLI ──▶ document_outputs + completed jobs
+                                   │
+                     UI polling ──▶ sonuç otomatik görünür
+```
+
+### Veri modeli
+
+| Tablo | İçerik |
+|---|---|
+| `documents` | Kaynak içerik: başlık, `source_type` (url/text), source_url/domain, yazar, yayın tarihi, `original_text`, sanitize edilmiş `original_html`, favorite, folder |
+| `document_outputs` | AI çıktıları: `readability` veya `summary`; özette `summary_level` (short/normal/detailed). `UNIQUE(document, operation, level)` — aynı işlem yeniden çalıştırılırsa **upsert** olur, orijinal içerik asla overwrite edilmez |
+| `jobs` | Kuyruk: status (`pending → processing → completed/failed`), attempts, error, zaman damgaları |
+| `folders`, `tags`, `document_tags` | Arşiv organizasyonu (many-to-many etiketler, FK `ON DELETE CASCADE/SET NULL`) |
+| `documents_fts` | FTS5 sanal tablosu (external content) + INSERT/UPDATE/DELETE trigger'ları ile senkron tam metin arama; SQLite derlemesinde FTS5 yoksa LIKE fallback |
+
+Şema sürümü `meta` tablosunda tutulur; migration'lar `src/lib/db/migrations.ts` içinde transaction ile uygulanır (ORM yok — typed repo katmanı + prepared statement'lar).
+
+### Job yaşam döngüsü (pending job protokolü)
+
+1. UI `POST /api/jobs` der → `pending` satırı (aynı iş aktifse idempotent: yeni satır açılmaz).
+2. Worker `claimNextJob` ile `BEGIN IMMEDIATE` transaction içinde claim eder: `pending → processing`, attempts+1. İki worker aynı anda çalışsa bile çift dağıtım olmaz.
+3. Prompt `src/lib/ai/instructions` altındaki talimatlardan üretilir (80k karakter üstü kaynakta kısaltma notuyla), `AgentAdapter.run` çağrılır: prompt **stdin**'e yazılır, sonuç **stdout**'tan okunur, timeout'ta süreç SIGKILL'lenir.
+4. Başarıda `completeJob` tek transaction'da çıktıyı upsert eder ve job'ı `completed` yapar; hatada job `failed` olur, hata mesajı UI'da görünür ve "Yeniden dene" ile tekrar kuyruğa alınabilir (attempts < 5).
+5. Worker açılışta takılı kalmış `processing` job'ları geri `pending` yapar; her döngüde kalp atışını `meta`'ya yazar. `/api/agent/status` bu kalp atışından sidebar rozetini besler: *Agent hazır / Agent bağlı değil / İş işleniyor / Worker kapalı*.
+
+### Katman sorumlulukları
+
+```
+src/lib/db              SQLite bağlantısı (WAL, FK, busy_timeout) · migration runner · repo'lar
+src/lib/jobs            ReadflowWorker döngüsü · processJob · heartbeat
+src/lib/agent           AgentAdapter sözleşmesi · CommandAgentAdapter (shellsiz spawn, tokenize edilmiş argv)
+                        · MockAgentAdapter · detect (CLI'ları --help imzasıyla doğrulayan auto-detect)
+src/lib/ai/instructions Okunabilirlik + Kısa/Normal/Detaylı özet talimatları (component'lara gömülü değil)
+src/lib/extraction      fetchArticle (SSRF/timeout/boyut/redirect/content-type korumalı) · Readability · sanitize
+src/lib/documents       createDocumentFromInput · getDocumentDetail
+src/lib/export          format (Markdown/TXT) · docx (yerel üretim) · notion/telegram (env-gated adapter'lar)
+src/mcp                 Yerel MCP sunucusu (stdio): kuyruk + doküman tool'ları
+src/worker              Worker giriş noktası
+src/app                 Next.js sayfaları + zod-doğrulamalı API route'ları
+```
+
+Katmanlar tek yönlü bağımlılıkla ayrışır: UI → servisler → repo'lar; agent/MCP/extraction/export birbirinin içine gömülü değildir. Yeni bir agent CLI'ı desteklemek yalnızca `src/lib/agent`, yeni bir export hedefi yalnızca `src/lib/export` dokunmayı gerektirir.
+
+### Bir URL'nin yolculuğu
+
+1. Textarea'da `https://…` algılanır (client + server çift kontrol) → `POST /api/documents {url}`.
+2. `assertPublicHttpUrl`: yalnızca http(s), kimlik bilgisi ve private ağ adresleri (localhost, 127/8, 10/8, 192.168/16, 172.16-31, 169.254/16, .local, .internal…) reddedilir.
+3. Fetch: 12 sn timeout, 5 MB gövde sınırı, en fazla 4 redirect (her adımda SSRF kontrolü tekrar), content-type html/xhtml/plain doğrulaması.
+4. JSDOM + Mozilla Readability: başlık (makale h1'i tercih edilir), yazar, yayın tarihi, ana metin; görsel adresleri mutlaklaştırılır, `srcset` temizlenir.
+5. `sanitize-html` allowlist: script/iframe/style ve event handler'ları düşer, linklere `rel="noopener noreferrer"` eklenir → `documents` tablosuna kayıt. Bu aşamada **AI kullanılmaz**.
+
+### Güvenlik duruşu
+
+- Remote LLM API'si yok; ağa çıkan tek yerler URL fetch'i ve opsiyonel Notion/Telegram entegrasyonlarıdır.
+- `CommandAgentAdapter` shell çalıştırmaz: komut quote-duyarlı tokenizer ile parçalanıp doğrudan `spawn(program, args)` verilir; prompt hiçbir zaman argv'ya gömülü değil (stdin).
+- AI çıktıları `react-markdown` ile render edilir (ham HTML çalıştırılmaz); URL'den gelen HTML zaten kayıt sırasında sanitize edildi.
+- Credential'lar (Notion/Telegram) veritabanına yazılmaz, yalnızca environment'tan okunur.
+
+Ayrıntı ve "projeyi çalıştır" protokolü için [AGENTS.md](AGENTS.md).
+
+---
+
+## Geliştirici
+
+**Mehmet Fatih Doğan** — backend geliştirici, güvenlik meraklısı.
+
+- 🌐 Portfolyo & iletişim: [mehmetfatihdogan.com.tr](https://mehmetfatihdogan.com.tr)
+- 💻 GitHub: [@fatihdogann](https://github.com/fatihdogann)
+
+Proje hakkında soru, hata bildirimi veya geri bildirim için [sitemden](https://mehmetfatihdogan.com.tr) iletişime geçebilirsin.
