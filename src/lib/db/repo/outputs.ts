@@ -90,3 +90,41 @@ export function listOutputSummariesForDocuments(
   }
   return map;
 }
+
+export interface OutputRevisionRow {
+  id: number;
+  output_id: number;
+  document_id: number;
+  operation: Operation;
+  summary_level: StoredSummaryLevel;
+  content: string;
+  agent_name: string | null;
+  agent_metadata: string | null;
+  job_id: number | null;
+  created_at: string;
+}
+
+/** Bir çıktının değişmez revizyonları (en yeni önce). */
+export function listOutputRevisions(db: SqliteDb, outputId: number): OutputRevisionRow[] {
+  return db
+    .prepare(`SELECT * FROM document_output_revisions WHERE output_id = ? ORDER BY id DESC`)
+    .all(outputId) as OutputRevisionRow[];
+}
+
+export function getOutputRevision(db: SqliteDb, revisionId: number): OutputRevisionRow | null {
+  const row = db.prepare(`SELECT * FROM document_output_revisions WHERE id = ?`).get(revisionId) as
+    | OutputRevisionRow
+    | undefined;
+  return row ?? null;
+}
+
+/** Filtre seçenekleri için kullanılan agent adları (provenance). */
+export function listDistinctAgentNames(db: SqliteDb): string[] {
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT agent_name AS name FROM document_outputs
+       WHERE agent_name IS NOT NULL AND agent_name != '' ORDER BY name`,
+    )
+    .all() as Array<{ name: string }>;
+  return rows.map((row) => row.name);
+}

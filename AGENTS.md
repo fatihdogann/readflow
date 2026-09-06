@@ -38,13 +38,30 @@ scripts/             migrate, mock-agent.mjs
 - **Kullanıcı verisi asla Git'e girmez.** `*.sqlite*`, `.env.local`, `data/`, `exports/` zaten ignore'da; yeni bir kalıcı veri yolu eklersen gitignore'u güncelle.
 - Şema değişikliği = `src/lib/db/migrations.ts` içine **yeni, artan id'li migration** ekle; mevcutları asla düzenleme. Şema sürümü `meta` tablosunda tutulur; migration'lar transaction içinde uygulanır.
 
-## Pending job protokolü
+## Pending job protokolü (lease + snapshot)
 
-1. UI `POST /api/jobs` → `jobs` tablosuna `pending` satırı (aynı iş aktifse idempotent).
-2. Worker `claimNextJob` ile `BEGIN IMMEDIATE` transaction içinde atomik claim yapar (`pending → processing`, attempts+1). Aynı job iki worker'a dağıtılamaz.
-3. Prompt `src/lib/ai/instructions`'tan üretilir; agent adapter çalışır; başarısında `document_outputs` upsert edilir (UNIQUE: document+operation+level) ve job `completed` olur. **Orijinal içerik hiçbir zaman AI çıktısıyla overwrite edilmez.**
-4. Hata durumunda job `failed` + hata mesajı; UI'dan yeniden denenebilir (attempts < 5).
-5. Worker açılışta takılı `processing` job'ları `pending`'e geri alır. Agent yoksa worker idler, job'lar `pending` kalır — site çalışmaya devam eder.
+1. UI `POST /api/jobs` → `createJobWithSnapshot`: **kaynak metin** (Otomatik = Düzenlenmiş varsa o, yoksa Orijinal), **dahil edilen notlar** (varsayılan hariç) ve **AI yapılandırması** (env kilidi > açık profil > varsayılan profil > otomatik) job satırına snapshot olarak yazılır. Aynı anahtarlı aktif iş varsa idempotent davranır; `forceNew` ile eski aktif iş iptal edilip yenisı açılır (partial UNIQUE index `idx_jobs_active_unique` koruması).
+2. Worker/MCP `claimNextJob`/`claimJobById` ile `BEGIN IMMEDIATE` transaction içinde **owner + lease** atar. Aynı iş iki tüketiciye dağıtılamaz.
+3. Prompt **snapshot'taki** metinden `buildPromptForSnapshot` ile üretilir; worker güncel belgeyi yeniden okumaz. Uzun işlerde heartbeat interval'i hem kalp atışını yazar hem lease'i yeniler.
+4. Başarıda `completeJob` sahipliği doğrular, `document_outputs`'u upsert eder ve **değişmez `document_output_revisions`** satırı ekler. Sahiplik değiştiyse geç gelen sonuç reddedilir. Hata → `failed` + mesaj; UI retry aynı snapshot'ı kullanır (attempts < 5).
+5. Kurtarma yalnızca `recoverExpiredLeases` ile **süresi dolmuş** işleredir; açılışta toplu `processing→pending` YOKTUR. Agent yoksa uygun olmayan iş `releaseJob` ile attempts bozmadan kuyruğa döner.
+
+## İçerik türleri ve değişmezlik
+
+- `documents.original_text` / `original_html` ilk kayıttan sonra **asla değişmez**.
+- Kullanıcı sürümü `document_edits` tablosunda (revision + optimistic concurrency; uyumsuz revision → 409). AI çıktıları `document_outputs` + `document_output_revisions`. Elle düzenleme asla sahte AI job'ı olarak modellenmez.
+- Notlar (`documents.note`) varsayılan AI'a gönderilmez; yalnızca iş bazında açıkça dahil edilirse snapshot'a girer ve prompt'a "ek bağlam" bloğu olarak eklenir.
+
+## AI profilleri
+
+- `agent_profiles` tablosu: görünen ad, cli (claude/codex/jcode), model/provider, transport (stdin/argv), timeout, enabled, `config_revision`, doğrulama bilgileri. Varsayılan profil `meta.default_agent_profile_id`.
+- Yetenek çıkarımı `src/lib/agent/capabilities.ts`: CLI'ların gerçek `--help` çıktısından regex doğrulaması — **bayrak uydurma**; doğrulanmayan bayrak argv'ya eklenmez. argv üretimi yalnızca `buildCommandForProfile` üzerinden (serbest executable UI'dan kabul edilmez; custom komut yalnız env).
+- Worker, işin snapshot'ındaki profil alanlarından adapter kurar; profil sonradan değişse/silinse eski iş kendi yapılandırmasıyla çalışır. meta/provenance alanları güvenli: raw komut, token, env değeri loglanmaz (`provenanceFor`).
+- Profil mutasyonları ve doğrulama çağrıları `assertLocalRequest` ile localhost'a kısıtlıdır; doğrulama örnek metin kullanır, kullanıcı belgesi göndermez.
+
+## Ortam değişkenleri
+
+- `src/lib/env.ts > loadLocalEnv()` worker/MCP/migration/backup girişlerinde çağrılır (`.env` + `.env.local`, mevcut env ezilmez). Web sürecinin env yüklemesine güvenme — yeni entrypoint'larda loadLocalEnv'i çağır.
 
 ## "Projeyi çalıştır" dediğinde
 

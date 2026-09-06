@@ -9,7 +9,7 @@ function outputTitle(output: ExportPayload["output"]): string {
   return operationLabel[output.operation];
 }
 
-function metaLines(payload: ExportPayload): string[] {
+function metaLines(payload: ExportPayload, variantLabel?: string): string[] {
   const { document } = payload;
   const lines: string[] = [];
   if (document.source_url) lines.push(`Kaynak: ${document.source_url}`);
@@ -17,18 +17,18 @@ function metaLines(payload: ExportPayload): string[] {
   if (document.source_domain) lines.push(`Domain: ${document.source_domain}`);
   if (document.author) lines.push(`Yazar: ${document.author}`);
   if (document.published_at) lines.push(`Yayın: ${document.published_at}`);
-  lines.push(`Bölüm: ${outputTitle(payload.output)}`);
+  lines.push(`Bölüm: ${variantLabel ?? outputTitle(payload.output)}`);
   lines.push(`Arşiv tarihi: ${document.created_at}`);
   return lines;
 }
 
-export function buildMarkdown(payload: ExportPayload): string {
+export function buildMarkdown(payload: ExportPayload, variantLabel?: string): string {
   const { document, output } = payload;
-  const content = output ? output.content : document.original_text;
+  const content = output ? output.content : (payload.editedContent ?? document.original_text);
   const header = [
     `# ${document.title}`,
     "",
-    ...metaLines(payload).map((line) => `- ${line}`),
+    ...metaLines(payload, variantLabel).map((line) => `- ${line}`),
     "",
     "---",
     "",
@@ -41,13 +41,13 @@ export function buildMarkdown(payload: ExportPayload): string {
   return parts.join("\n");
 }
 
-export function buildTxt(payload: ExportPayload): string {
+export function buildTxt(payload: ExportPayload, variantLabel?: string): string {
   const { document, output } = payload;
-  const content = output ? output.content : document.original_text;
+  const content = output ? output.content : (payload.editedContent ?? document.original_text);
   const header = [
     document.title.toUpperCase(),
     "",
-    ...metaLines(payload),
+    ...metaLines(payload, variantLabel),
     "",
     "----------------------------------------",
     "",

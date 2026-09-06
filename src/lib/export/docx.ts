@@ -66,7 +66,7 @@ const HEADING_MAP = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLeve
 /** DOCX'i tamamen lokalde üretir (harici servis yok). */
 export async function buildDocxBuffer(payload: ExportPayload): Promise<Buffer> {
   const { document, output } = payload;
-  const content = output ? output.content : document.original_text;
+  const content = output ? output.content : (payload.editedContent ?? document.original_text);
 
   const metaTexts = [
     document.source_url ? `Kaynak: ${document.source_url}` : "Kaynak: Yapıştırılan metin",

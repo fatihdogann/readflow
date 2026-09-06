@@ -16,7 +16,7 @@ export interface AgentAdapter {
 export interface AgentRuntimeInfo {
   mode: "command" | "mock" | "none";
   command?: string;
-  source?: "env" | "detected";
+  source?: "env" | "detected" | "profile";
   candidatesFound?: string[];
   message?: string;
 }

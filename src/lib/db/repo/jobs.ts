@@ -1,64 +1,109 @@
+import { randomUUID } from "node:crypto";
 import type { Operation, StoredSummaryLevel } from "../../types";
 import type { SqliteDb } from "../connection";
 import { nowIso } from "./now";
 import { upsertOutput } from "./outputs";
+
+export type JobStatus = "pending" | "processing" | "completed" | "failed";
+export type SourceKind = "original" | "edited" | "auto";
+
+/** İş oluşturulurken sabitlenen AI yapılandırması (güvenli provenance alanları). */
+export interface AiConfigSnapshot {
+  kind: "profile" | "auto" | "env";
+  profile_id?: number;
+  name?: string;
+  cli?: string;
+  model?: string | null;
+  provider?: string | null;
+  transport?: "stdin" | "argv";
+  timeout_ms?: number;
+  config_revision?: number;
+}
 
 export interface JobRow {
   id: number;
   document_id: number;
   operation: Operation;
   summary_level: StoredSummaryLevel;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: JobStatus;
   attempts: number;
   error: string | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  owner: string | null;
+  lease_expires_at: string | null;
+  source_kind: SourceKind;
+  source_text: string;
+  source_revision: number;
+  notes_included: 0 | 1;
+  notes_text: string | null;
+  ai_config: string | null;
 }
+
+export const DEFAULT_LEASE_MS = 10 * 60 * 1000;
 
 export interface CreateJobInput {
   documentId: number;
   operation: Operation;
   summaryLevel?: StoredSummaryLevel;
+  sourceKind?: SourceKind;
+  sourceText?: string;
+  sourceRevision?: number;
+  notesIncluded?: boolean;
+  notesText?: string | null;
+  aiConfig?: AiConfigSnapshot | null;
+  /** true ise aynı anahtarlı aktif iş iptal edilip yenisi açılır ("başka AI ile yeniden çalıştır"). */
+  forceNew?: boolean;
+}
+
+export function newWorkerId(): string {
+  return `worker-${randomUUID()}`;
 }
 
 export function createJob(db: SqliteDb, input: CreateJobInput): JobRow {
   const level = input.summaryLevel ?? "";
-  // Aynı iş için aktif (pending/processing) bir kayıt varsa yenisini açma.
-  const existing = db
-    .prepare(
-      `SELECT * FROM jobs
-       WHERE document_id = ? AND operation = ? AND summary_level = ?
-         AND status IN ('pending','processing')
-       ORDER BY id LIMIT 1`,
-    )
-    .get(input.documentId, input.operation, level) as JobRow | undefined;
-  if (existing) return existing;
+  const tx = db.transaction((): JobRow => {
+    const existing = db
+      .prepare(
+        `SELECT * FROM jobs
+         WHERE document_id = ? AND operation = ? AND summary_level = ?
+           AND status IN ('pending','processing')
+         ORDER BY id LIMIT 1`,
+      )
+      .get(input.documentId, input.operation, level) as JobRow | undefined;
 
-  const result = db
-    .prepare(
-      `INSERT INTO jobs (document_id, operation, summary_level, status, attempts, created_at)
-       VALUES (?, ?, ?, 'pending', 0, ?)`,
-    )
-    .run(input.documentId, input.operation, level, nowIso());
-  return getJob(db, Number(result.lastInsertRowid))!;
-}
+    if (existing && !input.forceNew) return existing;
 
-/** Belirli bir pending job'ı atomik olarak claim eder (MCP claim_job için). */
-export function claimJobById(db: SqliteDb, jobId: number): JobRow | null {
-  const claim = db.transaction((): JobRow | null => {
-    const job = getJob(db, jobId);
-    if (!job || job.status !== "pending") return null;
+    if (existing && input.forceNew) {
+      // "Başka AI ile yeniden çalıştır": bekleyen işi açıkça iptal et, yenisini aç.
+      db.prepare(
+        `UPDATE jobs SET status = 'failed', error = ?, completed_at = ? WHERE id = ? AND status IN ('pending','processing')`,
+      ).run("Kullanıcı tarafından iptal edildi (yeni iş oluşturuldu)", nowIso(), existing.id);
+    }
+
     const result = db
       .prepare(
-        `UPDATE jobs SET status = 'processing', started_at = ?, attempts = attempts + 1
-         WHERE id = ? AND status = 'pending'`,
+        `INSERT INTO jobs
+           (document_id, operation, summary_level, status, attempts, created_at,
+            source_kind, source_text, source_revision, notes_included, notes_text, ai_config)
+         VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(nowIso(), jobId);
-    if (result.changes === 0) return null;
-    return getJob(db, jobId)!;
+      .run(
+        input.documentId,
+        input.operation,
+        level,
+        nowIso(),
+        input.sourceKind ?? "auto",
+        input.sourceText ?? "",
+        input.sourceRevision ?? 0,
+        input.notesIncluded ? 1 : 0,
+        input.notesText ?? null,
+        input.aiConfig ? JSON.stringify(input.aiConfig) : null,
+      );
+    return getJob(db, Number(result.lastInsertRowid))!;
   });
-  return claim.immediate();
+  return tx.immediate();
 }
 
 export function getJob(db: SqliteDb, id: number): JobRow | null {
@@ -67,44 +112,92 @@ export function getJob(db: SqliteDb, id: number): JobRow | null {
 }
 
 /**
- * Sıradaki pending job'ı atomik olarak claim eder.
- * BEGIN IMMEDIATE transaction sayesinde aynı job iki worker'a dağılamaz;
- * ikinci worker bu satırı işleyemez (status artık 'processing').
+ * Sıradaki pending job'ı atomik olarak claim eder: iş sahipliği (owner) ve
+ * lease (kirası) atanır. BEGIN IMMEDIATE sayesinde iki worker aynı işi alamaz.
  */
-export function claimNextJob(db: SqliteDb): JobRow | null {
+export function claimNextJob(db: SqliteDb, owner: string, leaseMs = DEFAULT_LEASE_MS): JobRow | null {
   const claim = db.transaction((): JobRow | null => {
     const candidate = db
-      .prepare(
-        `SELECT * FROM jobs WHERE status = 'pending' ORDER BY created_at, id LIMIT 1`,
-      )
+      .prepare(`SELECT * FROM jobs WHERE status = 'pending' ORDER BY created_at, id LIMIT 1`)
       .get() as JobRow | undefined;
     if (!candidate) return null;
-    const result = db
-      .prepare(
-        `UPDATE jobs SET status = 'processing', started_at = ?, attempts = attempts + 1
-         WHERE id = ? AND status = 'pending'`,
-      )
-      .run(nowIso(), candidate.id);
-    if (result.changes === 0) return null;
-    return getJob(db, candidate.id)!;
+    return claimInTx(db, candidate.id, owner, leaseMs);
   });
   return claim.immediate();
 }
 
+/** Belirli bir pending job'ı atomik olarak claim eder (MCP claim_job için). */
+export function claimJobById(db: SqliteDb, jobId: number, owner: string, leaseMs = DEFAULT_LEASE_MS): JobRow | null {
+  const claim = db.transaction((): JobRow | null => {
+    const job = getJob(db, jobId);
+    if (!job || job.status !== "pending") return null;
+    return claimInTx(db, jobId, owner, leaseMs);
+  });
+  return claim.immediate();
+}
+
+function claimInTx(db: SqliteDb, jobId: number, owner: string, leaseMs: number): JobRow | null {
+  const leaseExpiry = new Date(Date.now() + leaseMs).toISOString();
+  const result = db
+    .prepare(
+      `UPDATE jobs SET status = 'processing', started_at = ?, attempts = attempts + 1,
+         owner = ?, lease_expires_at = ?
+       WHERE id = ? AND status = 'pending'`,
+    )
+    .run(nowIso(), owner, leaseExpiry, jobId);
+  if (result.changes === 0) return null;
+  return getJob(db, jobId)!;
+}
+
+/** İş sahibi, uzun süren çalışma sırasında kirasını yeniler. */
+export function renewLease(db: SqliteDb, jobId: number, owner: string, leaseMs = DEFAULT_LEASE_MS): boolean {
+  const result = db
+    .prepare(
+      `UPDATE jobs SET lease_expires_at = ? WHERE id = ? AND owner = ? AND status = 'processing'`,
+    )
+    .run(new Date(Date.now() + leaseMs).toISOString(), jobId, owner);
+  return result.changes > 0;
+}
+
+/**
+ * Claim edilen iş uygun adapter yoksa attempts sayısını bozmadan kuyruğa geri koyar.
+ */
+export function releaseJob(db: SqliteDb, jobId: number, owner: string): void {
+  db.prepare(
+    `UPDATE jobs SET status = 'pending', owner = NULL, lease_expires_at = NULL,
+       attempts = MAX(attempts - 1, 0), started_at = NULL
+     WHERE id = ? AND owner = ? AND status = 'processing'`,
+  ).run(jobId, owner);
+}
+
 export interface CompleteJobInput {
   jobId: number;
+  owner: string;
   content: string;
   agentName?: string | null;
   agentMetadata?: string | null;
 }
 
-/** Job'ı tamamlandı işaretler ve çıktıyı (varsa üzerine yazarak) kaydeder. */
-export function completeJob(db: SqliteDb, input: CompleteJobInput): { job: JobRow; outputId: number } {
-  const tx = db.transaction((): { job: JobRow; outputId: number } => {
+export interface CompleteOutcome {
+  job: JobRow;
+  outputId: number;
+  revisionId: number;
+}
+
+/**
+ * Job'ı tamamlar ve çıktıyı kaydeder. İş sahipliği doğrulanır: lease süresi
+ * dolup işi başka sahip aldıysa geç gelen sonuç reddedilir ve mevcut çıktı
+ * ezilmez. Aynı anda değişmez bir çıktı revizyonu da kaydedilir.
+ */
+export function completeJob(db: SqliteDb, input: CompleteJobInput): CompleteOutcome {
+  const tx = db.transaction((): CompleteOutcome => {
     const job = getJob(db, input.jobId);
     if (!job) throw new Error(`Job bulunamadı: ${input.jobId}`);
     if (job.status !== "processing") {
       throw new Error(`Job işlenmiyor durumda değil: ${job.status}`);
+    }
+    if (job.owner !== input.owner) {
+      throw new Error("İş sahipliği değişti; geç gelen sonuç kabul edilmedi");
     }
     const output = upsertOutput(db, {
       documentId: job.document_id,
@@ -114,20 +207,46 @@ export function completeJob(db: SqliteDb, input: CompleteJobInput): { job: JobRo
       agentName: input.agentName ?? null,
       agentMetadata: input.agentMetadata ?? null,
     });
+    const revisionResult = db
+      .prepare(
+        `INSERT INTO document_output_revisions
+           (output_id, document_id, operation, summary_level, content, agent_name, agent_metadata, job_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        output.id,
+        job.document_id,
+        job.operation,
+        job.summary_level,
+        input.content,
+        input.agentName ?? null,
+        input.agentMetadata ?? null,
+        job.id,
+        nowIso(),
+      );
     db.prepare(
       `UPDATE jobs SET status = 'completed', completed_at = ?, error = NULL WHERE id = ?`,
     ).run(nowIso(), job.id);
-    return { job: getJob(db, job.id)!, outputId: output.id };
+    return { job: getJob(db, job.id)!, outputId: output.id, revisionId: Number(revisionResult.lastInsertRowid) };
   });
   return tx.immediate();
 }
 
-export function failJob(db: SqliteDb, jobId: number, error: string): JobRow {
+/** Sahiplik kontrollü başarısız işaretleme (worker/MCP). */
+export function failJob(db: SqliteDb, jobId: number, owner: string, error: string): JobRow {
   const tail = error.length > 800 ? `${error.slice(0, 800)}…` : error;
-  db.prepare(
-    `UPDATE jobs SET status = 'failed', completed_at = ?, error = ? WHERE id = ?`,
-  ).run(nowIso(), tail, jobId);
-  return getJob(db, jobId)!;
+  const tx = db.transaction((): JobRow => {
+    const job = getJob(db, jobId);
+    if (!job) throw new Error(`Job bulunamadı: ${jobId}`);
+    if (job.status === "processing" && job.owner !== owner) {
+      throw new Error("İş sahipliği değişti; hata kaydı kabul edilmedi");
+    }
+    db.prepare(
+      `UPDATE jobs SET status = 'failed', completed_at = ?, error = ? WHERE id = ?`,
+    ).run(nowIso(), tail, jobId);
+    return getJob(db, jobId)!;
+  });
+  return tx.immediate();
 }
 
 export function retryJob(db: SqliteDb, jobId: number): JobRow {
@@ -135,29 +254,32 @@ export function retryJob(db: SqliteDb, jobId: number): JobRow {
   if (!job) throw new Error(`Job bulunamadı: ${jobId}`);
   if (job.status !== "failed") throw new Error("Yalnızca başarısız job yeniden denenebilir");
   if (job.attempts >= 5) throw new Error("Bu job için deneme sınırına ulaşıldı");
+  // Snapshot alanları (source_text, notes, ai_config) aynen korunur.
   db.prepare(
-    `UPDATE jobs SET status = 'pending', error = NULL, started_at = NULL, completed_at = NULL WHERE id = ?`,
+    `UPDATE jobs SET status = 'pending', error = NULL, started_at = NULL, completed_at = NULL,
+       owner = NULL, lease_expires_at = NULL WHERE id = ?`,
   ).run(jobId);
   return getJob(db, jobId)!;
 }
 
-/** Tek worker varsayımıyla: açılışta takılı kalmış 'processing' job'ları kuyruğa geri alır. */
-export function recoverStaleProcessing(db: SqliteDb): number {
+/**
+ * Yalnızca süresi dolmuş lease'lere sahip işleri kuyruğa geri koyar.
+ * Açılışta toplu "processing→pending" yapılmaz; ikinci worker/MCP
+ * tüketicisinin aktif işini bozmaz.
+ */
+export function recoverExpiredLeases(db: SqliteDb, leaseGraceMs = 0): number {
+  const cutoff = new Date(Date.now() - leaseGraceMs).toISOString();
   const result = db
     .prepare(
-      `UPDATE jobs SET status = 'pending', started_at = NULL
-       WHERE status = 'processing'`,
+      `UPDATE jobs SET status = 'pending', owner = NULL, lease_expires_at = NULL
+       WHERE status = 'processing' AND (lease_expires_at IS NULL OR lease_expires_at < ?)`,
     )
-    .run();
+    .run(cutoff);
   return result.changes;
 }
 
 export function listJobsByDocument(db: SqliteDb, documentId: number, limit = 10): JobRow[] {
-  return db
-    .prepare(
-      `SELECT * FROM jobs WHERE document_id = ? ORDER BY id DESC LIMIT ?`,
-    )
-    .all(documentId, limit) as JobRow[];
+  return db.prepare(`SELECT * FROM jobs WHERE document_id = ? ORDER BY id DESC LIMIT ?`).all(documentId, limit) as JobRow[];
 }
 
 export function countsByStatus(db: SqliteDb): Record<string, number> {
@@ -171,7 +293,5 @@ export function countsByStatus(db: SqliteDb): Record<string, number> {
 }
 
 export function listPendingJobs(db: SqliteDb, limit = 50): JobRow[] {
-  return db
-    .prepare(`SELECT * FROM jobs WHERE status = 'pending' ORDER BY created_at, id LIMIT ?`)
-    .all(limit) as JobRow[];
+  return db.prepare(`SELECT * FROM jobs WHERE status = 'pending' ORDER BY created_at, id LIMIT ?`).all(limit) as JobRow[];
 }

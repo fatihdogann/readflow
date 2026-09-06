@@ -9,6 +9,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { loadLocalEnv } from "../lib/env";
 import { openDatabase } from "../lib/db/connection";
 import {
   claimJobById,
@@ -22,9 +23,14 @@ import { getDocument, listDocuments } from "../lib/db/repo/documents";
 import { listOutputs } from "../lib/db/repo/outputs";
 import { listDocumentTags } from "../lib/db/repo/tags";
 import { createDocumentFromInput } from "../lib/documents/service";
-import { buildPromptForJob } from "../lib/ai/instructions";
+import { buildPromptForSnapshot } from "../lib/ai/instructions";
+
+loadLocalEnv();
 
 const db = openDatabase();
+// MCP istemcisi de bir "iş sahibi"dir: claim/complete aynı lease ve sahiplik
+// kurallarına tabidir; snapshot metni claim yanıtında sabitlenmiş olarak gider.
+const MCP_OWNER = "mcp";
 
 const server = new McpServer({
   name: "readflow",
@@ -68,22 +74,30 @@ server.registerTool(
   {
     title: "Job al",
     description:
-      "Sıradaki pending job'ı (veya jobId verilirse belirli job'ı) processing durumuna alır. Atomiktir; aynı job iki kez dağıtılamaz.",
+      "Sıradaki pending job'ı (veya jobId verilirse belirli job'ı) processing durumuna alır. Atomiktir; aynı job iki tüketiciye dağıtılamaz. Kaynak metin ve notlar claim anında sabitlenmiş snapshot olarak döner.",
     inputSchema: { jobId: z.number().int().positive().optional() },
   },
   async ({ jobId }) => {
-    const job = jobId ? claimJobById(db, jobId) : claimNextJob(db);
+    const job = jobId ? claimJobById(db, jobId, MCP_OWNER) : claimNextJob(db, MCP_OWNER);
     if (!job) {
       return textResult({ job: null, message: "Uygun pending job yok." });
     }
     const document = getDocument(db, job.document_id);
-    const prompt = document
-      ? buildPromptForJob(job.operation, job.summary_level, document.original_text)
-      : null;
+    const sourceText = job.source_text.trim() ? job.source_text : document?.original_text ?? "";
+    const prompt = buildPromptForSnapshot({
+      operation: job.operation,
+      summaryLevel: job.summary_level,
+      sourceText,
+      notesIncluded: job.notes_included === 1,
+      notesText: job.notes_text,
+    });
     return textResult({
       job,
       documentTitle: document?.title ?? null,
+      sourceKind: job.source_kind,
+      notesIncluded: job.notes_included === 1,
       prompt,
+      note: "complete_job yalnızca bu claim'in sahibi (mcp) tarafından çağrılabilir.",
     });
   },
 );
@@ -93,7 +107,7 @@ server.registerTool(
   {
     title: "Job'ı tamamla",
     description:
-      "Claim edilmiş bir job'ı tamamlandı işaretler ve ürettiğin içeriği document_output olarak kaydeder. İçerik Markdown olmalıdır.",
+      "Claim edilmiş bir job'ı tamamlandı işaretler ve ürettiğin içeriği document_output olarak kaydeder (değişmez revizyonla). İçerik Markdown olmalıdır.",
     inputSchema: {
       jobId: z.number().int().positive(),
       content: z.string().min(1),
@@ -102,12 +116,13 @@ server.registerTool(
   },
   async ({ jobId, content, agentName }) => {
     try {
-      const { job, outputId } = completeJob(db, {
+      const { job, outputId, revisionId } = completeJob(db, {
         jobId,
+        owner: MCP_OWNER,
         content,
         agentName: agentName ?? "mcp-agent",
       });
-      return textResult({ ok: true, jobId: job.id, outputId });
+      return textResult({ ok: true, jobId: job.id, outputId, revisionId });
     } catch (error) {
       return textResult({ ok: false, error: error instanceof Error ? error.message : String(error) });
     }
@@ -125,8 +140,12 @@ server.registerTool(
     },
   },
   async ({ jobId, error }) => {
-    const job = failJob(db, jobId, error);
-    return textResult({ ok: true, job });
+    try {
+      const job = failJob(db, jobId, MCP_OWNER, error);
+      return textResult({ ok: true, job });
+    } catch (failError) {
+      return textResult({ ok: false, error: failError instanceof Error ? failError.message : String(failError) });
+    }
   },
 );
 

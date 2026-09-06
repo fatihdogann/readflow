@@ -1,143 +1,292 @@
 import { describe, expect, it } from "vitest";
 import { createTestDb } from "../../db/testDb";
-import { insertDocument } from "../../db/repo/documents";
+import { insertDocument, getDocument } from "./documents";
+import { saveEdit } from "./documentEdits";
 import {
   claimJobById,
   claimNextJob,
   completeJob,
   createJob,
   countsByStatus,
+  DEFAULT_LEASE_MS,
   failJob,
-  recoverStaleProcessing,
+  newWorkerId,
+  recoverExpiredLeases,
+  releaseJob,
+  renewLease,
   retryJob,
+  type JobRow,
 } from "./jobs";
-import { getOutput } from "../repo/outputs";
+import { getOutput, listOutputRevisions } from "./outputs";
 import { processJob } from "../../jobs/worker";
 import { MockAgentAdapter } from "../../agent/mock";
-import { getDocumentDetail } from "../../documents/service";
+import { createJobWithSnapshot } from "../../jobs/create";
 
-describe("job queue", () => {
-  it("claim atomiktir: aynı job iki kez dağıtılamaz", () => {
-    const handle = createTestDb();
+const W1 = "worker-one";
+const W2 = "worker-two";
+
+function setup() {
+  const handle = createTestDb();
+  const doc = insertDocument(handle.db, {
+    title: "T",
+    sourceType: "text",
+    originalText: "gövde metni",
+  });
+  return { handle, doc };
+}
+
+describe("job queue: claim & sahiplik", () => {
+  it("claim atomiktir: aynı job iki worker'a dağıtılamaz", () => {
+    const { handle, doc } = setup();
     try {
-      const doc = insertDocument(handle.db, { title: "T", sourceType: "text", originalText: "m" });
       createJob(handle.db, { documentId: doc.id, operation: "readability" });
       createJob(handle.db, { documentId: doc.id, operation: "summary", summaryLevel: "normal" });
 
-      const first = claimNextJob(handle.db);
-      const second = claimNextJob(handle.db);
-      expect(first?.status).toBe("processing");
-      expect(second?.status).toBe("processing");
+      const first = claimNextJob(handle.db, W1);
+      const second = claimNextJob(handle.db, W2);
+      expect(first?.owner).toBe(W1);
+      expect(second?.owner).toBe(W2);
       expect(first?.id).not.toBe(second?.id);
-      expect(claimNextJob(handle.db)).toBeNull();
-      expect(first?.attempts).toBe(1);
+      expect(claimNextJob(handle.db, W1)).toBeNull();
+      expect(first?.lease_expires_at).toBeTruthy();
     } finally {
       handle.cleanup();
     }
   });
 
   it("claimJobById yalnızca pending job'ı alır", () => {
-    const handle = createTestDb();
+    const { handle, doc } = setup();
     try {
-      const doc = insertDocument(handle.db, { title: "T", sourceType: "text", originalText: "m" });
       const job = createJob(handle.db, { documentId: doc.id, operation: "readability" });
-      expect(claimJobById(handle.db, job.id)?.status).toBe("processing");
-      expect(claimJobById(handle.db, job.id)).toBeNull();
+      expect(claimJobById(handle.db, job.id, W1)?.status).toBe("processing");
+      expect(claimJobById(handle.db, job.id, W2)).toBeNull();
     } finally {
       handle.cleanup();
     }
   });
 
-  it("aktif aynı iş için yeni job açılmaz (idempotent)", () => {
-    const handle = createTestDb();
+  it("geç gelen sonuç yeni sahibi ezmez", () => {
+    const { handle, doc } = setup();
     try {
-      const doc = insertDocument(handle.db, { title: "T", sourceType: "text", originalText: "m" });
+      const job = createJob(handle.db, { documentId: doc.id, operation: "readability" });
+      claimNextJob(handle.db, W1);
+      // W1'in lease'i dolmuş varsay; W2 kurtarıp alıyor
+      handle.db
+        .prepare(`UPDATE jobs SET lease_expires_at = ?`)
+        .run(new Date(Date.now() - 1000).toISOString());
+      recoverExpiredLeases(handle.db);
+      const reclaimed = claimNextJob(handle.db, W2)!;
+      expect(reclaimed.owner).toBe(W2);
+      // W1'in geç gelen tamamlaması reddedilir
+      expect(() =>
+        completeJob(handle.db, { jobId: job.id, owner: W1, content: "geç gelen" }),
+      ).toThrow(/sahipliği/);
+      completeJob(handle.db, { jobId: job.id, owner: W2, content: "güncel sonuç" });
+      expect(getOutput(handle.db, 1)?.content).toBe("güncel sonuç");
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("yalnızca süresi dolmuş lease'ler kurtarılır; aktif iş korunur", () => {
+    const { handle, doc } = setup();
+    try {
+      createJob(handle.db, { documentId: doc.id, operation: "readability" });
+      claimNextJob(handle.db, W1);
+      // Lease taze — kurtarılmaz
+      expect(recoverExpiredLeases(handle.db)).toBe(0);
+      // Süre geçmiş — kurtarılır ve attempts korunur
+      handle.db
+        .prepare(`UPDATE jobs SET lease_expires_at = ?`)
+        .run(new Date(Date.now() - 1000).toISOString());
+      expect(recoverExpiredLeases(handle.db)).toBe(1);
+      expect(countsByStatus(handle.db)).toMatchObject({ pending: 1 });
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("releaseJob attempts'ı bozmadan pending'e döndürür", () => {
+    const { handle, doc } = setup();
+    try {
+      createJob(handle.db, { documentId: doc.id, operation: "readability" });
+      const job = claimNextJob(handle.db, W1)!;
+      releaseJob(handle.db, job.id, W1);
+      const released = handle.db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(job.id) as JobRow;
+      expect(released.status).toBe("pending");
+      expect(released.attempts).toBe(0);
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("renewLease yalnızca sahibi uzatır", () => {
+    const { handle, doc } = setup();
+    try {
+      createJob(handle.db, { documentId: doc.id, operation: "readability" });
+      const job = claimNextJob(handle.db, W1)!;
+      expect(renewLease(handle.db, job.id, W2)).toBe(false);
+      expect(renewLease(handle.db, job.id, W1)).toBe(true);
+    } finally {
+      handle.cleanup();
+    }
+  });
+});
+
+describe("job queue: idempotency & snapshot", () => {
+  it("aktif aynı iş için yeni job açılmaz; forceNew ile iptal + yenisi", () => {
+    const { handle, doc } = setup();
+    try {
       const a = createJob(handle.db, { documentId: doc.id, operation: "readability" });
       const b = createJob(handle.db, { documentId: doc.id, operation: "readability" });
       expect(a.id).toBe(b.id);
+
+      const forced = createJob(handle.db, {
+        documentId: doc.id,
+        operation: "readability",
+        forceNew: true,
+      });
+      expect(forced.id).not.toBe(a.id);
+      const old = handle.db.prepare(`SELECT status, error FROM jobs WHERE id = ?`).get(a.id) as {
+        status: string;
+        error: string;
+      };
+      expect(old.status).toBe("failed");
+      expect(old.error).toContain("iptal");
     } finally {
       handle.cleanup();
     }
   });
 
-  it("completeJob çıktıyı yazar ve job'ı tamamlar", () => {
-    const handle = createTestDb();
+  it("createJobWithSnapshot kaynak metni ve AI yapılandırmasını sabitler; sonraki değişiklik işi etkilemez", () => {
+    const { handle, doc } = setup();
     try {
-      const doc = insertDocument(handle.db, { title: "T", sourceType: "text", originalText: "m" });
+      saveEdit(handle.db, doc.id, "düzenlenmiş sürüm", 0);
+      const job = createJobWithSnapshot(handle.db, {
+        documentId: doc.id,
+        operation: "readability",
+        includeNotes: false,
+      });
+      expect(job.source_kind).toBe("edited");
+      expect(job.source_text).toBe("düzenlenmiş sürüm");
+
+      // Sonraki düzenleme bekleyen işi etkilemez
+      saveEdit(handle.db, doc.id, "sonraki değişiklik", 1);
+      const stillPending = handle.db.prepare(`SELECT source_text FROM jobs WHERE id = ?`).get(job.id) as {
+        source_text: string;
+      };
+      expect(stillPending.source_text).toBe("düzenlenmiş sürüm");
+
+      // Retry aynı snapshot'ı taşır
+      claimNextJob(handle.db, W1);
+      failJob(handle.db, job.id, W1, "geçici hata");
+      const retried = retryJob(handle.db, job.id);
+      expect(retried.source_text).toBe("düzenlenmiş sürüm");
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("not dahil etme seçimi snapshot'a girer", () => {
+    const { handle, doc } = setup();
+    try {
+      handle.db
+        .prepare(`UPDATE documents SET note = ? WHERE id = ?`)
+        .run("kullanıcı notu", doc.id);
+      const included = createJobWithSnapshot(handle.db, {
+        documentId: doc.id,
+        operation: "summary",
+        summaryLevel: "short",
+        includeNotes: true,
+      });
+      expect(included.notes_included).toBe(1);
+      expect(included.notes_text).toBe("kullanıcı notu");
+
+      const excluded = createJobWithSnapshot(handle.db, {
+        documentId: doc.id,
+        operation: "summary",
+        summaryLevel: "normal",
+        includeNotes: false,
+      });
+      expect(excluded.notes_included).toBe(0);
+    } finally {
+      handle.cleanup();
+    }
+  });
+});
+
+describe("job queue: tamamlama ve revizyonlar", () => {
+  it("completeJob çıktı + değişmez revizyon yazar; orijinal korunur", () => {
+    const { handle, doc } = setup();
+    try {
       const job = createJob(handle.db, { documentId: doc.id, operation: "readability" });
-      claimNextJob(handle.db);
-      const { outputId } = completeJob(handle.db, {
+      claimNextJob(handle.db, W1);
+      const { outputId, revisionId } = completeJob(handle.db, {
         jobId: job.id,
-        content: "düzenlenmiş içerik",
+        owner: W1,
+        content: "v1",
         agentName: "mock",
       });
-      expect(getOutput(handle.db, outputId)?.content).toBe("düzenlenmiş içerik");
-      expect(handle.db.prepare(`SELECT status FROM jobs WHERE id = ?`).get(job.id)).toMatchObject({
-        status: "completed",
-      });
-      // orijinal içerik asla değişmez
-      expect(handle.db.prepare(`SELECT original_text FROM documents WHERE id = ?`).get(doc.id))
-        .toMatchObject({ original_text: "m" });
+      // Yeniden üretim: mevcut çıktı güncellenir, yeni revizyon eklenir
+      createJob(handle.db, { documentId: doc.id, operation: "readability", forceNew: true });
+      claimNextJob(handle.db, W1);
+      completeJob(handle.db, { jobId: job.id + 1, owner: W1, content: "v2", agentName: "mock" });
+
+      expect(getOutput(handle.db, outputId)?.content).toBe("v2");
+      const revisions = listOutputRevisions(handle.db, outputId);
+      expect(revisions).toHaveLength(2);
+      expect(revisions.map((revision) => revision.content)).toEqual(["v2", "v1"]);
+      expect(revisions[0]?.job_id).toBe(job.id + 1);
+      expect(revisionId).toBeGreaterThan(0);
+      expect(getDocument(handle.db, doc.id)?.original_text).toBe("gövde metni");
     } finally {
       handle.cleanup();
     }
   });
 
-  it("failJob + retryJob akışı çalışır", () => {
-    const handle = createTestDb();
+  it("processJob ile mock adapter uçtan uca çalışır ve sahiplikle tamamlanır", async () => {
+    const { handle, doc } = setup();
     try {
-      const doc = insertDocument(handle.db, { title: "T", sourceType: "text", originalText: "m" });
+      const job = createJobWithSnapshot(handle.db, {
+        documentId: doc.id,
+        operation: "readability",
+      });
+      const claimed = claimNextJob(handle.db, W1)!;
+      await processJob(handle.db, new MockAgentAdapter(), claimed, W1);
+      const detail = handle.db
+        .prepare(`SELECT status, agent_name FROM jobs j LEFT JOIN document_outputs o ON o.document_id = j.document_id WHERE j.id = ?`)
+        .get(job.id) as { status: string; agent_name: string };
+      expect(detail.status).toBe("completed");
+      expect(detail.agent_name).toBe("mock");
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("failJob + retryJob akışı çalışır ve sahiplik doğrular", () => {
+    const { handle, doc } = setup();
+    try {
       const job = createJob(handle.db, { documentId: doc.id, operation: "readability" });
-      claimNextJob(handle.db);
-      failJob(handle.db, job.id, "agent patladı");
+      claimNextJob(handle.db, W1);
+      expect(() => failJob(handle.db, job.id, W2, "yabancı hata")).toThrow(/sahipliği/);
+      failJob(handle.db, job.id, W1, "agent patladı");
       const failed = handle.db.prepare(`SELECT status, error FROM jobs WHERE id = ?`).get(job.id) as {
         status: string;
         error: string;
       };
       expect(failed.status).toBe("failed");
       expect(failed.error).toContain("agent patladı");
-
-      const retried = retryJob(handle.db, job.id);
-      expect(retried.status).toBe("pending");
-
+      expect(retryJob(handle.db, job.id).status).toBe("pending");
       expect(() => retryJob(handle.db, job.id)).toThrow(/Yalnızca başarısız/);
     } finally {
       handle.cleanup();
     }
   });
+});
 
-  it("recoverStaleProcessing işleme takılan job'ları geri koyar", () => {
-    const handle = createTestDb();
-    try {
-      const doc = insertDocument(handle.db, { title: "T", sourceType: "text", originalText: "m" });
-      createJob(handle.db, { documentId: doc.id, operation: "readability" });
-      claimNextJob(handle.db);
-      expect(recoverStaleProcessing(handle.db)).toBe(1);
-      expect(countsByStatus(handle.db)).toMatchObject({ pending: 1, processing: 0 });
-    } finally {
-      handle.cleanup();
-    }
-  });
-
-  it("processJob ile mock adapter uçtan uca çalışır", async () => {
-    const handle = createTestDb();
-    try {
-      const doc = insertDocument(handle.db, {
-        title: "Uçtan uca",
-        sourceType: "text",
-        originalText: "Deneme paragrafı. İkinci cümle.",
-      });
-      createJob(handle.db, { documentId: doc.id, operation: "readability" });
-      const claimed = claimNextJob(handle.db)!;
-      await processJob(handle.db, new MockAgentAdapter(), claimed);
-
-      const detail = getDocumentDetail(handle.db, doc.id);
-      expect(detail?.jobs[0]?.status).toBe("completed");
-      expect(detail?.outputs).toHaveLength(1);
-      expect(detail?.outputs[0]?.operation).toBe("readability");
-      expect(detail?.outputs[0]?.agent_name).toBe("mock");
-    } finally {
-      handle.cleanup();
-    }
+describe("worker id", () => {
+  it("benzersiz worker kimliği üretir", () => {
+    expect(newWorkerId()).not.toBe(newWorkerId());
+    expect(DEFAULT_LEASE_MS).toBeGreaterThan(0);
   });
 });

@@ -1,25 +1,33 @@
+import { randomUUID } from "node:crypto";
 import type { SqliteDb } from "../db/connection";
+import { getDocument } from "../db/repo/documents";
 import {
-  getDocument,
-  type DocumentRow,
-} from "../db/repo/documents";
-import { claimNextJob, completeJob, failJob, type JobRow } from "../db/repo/jobs";
+  claimNextJob,
+  completeJob,
+  DEFAULT_LEASE_MS,
+  failJob,
+  recoverExpiredLeases,
+  releaseJob,
+  renewLease,
+  type AiConfigSnapshot,
+  type JobRow,
+} from "../db/repo/jobs";
 import { getMeta, setMeta } from "../db/repo/meta";
-import { buildPromptForJob } from "../ai/instructions";
-import {
-  agentTimeoutMs,
-  resolveAdapter,
-  type AgentAdapter,
-  type AgentRuntimeInfo,
-} from "../agent";
+import { buildPromptForSnapshot } from "../ai/instructions";
+import { adapterForJobConfig, provenanceFor } from "../agent/profiles";
+import { agentTimeoutMs, resolveAdapter, type AgentAdapter, type AgentRuntimeInfo } from "../agent";
+import { safeParseConfig } from "./create";
 
 export const HEARTBEAT_KEY = "worker_heartbeat";
 export const HEARTBEAT_MAX_AGE_MS = 20_000;
+export const HEARTBEAT_INTERVAL_MS = 5_000;
+export const LEASE_CHECK_INTERVAL_MS = 30_000;
 
 export interface WorkerHeartbeat {
   ts: string;
   agentMode: AgentRuntimeInfo["mode"];
   agentName: string | null;
+  workerId: string;
   message?: string;
   lastError?: string;
 }
@@ -44,45 +52,81 @@ export function isHeartbeatFresh(beat: WorkerHeartbeat | null): boolean {
   return age >= 0 && age < HEARTBEAT_MAX_AGE_MS;
 }
 
-/** Tek job'ı uçtan uca işletir: prompt üret -> agent çalıştır -> çıktı kaydet. */
+/** İşin sabitlenmiş metni yoksa (eski iş) claim anında kaynak metni işe yazar. */
+function ensureSnapshotText(db: SqliteDb, job: JobRow): string {
+  if (job.source_text.trim()) return job.source_text;
+  const doc = getDocument(db, job.document_id);
+  const text = doc?.original_text ?? "";
+  db.prepare(`UPDATE jobs SET source_text = ?, source_kind = ? WHERE id = ?`).run(
+    text,
+    "original",
+    job.id,
+  );
+  return text;
+}
+
+/** Tek job'ı uçtan uca işletir: snapshot'tan prompt üret -> adapter çalıştır -> çıktı kaydet. */
 export async function processJob(
   db: SqliteDb,
   adapter: AgentAdapter,
   job: JobRow,
+  workerId: string,
 ): Promise<void> {
-  const doc: DocumentRow | null = getDocument(db, job.document_id);
-  if (!doc) {
-    failJob(db, job.id, `Doküman bulunamadı (id=${job.document_id})`);
-    return;
-  }
-  const prompt = buildPromptForJob(job.operation, job.summary_level, doc.original_text);
+  const sourceText = ensureSnapshotText(db, job);
+  const aiConfig = safeParseConfig(job.ai_config);
+  const prompt = buildPromptForSnapshot({
+    operation: job.operation,
+    summaryLevel: job.summary_level,
+    sourceText,
+    notesIncluded: job.notes_included === 1,
+    notesText: job.notes_text,
+  });
   const result = await adapter.run({ prompt, timeoutMs: agentTimeoutMs() });
+  completeWithProvenance(db, job, workerId, aiConfig, adapter.name, result.text, result.meta);
+}
+
+function completeWithProvenance(
+  db: SqliteDb,
+  job: JobRow,
+  workerId: string,
+  aiConfig: AiConfigSnapshot | null,
+  agentName: string,
+  text: string,
+  meta: Record<string, unknown>,
+): void {
   completeJob(db, {
     jobId: job.id,
-    content: result.text,
-    agentName: adapter.name,
-    agentMetadata: JSON.stringify(result.meta),
+    owner: workerId,
+    content: text,
+    agentName,
+    agentMetadata: JSON.stringify({ ...provenanceFor(aiConfig, agentName), ...meta }),
   });
 }
 
 export interface WorkerOptions {
   pollIntervalMs?: number;
-  /** Agent bulunamadığında yeniden tespit deneme aralığı. */
   detectIntervalMs?: number;
 }
 
 /**
- * Pending job'ları alan, agent adapter'ı üzerinden işleyen ve kalp atışını
- * meta tablosuna yazan yerel worker döngüsü.
+ * Pending job'ları lease ile alan, kalp atışını AI çağrısından bağımsız
+ * tutan yerel worker döngüsü. Adapter tespiti başlangıçta bir kez yapılır;
+ * agent yoksa periyodik yeniden denenir.
  */
 export class ReadflowWorker {
+  readonly workerId = `worker-${randomUUID()}`;
+  readonly initialResolution: { adapter: AgentAdapter | null; info: AgentRuntimeInfo };
   private stopped = false;
+  private currentJobId: number | null = null;
   private current: Promise<void> | null = null;
+  private lastError: string | undefined;
 
   constructor(
     private readonly db: SqliteDb,
     private readonly options: WorkerOptions = {},
-  ) {}
+  ) {
+    this.initialResolution = resolveAdapter();
+  }
 
   stop(): void {
     this.stopped = true;
@@ -91,71 +135,101 @@ export class ReadflowWorker {
   async run(): Promise<void> {
     const pollIntervalMs = this.options.pollIntervalMs ?? 2_000;
     const detectIntervalMs = this.options.detectIntervalMs ?? 30_000;
-
-    const recovered = this.db
-      .prepare(`UPDATE jobs SET status='pending', started_at=NULL WHERE status='processing'`)
-      .run().changes;
-    if (recovered > 0) {
-      console.log(`[worker] ${recovered} yarım kalmış job kuyruğa alındı`);
-    }
-
-    let resolution = resolveAdapter();
+    let resolution = this.initialResolution;
     let lastDetect = Date.now();
-    let lastError: string | undefined;
+    let lastLeaseCheck = 0;
 
-    while (!this.stopped) {
+    // Kalp atışı AI çağrısından bağımsız interval'de: uzun işlem "worker kapalı"
+    // yanılgısına ve lease dolmasına yol açmaz.
+    const beat = setInterval(() => {
       try {
-        if (!resolution.adapter && Date.now() - lastDetect > detectIntervalMs) {
-          resolution = resolveAdapter();
-          lastDetect = Date.now();
-        }
-        const adapter = resolution.adapter;
         writeHeartbeat(this.db, {
           ts: new Date().toISOString(),
           agentMode: resolution.info.mode,
-          agentName: adapter?.name ?? null,
+          agentName: resolution.adapter?.name ?? null,
+          workerId: this.workerId,
           message: resolution.info.message,
-          lastError,
+          lastError: this.lastError,
         });
-
-        if (!adapter) {
-          await sleep(Math.min(pollIntervalMs * 5, detectIntervalMs / 3));
-          continue;
+        if (this.currentJobId !== null) {
+          renewLease(this.db, this.currentJobId, this.workerId, DEFAULT_LEASE_MS);
         }
-
-        const job = claimNextJob(this.db);
-        if (!job) {
-          await sleep(pollIntervalMs);
-          continue;
-        }
-        this.current = processJob(this.db, adapter, job)
-          .then(() => {
-            lastError = undefined;
-          })
-          .catch((error: unknown) => {
-            const message = error instanceof Error ? error.message : String(error);
-            lastError = message;
-            failJob(this.db, job.id, message);
-            console.error(`[worker] job #${job.id} başarısız: ${message}`);
-          })
-          .finally(() => {
-            this.current = null;
-          });
-        await this.current;
-      } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
-        console.error(`[worker] döngü hatası: ${lastError}`);
-        await sleep(pollIntervalMs);
+      } catch {
+        /* kalp atışı hatası döngüyü bozmaz */
       }
-    }
+    }, HEARTBEAT_INTERVAL_MS);
 
-    writeHeartbeat(this.db, {
-      ts: new Date().toISOString(),
-      agentMode: "none",
-      agentName: null,
-      message: "worker durduruldu",
-      lastError,
-    });
+    try {
+      while (!this.stopped) {
+        try {
+          if (Date.now() - lastLeaseCheck > LEASE_CHECK_INTERVAL_MS) {
+            // Yalnızca süresi dolmuş lease'ler kurtarılır; toplu geri alma yok.
+            recoverExpiredLeases(this.db);
+            lastLeaseCheck = Date.now();
+          }
+
+          if (!resolution.adapter && Date.now() - lastDetect > detectIntervalMs) {
+            resolution = resolveAdapter();
+            lastDetect = Date.now();
+          }
+          if (!resolution.adapter) {
+            await sleep(Math.min(pollIntervalMs * 5, detectIntervalMs / 3));
+            continue;
+          }
+
+          const job = claimNextJob(this.db, this.workerId);
+          if (!job) {
+            await sleep(pollIntervalMs);
+            continue;
+          }
+
+          const aiConfig = safeParseConfig(job.ai_config);
+          // Profil snapshot'ı kendi adapter'ını taşır; env/auto için ortam adapter'ı gerekir.
+          const jobAdapter =
+            aiConfig?.kind === "profile" ? adapterForJobConfig(aiConfig).adapter : resolution.adapter;
+          if (!jobAdapter) {
+            releaseJob(this.db, job.id, this.workerId);
+            await sleep(pollIntervalMs);
+            continue;
+          }
+
+          this.currentJobId = job.id;
+          this.current = processJob(this.db, jobAdapter, job, this.workerId)
+            .then(() => {
+              this.lastError = undefined;
+            })
+            .catch((error: unknown) => {
+              const message = error instanceof Error ? error.message : String(error);
+              this.lastError = message;
+              try {
+                failJob(this.db, job.id, this.workerId, message);
+              } catch {
+                /* sahiplik başka ele geçmişse dokunma */
+              }
+              console.error(`[worker] job #${job.id} başarısız: ${message}`);
+            })
+            .finally(() => {
+              this.currentJobId = null;
+              this.current = null;
+            });
+          await this.current;
+        } catch (error) {
+          this.lastError = error instanceof Error ? error.message : String(error);
+          console.error(`[worker] döngü hatası: ${this.lastError}`);
+          await sleep(pollIntervalMs);
+        }
+      }
+    } finally {
+      clearInterval(beat);
+      writeHeartbeat(this.db, {
+        ts: new Date().toISOString(),
+        agentMode: "none",
+        agentName: null,
+        workerId: this.workerId,
+        message: "worker durduruldu",
+        lastError: this.lastError,
+      });
+    }
   }
 
   async stopAndWait(): Promise<void> {

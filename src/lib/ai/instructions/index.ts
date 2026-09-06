@@ -90,3 +90,23 @@ export function buildPromptForJob(
   const level: SummaryLevel = isSummaryLevel(summaryLevel) ? summaryLevel : "normal";
   return buildSummaryPrompt(originalText, level);
 }
+
+/** Kullanıcının açıkça dahil ettiği notlar; bağlam olarak verilir, çıktıya kopyalanmaz. */
+export function buildPromptForSnapshot(input: {
+  operation: Operation;
+  summaryLevel: StoredSummaryLevel;
+  sourceText: string;
+  notesIncluded: boolean;
+  notesText: string | null;
+}): string {
+  const base = buildPromptForJob(input.operation, input.summaryLevel, input.sourceText);
+  if (!input.notesIncluded || !input.notesText?.trim()) return base;
+  return `${base}
+
+=== KULLANICI NOTLARI (ek bağlam) ===
+Aşağıdaki notlar dokümanın sahibi tarafından eklenmiştir; yalnızca bağlam içindir.
+Çıktına kopyalanmaz, ayrı bir "not" bölümü olarak eklenmez; içeriği anlamaya yardım eder.
+
+${input.notesText.trim()}
+=== KULLANICI NOTLARI SONU ===`;
+}

@@ -1,34 +1,16 @@
-import { z } from "zod";
 import { apiErrorResponse, readJsonBody } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
-import { createJob, listJobsByDocument } from "@/lib/db/repo/jobs";
-import { getDocumentDetail } from "@/lib/documents/service";
-import { InputError, operationSchema, storedLevel, summaryLevelSchema } from "@/lib/types";
+import { createJobWithSnapshot, jobCreateSchema } from "@/lib/jobs/create";
+import { listJobsByDocument } from "@/lib/db/repo/jobs";
+import { InputError } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const createSchema = z
-  .object({
-    documentId: z.number().int().positive(),
-    operation: operationSchema,
-    summaryLevel: summaryLevelSchema.optional(),
-  })
-  .refine((body) => body.operation !== "summary" || body.summaryLevel !== undefined, {
-    message: "Özet operasyonu için seviye gerekli",
-  });
-
 export async function POST(request: Request): Promise<Response> {
   try {
-    const body = createSchema.parse(await readJsonBody(request));
-    const db = getDb();
-    const detail = getDocumentDetail(db, body.documentId);
-    if (!detail) return Response.json({ error: "Doküman bulunamadı" }, { status: 404 });
-
-    const job = createJob(db, {
-      documentId: body.documentId,
-      operation: body.operation,
-      summaryLevel: storedLevel(body.summaryLevel),
-    });
+    const body = jobCreateSchema.parse(await readJsonBody(request));
+    // Snapshot burada sabitlenir: kaynak metin, notlar ve AI yapılandırması.
+    const job = createJobWithSnapshot(getDb(), body);
     return Response.json({ job }, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error);

@@ -57,6 +57,10 @@ export interface CommandAdapterOptions {
   promptVia?: "stdin" | "argv";
   /** Görünen ad (ör. tespit edilen CLI adı). */
   label?: string;
+  /** Verilirse tokenize edilmiş komut yerine bu argv kullanılır (boşluklu değerler tek token kalır). */
+  argv?: string[];
+  /** stdout trim sonrası uygulanan çıktı temizliği (ör. CLI metadata satırları). */
+  postProcess?: (text: string) => string;
 }
 
 const STDOUT_LIMIT = 4_000_000;
@@ -69,18 +73,27 @@ const STDERR_LIMIT = 100_000;
 export class CommandAgentAdapter implements AgentAdapter {
   readonly name: string;
   private readonly promptVia: "stdin" | "argv";
+  private readonly argvOverride?: string[];
+  private readonly postProcess?: (text: string) => string;
 
   constructor(
     readonly command: string,
     options: CommandAdapterOptions = {},
   ) {
     this.promptVia = options.promptVia ?? "stdin";
-    const program = tokenizeCommand(command)[0] ?? "bilinmeyen";
+    this.argvOverride = options.argv;
+    this.postProcess = options.postProcess;
+    const program = (options.argv?.[0] ?? tokenizeCommand(command)[0]) ?? "bilinmeyen";
     this.name = options.label ?? program;
   }
 
   run(task: AgentRunTask): Promise<AgentRunResult> {
-    const parts = tokenizeCommand(this.command);
+    let parts: string[];
+    if (this.argvOverride && this.argvOverride.length > 0) {
+      parts = this.argvOverride;
+    } else {
+      parts = tokenizeCommand(this.command);
+    }
     if (parts.length === 0) {
       return Promise.reject(new AgentError("Agent komutu boş"));
     }
@@ -136,9 +149,10 @@ export class CommandAgentAdapter implements AgentAdapter {
           return;
         }
         resolve({
-          text,
+          text: this.postProcess ? this.postProcess(text) : text,
           meta: {
-            command: this.command,
+            // Provenance güvenli alanlarla sınırlı: raw komut/env loglanmaz.
+            program,
             promptVia: this.promptVia,
             exitCode: code,
             durationMs: Date.now() - startedAt,

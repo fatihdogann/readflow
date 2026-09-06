@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
+import { MobileNav, Sidebar } from "@/components/Sidebar";
 
 export const metadata: Metadata = {
   title: "Readflow",
@@ -23,9 +23,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body className="min-h-screen bg-[#faf9f7] text-stone-900 antialiased dark:bg-[#171512] dark:text-stone-200">
-        <div className="mx-auto flex min-h-screen w-full max-w-6xl">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-stone-900 focus:px-3 focus:py-2 focus:text-sm focus:text-white"
+        >
+          İçeriğe atla
+        </a>
+        <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col md:flex-row">
           <Sidebar />
-          <main className="min-w-0 flex-1 px-5 py-8 md:px-10 md:py-10">{children}</main>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <MobileNav />
+            <main id="main-content" className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">
+              {children}
+            </main>
+          </div>
         </div>
       </body>
     </html>

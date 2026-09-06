@@ -1,16 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { AgentRuntimeInfo } from "@/lib/agent/types";
 
 interface AgentStatusResponse {
   workerAlive: boolean;
   lastHeartbeat: string | null;
-  agentMode: AgentRuntimeInfo["mode"] | null;
+  agentMode: "command" | "mock" | "none" | null;
   agentName: string | null;
   message: string | null;
   lastError: string | null;
   counts: { pending: number; processing: number; completed: number; failed: number };
+  envLock: { locked: boolean; description: string };
+  defaultProfileId: number | null;
+  profiles: Array<{ id: number; name: string; cli: string; model: string | null; enabled: number }>;
 }
 
 interface StatusView {
@@ -19,13 +22,17 @@ interface StatusView {
   detail: string;
 }
 
-function toView(status: AgentStatusResponse | null): StatusView {
+function toView(status: AgentStatusResponse | null, fetchFailures: number): StatusView {
+  // Tekrarlayan hata sonrası eski "hazır" bilgisini süresiz gösterme.
+  if (fetchFailures >= 3) {
+    return { label: "Durum alınamıyor", color: "bg-orange-500", detail: "Sunucuya erişilemiyor" };
+  }
   if (!status) return { label: "Durum alınıyor…", color: "bg-stone-400", detail: "" };
   if (!status.workerAlive && status.lastHeartbeat) {
     return {
       label: "Worker yanıt vermiyor",
       color: "bg-orange-500",
-      detail: "dev:worker çalışıyor mu?",
+      detail: "pnpm dev:worker çalışıyor mu?",
     };
   }
   if (!status.workerAlive) {
@@ -38,29 +45,50 @@ function toView(status: AgentStatusResponse | null): StatusView {
       detail: `${status.counts.processing} iş sürüyor, ${status.counts.pending} kuyrukta`,
     };
   }
-  if (status.agentMode === "command" || status.agentMode === "mock") {
+  if (status.envLock.locked) {
+    return {
+      label: status.agentMode === "none" ? "Agent devre dışı" : `Agent hazır (${status.agentName ?? "env"})`,
+      color: status.agentMode === "none" ? "bg-red-500" : "bg-emerald-600",
+      detail: `${status.envLock.description} · Ayarlar ekranında değiştirilemez`,
+    };
+  }
+  if (status.defaultProfileId && status.profiles.some((p) => p.id === status.defaultProfileId)) {
+    const profile = status.profiles.find((p) => p.id === status.defaultProfileId)!;
     return {
       label: "Agent hazır",
       color: "bg-emerald-600",
+      detail: `Varsayılan profil: ${profile.name} (${profile.cli})${status.counts.pending > 0 ? ` · ${status.counts.pending} kuyrukta` : ""}`,
+    };
+  }
+  if (status.agentMode === "command" || status.agentMode === "mock") {
+    return {
+      label: status.agentMode === "mock" ? "Mock agent (geliştirme)" : "Agent hazır",
+      color: status.agentMode === "mock" ? "bg-amber-500" : "bg-emerald-600",
       detail: `${status.agentName ?? "agent"} bağlı${status.counts.pending > 0 ? ` · ${status.counts.pending} kuyrukta` : ""}`,
     };
   }
   return {
     label: "Agent bağlı değil",
     color: "bg-red-500",
-    detail: status.message ?? "READFLOW_AGENT_CMD ile bağlayın",
+    detail: status.message ?? "Ayarlar ekranından profil oluştur veya READFLOW_AGENT_CMD ile bağla",
   };
 }
 
 export function AgentStatusBadge() {
   const [status, setStatus] = useState<AgentStatusResponse | null>(null);
+  const [failures, setFailures] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
       const response = await fetch("/api/agent/status", { cache: "no-store" });
-      if (response.ok) setStatus((await response.json()) as AgentStatusResponse);
+      if (response.ok) {
+        setStatus((await response.json()) as AgentStatusResponse);
+        setFailures(0);
+      } else {
+        setFailures((count) => count + 1);
+      }
     } catch {
-      /* ağ hatası: sonraki turda tekrar dene */
+      setFailures((count) => count + 1);
     }
   }, []);
 
@@ -73,19 +101,18 @@ export function AgentStatusBadge() {
     };
   }, [refresh]);
 
-  const view = toView(status);
-  const detail =
-    status?.lastError ? `${view.detail} — son hata: ${status.lastError}` : view.detail;
+  const view = toView(status, failures);
+  const detail = status?.lastError ? `${view.detail} — son hata: ${status.lastError}` : view.detail;
 
   return (
-    <div className="group relative">
-      <div
-        className="flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-xs text-stone-600 dark:text-stone-400"
-        title={detail}
-      >
-        <span className={`h-2 w-2 shrink-0 rounded-full ${view.color}`} />
-        <span className="truncate">{view.label}</span>
-      </div>
-    </div>
+    <Link
+      href="/settings"
+      className="flex items-center gap-2 rounded-md px-2 py-2 text-xs text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60"
+      title={`${detail} — Ayarları aç`}
+      aria-label={`Yerel AI durumu: ${view.label}. Ayarları aç`}
+    >
+      <span className={`h-2 w-2 shrink-0 rounded-full ${view.color}`} aria-hidden />
+      <span className="truncate">{view.label}</span>
+    </Link>
   );
 }

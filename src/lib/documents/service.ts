@@ -1,13 +1,23 @@
 import type { SqliteDb } from "../db/connection";
 import { getDocument, insertDocument, type DocumentRow } from "../db/repo/documents";
+import { getEdit } from "../db/repo/documentEdits";
 import { listJobsByDocument, type JobRow } from "../db/repo/jobs";
 import { listOutputs, type OutputRow } from "../db/repo/outputs";
 import { listDocumentTags } from "../db/repo/tags";
 import { fetchArticle } from "../extraction/fetchArticle";
 import { InputError, looksLikeUrl } from "../types";
 
+export interface DocumentEditInfo {
+  content: string;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DocumentDetail {
   document: DocumentRow;
+  /** Kullanıcı sürümü (yoksa null). original_text asla değişmez; düzenleme ayrı tutulur. */
+  edit: DocumentEditInfo | null;
   outputs: OutputRow[];
   jobs: JobRow[];
   tags: string[];
@@ -78,8 +88,12 @@ export async function createDocumentFromInput(
 export function getDocumentDetail(db: SqliteDb, id: number): DocumentDetail | null {
   const document = getDocument(db, id);
   if (!document) return null;
+  const edit = getEdit(db, id);
   return {
     document,
+    edit: edit
+      ? { content: edit.content, revision: edit.revision, created_at: edit.created_at, updated_at: edit.updated_at }
+      : null,
     outputs: listOutputs(db, id),
     jobs: listJobsByDocument(db, id, 10),
     tags: listDocumentTags(db, id),

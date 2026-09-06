@@ -4,6 +4,8 @@ import type { OutputRow } from "../db/repo/outputs";
 export interface ExportPayload {
   document: DocumentRow;
   output: OutputRow | null;
+  /** Düzenlenmiş varyant dışa aktarımında kullanıcının sürüm içeriği. */
+  editedContent?: string;
 }
 
 export interface RemoteExportResult {

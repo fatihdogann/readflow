@@ -18,9 +18,10 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 
 - Bir **URL yapıştırırsın**: sayfa sunucu tarafında indirilir, Mozilla Readability ile ana makaleye ayrıştırılır (navigation, reklam, cookie banner gürültüsü atılır, HTML sanitize edilir).
 - Bir **metin yapıştırırsın**: doğrudan arşive kaydedilir.
-- Sonra iki AI işlemi çalıştırırsın: **Okunabilirliği Artır** (yeniden yazım değil; sadece yapılandırma) ve **Özetle** (Kısa / Normal / Detaylı).
-- AI işlemleri **remote LLM API'si ile değil**, kendi bilgisayarında açık olan coding-agent CLI üzerinden yapılır. **Hiçbir LLM API key istemez.**
-- Her şey `~/.readflow/` altındaki tek bir SQLite dosyasında kalır. Geçmiş kalıcıdır; arama, favoriler, klasörler, etiketler ve domain filtresi ile gezilir.
+- Dört içerik türü nettir: **Orijinal** (asla değişmez), **Düzenlenmiş** (kullanıcının kendi sürümü, revision kontrollü), **AI Düzenlemesi** (okunabilirlik çıktısı) ve **Özet** (Kısa/Normal/Detaylı).
+- AI işlemleri **remote LLM API'si ile değil**, kendi bilgisayarındaki coding-agent CLI üzerinden yapılır. **Hiçbir LLM API key istemez.** CLI'ın kendisi kendi oturumuyla uzak model sağlayıcısına bağlanabilir; Readflow'un verisi (dokümanlar, notlar, çıktılar) ise yalnızca `~/.readflow/` içinde saklanır — "yerel saklama" ile "AI tamamen çevrimdışı" aynı şey değildir.
+- İş oluşturulduğunda **kaynak metin, notlar ve AI yapılandırması snapshot olarak sabitlenir**; sonraki değişiklikler bekleyen işi etkilemez. Retry aynı snapshot ile çalışır.
+- Arama, favoriler, klasörler, etiketler, domain/AI filtreleri ve "Notlu"/"Düzenlenmiş" filtreleriyle arşivde gezilir. Her AI çıktısının değişmez sürüm geçmişi tutulur.
 - Çıktılar panoya, TXT, Markdown, PDF (yazdır), DOCX olarak yerel olarak dışa aktarılır; Notion/Telegram adapter'ları env ile kurulur.
 
 ## Gereksinimler
@@ -54,20 +55,25 @@ pnpm db:migrate   # şema sürümünü yazdırır
 
 ## Agent CLI bağlantısı
 
-Worker, sıradaki `pending` job'ı alır; prompt'u agent CLI'nın **stdin**'ine yazar, sonucu **stdout**'tan okur.
+AI işlemleri dört adımlı bir zincirle çalışır: web arayüzü job'a **kaynak metin + notlar + AI yapılandırmasını snapshot olarak** yazar → yerel worker bu snapshot ile adapter kurar → prompt CLI'ın **stdin**'ine yazılır (jcode gibi argv isteyenler için `transport: argv`), sonuç **stdout**'tan okunur → çıktı değişmez revizyonla SQLite'a kaydedilir.
 
-**Sıfır yapılandırma:** `READFLOW_AGENT_CMD` boşsa worker bilinen CLI'ları (`claude`, `codex`, `jcode`) PATH'te arar, `--help` çıktısındaki non-interactive imzasını doğrular ve uygun olanı bağlar. Hiçbiri doğrulanamazsa site çalışmaya devam eder, job'lar `pending` kalır ve arayüzde **"Agent bağlı değil"** görünür; agent açıldığında bekleyen işler işlenir.
+**Öncelik sırası:** environment kilidi (`READFLOW_AGENT_MODE` / `READFLOW_AGENT_CMD` — Ayarlar'da "Environment tarafından yönetiliyor" olarak gösterilir, UI değiştiremez) → işte açık profil seçimi → kaydedilmiş varsayılan profil → otomatik tespit.
 
-**Manuel bağlama** (`.env.local`):
+**Ayarlar → Yerel AI ekranı:** kurulu CLI'lar (claude/codex/jcode), help çıktısından doğrulanmış yetenekleri (`--model`, `--provider`, read-only sandbox), sürümleri; profiller; "Bağlantıyı doğrula" (örnek metinle gerçek çalışma testi — CLI bulunması ile oturum doğrulaması ayrı şeylerdir) ve "Varsayılan yap". Model/profil kimlikleri serbest metin olarak girilir; CLI'ın help'inde doğrulanmayan bayrak kullanılmaz. Doğrulama ve profil mutasyonları yalnızca localhost üzerinden kabul edilir.
+
+**Manuel/env bağlama** (`.env.local`):
 
 ```bash
 READFLOW_AGENT_CMD="claude -p"          # prompt stdin'den, sonuç stdout'tan
-READFLOW_AGENT_CMD="codex exec -"       # dizin git repo / trusted olmalı
+READFLOW_AGENT_CMD="codex exec -"       # worker repo kökünde çalışır (git repo gerekli)
 READFLOW_AGENT_CMD="jcode run"          # jcode mesajı argüman ister: READFLOW_AGENT_PROMPT_VIA=argv
+READFLOW_AGENT_MODE=none                # AI'yı tamamen kapat; işler pending kalır
 READFLOW_AGENT_TIMEOUT_MS=120000
 ```
 
 Kendi script'in de olur — sözleşme basit: stdin → prompt, stdout → Markdown çıktı. Denemek için: `READFLOW_AGENT_CMD="node scripts/mock-agent.mjs"`.
+
+**Güvenilirlik:** iş sahipliği + lease modeli sayesinde ikinci bir worker veya MCP tüketici aynı işi alamaz; uzun AI çağrılarında kalp atışı ve lease ayrı interval'de yenilenir, yalnızca süresi dolmuş işler kurtarılır. Geç gelen eski sahibin sonucu yeni denemeyi ezmez.
 
 ## MCP kurulumu
 
@@ -86,10 +92,10 @@ MCP destekleyen agent'lara (ör. `.mcp.json`):
 
 Tool'lar: `readflow_list_pending_jobs`, `readflow_get_job`, `readflow_claim_job`, `readflow_complete_job`, `readflow_fail_job`, `readflow_get_document`, `readflow_create_document`, `readflow_list_documents`. Böylece agent, Readflow'un kuyruğunu kendisi çekebilir (worker'a alternatif ikinci entegrasyon yolu).
 
-## Yerel veri
+## Yerel veri ve yedekleme
 
-- Veritabanı: `~/.readflow/readflow.sqlite` (WAL modu)
-- `READFLOW_DATA_DIR` ile değiştirilebilir
+- Veritabanı: `~/.readflow/readflow.sqlite` (WAL modu), `READFLOW_DATA_DIR` ile değiştirilebilir
+- **Yedekleme**: `pnpm db:backup` — WAL ile tutarlı `VACUUM INTO` yedeği alır (`~/.readflow/backups/`). Şema yükseltmeleri de otomatik olarak yükseltme öncesi yedek alır. Geri yüklemek için uygulama kapalıyken yedek dosyasını `readflow.sqlite` olarak kopyala (WAL/SHM dosyalarını sil).
 - `.gitignore` yanlışlıkla oluşabilecek `*.sqlite*` ve veri dizinlerini repo dışında tutar
 
 ## Dışa aktarma
@@ -102,10 +108,12 @@ Tüm veri (dokümanlar, çıktılar, job geçmişi) yalnızca `~/.readflow/` iç
 
 ## Sorun giderme
 
-- **"Agent bağlı değil"**: `READFLOW_AGENT_CMD` tanımla veya CLI'ının authenticated olduğundan emin ol (`claude` OAuth oturumu dolabilir — terminalden `claude doctor`).
+- **"Agent bağlı değil"**: Ayarlar ekranından profil oluştur + "Bağlantıyı doğrula" çalıştır; ya da `READFLOW_AGENT_CMD` tanımla. `claude` OAuth oturumu dolabilir — terminalden `claude` yazıp login ol, sonra failed işe "Yeniden dene".
+- **"Environment tarafından yönetiliyor" kilidi**: `.env.local` içinde `READFLOW_AGENT_MODE`/`READFLOW_AGENT_CMD` var; UI'dan değil env'den yönet.
+- **İş "sahiplik" hatası verdi**: işin lease süresi dolup başka tüketici (ikinci worker/MCP) almış; geç gelen sonuç bilinçli olarak reddedildi. Yeniden dene.
 - **better-sqlite3 kurulmuyor**: `pnpm rebuild better-sqlite3` — Node sürümün için prebuilt binary yoksa Xcode CLT gerekir.
-- **codex "Not inside a trusted directory"**: worker'ı repo kökünden çalıştırdığından emin ol (varsayılan öyle) veya dizini codex'te trust et.
-- **Port 3000 dolu**: `pnpm dev:web -- -p 3001`.
+- **Port 3000 dolu**: `pnpm dev:web -- -p 3001`. Eski Next süreçleri `pkill -f next-server` ile bulunur (Next 16 süreç adını yeniden adlandırır).
+- **Node 26'da "ExperimentalWarning: localStorage"**: `docx` paketinin Node 26 uyumluluk shim'i modül yüklenirken global `localStorage`'a dokunur; zararsızdır ve docx güncellemesiyle kaybolur. Readflow'un kendi kodu Node tarafında localStorage'a erişmez.
 - **URL eklenemiyor (HTTP 403 vb.)**: bazı siteler bot engeli uygular; sayfayı kopyalayıp metin olarak yapıştır.
 
 ## Mimari
