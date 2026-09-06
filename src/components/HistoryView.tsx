@@ -1,184 +1,354 @@
-import Link from "next/link";
-import { getDb } from "@/lib/db/connection";
-import { listDistinctAgentNames } from "@/lib/db/repo/outputs";
-import {
-  listDocuments,
-  searchDocuments,
-  type DocumentFilters,
-  type DocumentListItem,
-} from "@/lib/db/repo/documents";
-import { listDomains } from "@/lib/db/repo/documents";
-import { listFolders } from "@/lib/db/repo/folders";
-import { listOutputSummariesForDocuments } from "@/lib/db/repo/outputs";
-import { listTags } from "@/lib/db/repo/tags";
-import { DocumentList, type OutputBadge } from "@/components/DocumentList";
+"use client";
 
-export interface HistoryFilters {
-  q?: string;
-  domain?: string;
-  folderId?: number | "none";
-  tag?: string;
-  favorite?: boolean;
-  notlu?: boolean;
-  duzenlenmis?: boolean;
-  agent?: string;
-  offset?: number;
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DocumentListItem } from "@/lib/db/repo/documents";
+import { DocumentList, type OutputBadge } from "@/components/DocumentList";
+import { parseHistoryFilters, type HistoryViewFilters } from "@/lib/history/filters";
+
+export type { HistoryViewFilters };
+export { parseHistoryFilters };
+
+export interface HistoryFacets {
+  domains: string[];
+  folders: Array<{ id: number; name: string; document_count: number }>;
+  tags: Array<{ id: number; name: string }>;
+  agents: string[];
 }
 
-const PAGE_SIZE = 50;
+interface FetchResult {
+  docs: DocumentListItem[];
+  hasMore: boolean;
+  outputs: Array<[number, OutputBadge[]]>;
+}
+
+function buildQuery(filters: HistoryViewFilters, offset: number): string {
+  const params = new URLSearchParams();
+  if (filters.q?.trim()) params.set("q", filters.q.trim());
+  if (filters.domain) params.set("domain", filters.domain);
+  if (filters.tag) params.set("tag", filters.tag);
+  if (filters.agent) params.set("agent", filters.agent);
+  if (filters.folderId === "none") params.set("folder", "none");
+  else if (typeof filters.folderId === "number") params.set("folder", String(filters.folderId));
+  if (filters.favorite) params.set("favorite", "1");
+  if (filters.notlu) params.set("notlu", "1");
+  if (filters.duzenlenmis) params.set("duzenlenmis", "1");
+  if (offset > 0) params.set("offset", String(offset));
+  return params.toString();
+}
 
 /**
- * Geçmiş/favoriler için ortak liste + filtre çubuğu.
- * Filtreler GET formu ile taşınır; load-more offset'i URL'de korunur.
+ * Anlık arşiv filtreleri: metin araması 300 ms debounce (Enter ile hemen),
+ * diğer filtreler anında; URL pushState ile senkron (geri/ileri + yenileme
+ * doğru durumu getirir); hızlı değişimlerde eski yanıt yeni sonucu ezmeyecek
+ * şekilde sıra numarası + AbortController; filtre değişince sayfalama sıfırlanır.
  */
 export function HistoryView({
-  filters,
+  initialFilters,
+  facets,
   title,
+  basePath,
 }: {
-  filters: HistoryFilters;
+  initialFilters: HistoryViewFilters;
+  facets: HistoryFacets;
   title: string;
+  basePath: string;
 }) {
-  const db = getDb();
-  const base = filters.favorite ? "/favorites" : "/history";
-  const docs: DocumentListItem[] = filters.q
-    ? searchDocuments(db, { ...filters, limit: PAGE_SIZE + 1 })
-    : listDocuments(db, { ...filters, limit: PAGE_SIZE + 1 });
-  const hasMore = docs.length > PAGE_SIZE;
-  const visible = docs.slice(0, PAGE_SIZE);
-  const outputsByDoc = listOutputSummariesForDocuments(
-    db,
-    visible.map((doc) => doc.id),
-  ) as Map<number, OutputBadge[]>;
-  const domains = listDomains(db);
-  const folders = listFolders(db);
-  const tags = listTags(db);
-  const agents = listDistinctAgentNames(db);
+  const [filters, setFilters] = useState<HistoryViewFilters>(initialFilters);
+  const [docs, setDocs] = useState<DocumentListItem[]>([]);
+  const [outputsByDoc, setOutputsByDoc] = useState<Map<number, OutputBadge[]>>(new Map());
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [textDraft, setTextDraft] = useState(initialFilters.q ?? "");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const selectClass =
-    "min-h-[36px] rounded-md border border-stone-300 bg-white px-2 py-1.5 text-xs outline-none dark:border-stone-700 dark:bg-stone-900";
-  const nextOffset = (filters.offset ?? 0) + PAGE_SIZE;
+  // Race koruması: sıra numarası + aktif isteği iptal. Ref'lere yalnızca
+  // effect içinde tanımlanan doFetch erişir; bileşen API'si runFetch üzerinden.
+  const seqRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const fetchRef = useRef<(next: HistoryViewFilters, offset: number) => Promise<void>>(async () => {});
+  const skipNextUrlSync = useRef(false);
 
-  const moreParams = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
-    if (value === undefined || value === false || key === "offset") continue;
-    moreParams.set(key, String(value));
+  useEffect(() => {
+    const doFetch = async (next: HistoryViewFilters, offset: number): Promise<void> => {
+      const seq = ++seqRef.current;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setLoading(true);
+      setError(null);
+      try {
+        const query = buildQuery(next, offset);
+        const response = await fetch(`/api/history${query ? `?${query}` : ""}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`Sorgu başarısız (HTTP ${response.status})`);
+        const body = (await response.json()) as FetchResult;
+        if (seq !== seqRef.current) return; // eski yanıt: yok say
+        setOutputsByDoc(new Map(body.outputs));
+        setHasMore(body.hasMore);
+        setDocs((previous) => (offset > 0 ? [...previous, ...body.docs] : body.docs));
+      } catch (fetchError) {
+        if (fetchError instanceof DOMException && fetchError.name === "AbortError") return;
+        if (seq === seqRef.current) {
+          setError(fetchError instanceof Error ? fetchError.message : "Sorgu başarısız");
+        }
+      } finally {
+        if (seq === seqRef.current) setLoading(false);
+      }
+    };
+    fetchRef.current = doFetch;
+
+    const initial = setTimeout(() => void doFetch(initialFilters, initialFilters.offset ?? 0), 0);
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const restored: HistoryViewFilters = {
+        q: params.get("q") ?? undefined,
+        domain: params.get("domain") ?? undefined,
+        tag: params.get("tag") ?? undefined,
+        agent: params.get("agent") ?? undefined,
+        folderId:
+          params.get("folder") === "none"
+            ? "none"
+            : params.get("folder")
+              ? Number(params.get("folder"))
+              : undefined,
+        favorite: params.get("favorite") === "1",
+        notlu: params.get("notlu") === "1",
+        duzenlenmis: params.get("duzenlenmis") === "1",
+        offset: Number(params.get("offset")) || 0,
+      };
+      setTextDraft(restored.q ?? "");
+      setFilters(restored);
+      skipNextUrlSync.current = true;
+      void doFetch(restored, restored.offset ?? 0);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      clearTimeout(initial);
+      window.removeEventListener("popstate", onPopState);
+      abortRef.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Handler'lar ve debounced efekt bu köprüyı kullanır.
+  const runFetch = useCallback((next: HistoryViewFilters, offset: number) => {
+    void fetchRef.current(next, offset);
+  }, []);
+
+  // Filtre değişimi: URL güncelle + sıfırdan sorgula (offset sıfırlanır)
+  const applyFilters = useCallback(
+    (next: HistoryViewFilters) => {
+      setFilters(next);
+      if (skipNextUrlSync.current) {
+        skipNextUrlSync.current = false;
+      } else {
+        const query = buildQuery(next, 0);
+        window.history.pushState(null, "", query ? `${basePath}?${query}` : basePath);
+      }
+      runFetch(next, 0);
+    },
+    [basePath, runFetch],
+  );
+
+  // Metin araması: 300 ms debounce
+  useEffect(() => {
+    if (textDraft === (filters.q ?? "")) return;
+    const timer = setTimeout(() => {
+      applyFilters({ ...filters, q: textDraft.trim() || undefined });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [textDraft]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function patchFilters(partial: Partial<HistoryViewFilters>): void {
+    applyFilters({ ...filters, ...partial, offset: 0 });
   }
-  moreParams.set("offset", String(nextOffset));
+
+  type ChipKind = "q" | "domain" | "tag" | "agent" | "folder-none" | "folder" | "notlu" | "duzenlenmis" | "favorite";
+  const activeChips: Array<{ kind: ChipKind; label: string }> = useMemo(() => {
+    const chips: Array<{ kind: ChipKind; label: string }> = [];
+    if (filters.q) chips.push({ kind: "q", label: `Ara: ${filters.q}` });
+    if (filters.domain) chips.push({ kind: "domain", label: `Domain: ${filters.domain}` });
+    if (filters.tag) chips.push({ kind: "tag", label: `Etiket: ${filters.tag}` });
+    if (filters.agent) chips.push({ kind: "agent", label: `AI: ${filters.agent}` });
+    if (filters.folderId === "none") chips.push({ kind: "folder-none", label: "Klasörsüz" });
+    else if (typeof filters.folderId === "number") {
+      const folder = facets.folders.find((candidate) => candidate.id === filters.folderId);
+      if (folder) chips.push({ kind: "folder", label: `Klasör: ${folder.name}` });
+    }
+    if (filters.notlu) chips.push({ kind: "notlu", label: "Notlu" });
+    if (filters.duzenlenmis) chips.push({ kind: "duzenlenmis", label: "Düzenlenmiş" });
+    if (filters.favorite) chips.push({ kind: "favorite", label: "Favori" });
+    return chips;
+  }, [filters, facets.folders]);
+
+  const clearChip = useCallback(
+    (kind: ChipKind) => {
+      if (kind === "q") {
+        setTextDraft("");
+        applyFilters({ ...filters, q: undefined });
+        return;
+      }
+      if (kind === "folder") {
+        patchFilters({ folderId: undefined });
+        return;
+      }
+      switch (kind) {
+        case "domain": patchFilters({ domain: undefined }); break;
+        case "tag": patchFilters({ tag: undefined }); break;
+        case "agent": patchFilters({ agent: undefined }); break;
+        case "folder-none": patchFilters({ folderId: undefined }); break;
+        case "notlu": patchFilters({ notlu: false }); break;
+        case "duzenlenmis": patchFilters({ duzenlenmis: false }); break;
+        case "favorite": patchFilters({ favorite: false }); break;
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filters, applyFilters],
+  );
+
+  const clearAll = useCallback((): void => {
+    setTextDraft("");
+    applyFilters({ favorite: filters.favorite });
+  }, [filters, applyFilters]);
+
+  const activeCount = activeChips.length;
+  const selectClass =
+    "min-h-[40px] rounded-md border border-stone-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500";
+
+  const filterPanel = (
+    <div className="flex flex-wrap items-center gap-2">
+      <select aria-label="Domain filtresi" value={filters.domain ?? ""} onChange={(event) => patchFilters({ domain: event.target.value || undefined })} className={selectClass}>
+        <option value="">Tüm domainler</option>
+        {facets.domains.map((domain) => (
+          <option key={domain} value={domain}>{domain}</option>
+        ))}
+      </select>
+      <select aria-label="Klasör filtresi" value={filters.folderId === "none" ? "none" : String(filters.folderId ?? "")} onChange={(event) => patchFilters({ folderId: event.target.value === "" ? undefined : event.target.value === "none" ? "none" : Number(event.target.value) })} className={selectClass}>
+        <option value="">Tüm klasörler</option>
+        <option value="none">Klasörsüz</option>
+        {facets.folders.map((folder) => (
+          <option key={folder.id} value={String(folder.id)}>{folder.name} ({folder.document_count})</option>
+        ))}
+      </select>
+      <select aria-label="Etiket filtresi" value={filters.tag ?? ""} onChange={(event) => patchFilters({ tag: event.target.value || undefined })} className={selectClass}>
+        <option value="">Tüm etiketler</option>
+        {facets.tags.map((tag) => (
+          <option key={tag.id} value={tag.name}>{tag.name}</option>
+        ))}
+      </select>
+      <select aria-label="AI filtresi" value={filters.agent ?? ""} onChange={(event) => patchFilters({ agent: event.target.value || undefined })} className={selectClass}>
+        <option value="">Tüm AI&apos;lar</option>
+        {facets.agents.map((agent) => (
+          <option key={agent} value={agent}>{agent}</option>
+        ))}
+      </select>
+      <label className="flex min-h-[40px] items-center gap-1.5 text-xs text-stone-600 dark:text-stone-400">
+        <input type="checkbox" checked={Boolean(filters.notlu)} onChange={(event) => patchFilters({ notlu: event.target.checked })} className="accent-stone-700" />
+        Notlu
+      </label>
+      <label className="flex min-h-[40px] items-center gap-1.5 text-xs text-stone-600 dark:text-stone-400">
+        <input type="checkbox" checked={Boolean(filters.duzenlenmis)} onChange={(event) => patchFilters({ duzenlenmis: event.target.checked })} className="accent-stone-700" />
+        Düzenlenmiş
+      </label>
+      <label className="flex min-h-[40px] items-center gap-1.5 text-xs text-stone-600 dark:text-stone-400">
+        <input type="checkbox" checked={Boolean(filters.favorite)} onChange={(event) => patchFilters({ favorite: event.target.checked })} className="accent-stone-700" />
+        Favori
+      </label>
+    </div>
+  );
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <div className="no-print flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-[-0.025em]">{title}</h1>
-        <form method="get" action={base} className="mt-3 flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white/65 p-3 shadow-[0_10px_30px_rgba(28,25,23,0.04)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none">
-          <div className="flex gap-2">
-            <input
-              type="search"
-              name="q"
-              defaultValue={filters.q ?? ""}
-              placeholder="Belge, düzenlenmiş metin, not ve AI çıktılarında ara…"
-              aria-label="Arama"
-              className="min-w-0 flex-1 rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm outline-none placeholder:text-stone-500 focus:border-stone-500 focus:ring-2 focus:ring-stone-900/5 dark:border-stone-700 dark:bg-stone-950/40 dark:placeholder:text-stone-400 dark:focus:ring-white/5"
-            />
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+      <div className="no-print flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((value) => !value)}
+            aria-expanded={filtersOpen}
+            className="min-h-[40px] rounded-md border border-stone-300 px-3 text-xs font-medium hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800 lg:hidden"
+          >
+            Filtreler{activeCount > 0 ? ` (${activeCount})` : ""}
+          </button>
+        </div>
+
+        <input
+          type="search"
+          value={textDraft}
+          onChange={(event) => setTextDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              applyFilters({ ...filters, q: textDraft.trim() || undefined });
+            }
+          }}
+          placeholder="Belge, düzenlenmiş metin, not ve AI çıktılarında ara…"
+          aria-label="Arama"
+          className="w-full rounded-md border border-stone-300 bg-white px-3 py-2.5 text-sm outline-none placeholder:text-stone-500 focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:placeholder:text-stone-400 dark:focus:border-stone-500"
+        />
+
+        <div className={`${filtersOpen ? "flex" : "hidden"} flex-col gap-2 lg:flex`}>{filterPanel}</div>
+
+        {activeCount > 0 ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {activeChips.map((chip) => (
+              <button
+                key={chip.kind + chip.label}
+                type="button"
+                onClick={() => clearChip(chip.kind)}
+                className="flex min-h-[32px] items-center gap-1 rounded-full bg-stone-200/80 px-2.5 text-xs text-stone-700 hover:bg-stone-300/70 dark:bg-stone-700/70 dark:text-stone-200 dark:hover:bg-stone-700"
+              >
+                {chip.label} <span aria-hidden>×</span>
+              </button>
+            ))}
             <button
-              type="submit"
-              className="min-h-[40px] rounded-xl bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
+              type="button"
+              onClick={clearAll}
+              className="min-h-[32px] px-2 text-xs text-stone-500 underline underline-offset-2 dark:text-stone-400"
             >
-              Ara
+              Tümünü temizle
             </button>
           </div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-stone-200 pt-3 dark:border-stone-800">
-          <select name="domain" defaultValue={filters.domain ?? ""} aria-label="Domain filtresi" className={selectClass}>
-            <option value="">Tüm domainler</option>
-            {domains.map((domain) => (
-              <option key={domain} value={domain}>
-                {domain}
-              </option>
-            ))}
-          </select>
-          <select name="folder" defaultValue={typeof filters.folderId === "number" ? String(filters.folderId) : filters.folderId === "none" ? "none" : ""} aria-label="Klasör filtresi" className={selectClass}>
-            <option value="">Tüm klasörler</option>
-            <option value="none">Klasörsüz</option>
-            {folders.map((folder) => (
-              <option key={folder.id} value={String(folder.id)}>
-                {folder.name}
-              </option>
-            ))}
-          </select>
-          <select name="tag" defaultValue={filters.tag ?? ""} aria-label="Etiket filtresi" className={selectClass}>
-            <option value="">Tüm etiketler</option>
-            {tags.map((tag) => (
-              <option key={tag.id} value={tag.name}>
-                {tag.name}
-              </option>
-            ))}
-          </select>
-          <select name="agent" defaultValue={filters.agent ?? ""} aria-label="AI filtresi" className={selectClass}>
-            <option value="">Tüm AI&apos;lar</option>
-            {agents.map((agent) => (
-              <option key={agent} value={agent}>
-                {agent}
-              </option>
-            ))}
-          </select>
-          <label className="flex min-h-[36px] items-center gap-1 text-xs text-stone-600 dark:text-stone-400">
-            <input type="checkbox" name="notlu" value="1" defaultChecked={filters.notlu} className="accent-stone-700" />
-            Notlu
-          </label>
-          <label className="flex min-h-[36px] items-center gap-1 text-xs text-stone-600 dark:text-stone-400">
-            <input type="checkbox" name="duzenlenmis" value="1" defaultChecked={filters.duzenlenmis} className="accent-stone-700" />
-            Düzenlenmiş
-          </label>
-          <label className="flex min-h-[36px] items-center gap-1 text-xs text-stone-600 dark:text-stone-400">
-            <input type="checkbox" name="favorite" value="1" defaultChecked={filters.favorite} className="accent-stone-700" />
-            Favori
-          </label>
-          <button type="submit" className="min-h-[36px] rounded-lg border border-stone-300 bg-white px-3 text-xs font-medium hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-stone-800">Filtreleri uygula</button>
-          <Link href={base} className="min-h-[36px] px-2 text-xs leading-[36px] text-stone-500 underline underline-offset-2 dark:text-stone-400">
-            Sıfırla
-          </Link>
-          </div>
-        </form>
-        <div className="mt-3 px-1 text-xs text-stone-500 dark:text-stone-400">{visible.length} doküman</div>
+        ) : null}
+
+        <div className="flex items-center gap-3 px-1 text-xs text-stone-500 dark:text-stone-400">
+          <span>{loading ? "Yükleniyor…" : `${docs.length} doküman`}</span>
+          {error ? (
+            <span role="alert" className="text-red-600 dark:text-red-400">{error}</span>
+          ) : null}
+        </div>
       </div>
 
-      <DocumentList docs={visible} outputsByDoc={outputsByDoc} />
+      <div className={loading ? "opacity-55 transition-opacity" : "transition-opacity"}>
+        {error && docs.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-red-300 px-6 py-10 text-center text-sm text-red-600 dark:border-red-800 dark:text-red-400">
+            {error}
+          </div>
+        ) : (
+          <DocumentList
+            docs={docs}
+            outputsByDoc={outputsByDoc}
+            emptyMessage={
+              activeCount > 0
+                ? "Bu filtrelerle eşleşen doküman yok — filtreleri temizleyip tekrar dene."
+                : undefined
+            }
+          />
+        )}
+      </div>
 
-      {hasMore ? (
-        <Link
-          href={`${base}?${moreParams.toString()}`}
+      {hasMore && !loading ? (
+        <button
+          type="button"
+          onClick={() => runFetch(filters, docs.length)}
           className="no-print mx-auto min-h-[40px] rounded-md border border-stone-300 px-4 py-2 text-sm text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
         >
           Daha fazla yükle
-        </Link>
+        </button>
       ) : null}
     </div>
   );
 }
-
-export function parseHistoryFilters(
-  params: Record<string, string | string[] | undefined>,
-): HistoryFilters {
-  const get = (key: string): string | undefined => {
-    const value = params[key];
-    const single = Array.isArray(value) ? value[0] : value;
-    const trimmed = single?.trim();
-    return trimmed ? trimmed : undefined;
-  };
-  const folderRaw = get("folder");
-  let folderId: HistoryFilters["folderId"];
-  if (folderRaw === "none") folderId = "none";
-  else if (folderRaw && Number.isInteger(Number(folderRaw))) folderId = Number(folderRaw);
-  const offsetRaw = Number(get("offset"));
-  return {
-    q: get("q"),
-    domain: get("domain"),
-    tag: get("tag"),
-    agent: get("agent"),
-    folderId,
-    notlu: get("notlu") === "1",
-    duzenlenmis: get("duzenlenmis") === "1",
-    offset: Number.isInteger(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0,
-  };
-}
-
-export type { DocumentFilters };

@@ -322,6 +322,8 @@ export function ContentTabs({
         tabIndex={0}
         className="min-w-0"
       >
+        {/* Yazdırma: yalnızca bu alan basılır (globals.css @media print) */}
+        <div id="print-root">
         {effectiveTab === "original" ? (
           <div className="flex flex-col gap-3">
             {doc.source_type === "url" && doc.original_html ? (
@@ -417,6 +419,7 @@ export function ContentTabs({
             </p>
           )
         ) : null}
+        </div>
       </div>
     </div>
   );
