@@ -1,5 +1,6 @@
 allowBuilds:
-  better-sqlite3: true
-  esbuild: true
+  # better-sqlite3 prebuilt binary ile gelir; node-gyp script'i gerekmez.
+  better-sqlite3: false
+  esbuild: false
   sharp: false
   unrs-resolver: false
