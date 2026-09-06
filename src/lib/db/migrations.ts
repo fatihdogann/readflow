@@ -316,6 +316,30 @@ const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    id: 12,
+    name: "document-annotations",
+    up: (db) => {
+      runAll(db, [
+        // Vurgular orijinal/edited içeriğe YAZILMAZ; ayrı tabloda normalize edilmiş
+        // metinle eşleşen alıntı + bağlam saklanır.
+        `CREATE TABLE document_annotations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+          content_kind TEXT NOT NULL CHECK (content_kind IN ('original','edited')),
+          content_revision INTEGER NOT NULL DEFAULT 0,
+          quote TEXT NOT NULL,
+          prefix TEXT NOT NULL DEFAULT '',
+          suffix TEXT NOT NULL DEFAULT '',
+          note TEXT NOT NULL DEFAULT '',
+          color TEXT NOT NULL CHECK (color IN ('yellow','green','lavender')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`,
+        `CREATE INDEX idx_annotations_document ON document_annotations (document_id)`,
+      ]);
+    },
+  },
 ];
 
 function runAll(db: SqliteDb, statements: string[]): void {

@@ -9,6 +9,14 @@ import type { OutputRow } from "@/lib/db/repo/outputs";
 import { summaryLevelLabel, SUMMARY_LEVELS, type SummaryLevel } from "@/lib/types";
 import { ExportMenu } from "../ExportMenu";
 import { EditorPanel } from "./EditorPanel";
+import {
+  AnnotationList,
+  computeRanges,
+  HighlightedArticle,
+  HighlightedText,
+  SelectionToolbar,
+  useAnnotations,
+} from "./Highlights";
 import { EditIcon } from "@/components/Icons";
 
 interface RevisionMeta {
@@ -153,6 +161,22 @@ export function ContentTabs({
   const [compare, setCompare] = useState(false);
   const [aiRevision, setAiRevision] = useState<{ id: number; content: string } | null>(null);
   const [summaryRevision, setSummaryRevision] = useState<{ id: number; content: string } | null>(null);
+  const { annotations, create: createAnnotation, update: updateAnnotation, remove: removeAnnotation } = useAnnotations(doc.id);
+
+  const originalAnnotations = annotations.filter((item) => item.content_kind === "original");
+  const originalEntries = useMemo(
+    () => computeRanges(doc.original_text, originalAnnotations),
+    [doc.original_text, originalAnnotations],
+  );
+
+  const goToAnnotation = (id: number): void => {
+    const element = document.getElementById(`ann-${id}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.classList.add("hl-flash");
+      setTimeout(() => element.classList.remove("hl-flash"), 1600);
+    }
+  };
 
   const readabilityOutput = useMemo(
     () => detail.outputs.find((output) => output.operation === "readability") ?? null,
@@ -327,9 +351,14 @@ export function ContentTabs({
         {effectiveTab === "original" ? (
           <div className="flex flex-col gap-3">
             {doc.source_type === "url" && doc.original_html ? (
-              <article className="article" dangerouslySetInnerHTML={{ __html: doc.original_html }} />
+              <HighlightedArticle
+                html={doc.original_html}
+                entries={originalAnnotations.map((annotation) => ({ annotation, range: { start: 0, end: 0 } }))}
+              />
             ) : (
-              <div className="article whitespace-pre-wrap">{doc.original_text}</div>
+              <div className="article whitespace-pre-wrap">
+                <HighlightedText text={doc.original_text} entries={originalEntries} />
+              </div>
             )}
             {!editing ? (
               <button
@@ -421,6 +450,32 @@ export function ContentTabs({
         ) : null}
         </div>
       </div>
+
+      {/* Vurgu notları */}
+      <section aria-labelledby="annotations-heading" className="no-print flex flex-col gap-2 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+        <h2 id="annotations-heading" className="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">
+          Vurgular ({annotations.length})
+        </h2>
+        <AnnotationList
+          annotations={annotations}
+          onUpdate={(id, patch) => updateAnnotation(id, patch)}
+          onRemove={(id) => removeAnnotation(id)}
+          onGoTo={goToAnnotation}
+        />
+      </section>
+
+      {effectiveTab === "original" ? (
+        <SelectionToolbar
+          containerSelector={`#panel-original`}
+          contentKind="original"
+          contentRevision={0}
+          fullTextResolver={() => doc.original_text}
+          onCreate={async (input) => {
+            const result = await createAnnotation(input);
+            return result;
+          }}
+        />
+      ) : null}
     </div>
   );
 }

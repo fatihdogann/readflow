@@ -175,6 +175,49 @@ html {
   border-color: #44403c;
 }
 
+/* ---- Vurgular ---- */
+.hl {
+  border-radius: 3px;
+  padding: 0.05em 0.1em;
+  color: inherit;
+}
+.hl-yellow {
+  background: #fde68a;
+}
+.hl-green {
+  background: #bbf7d0;
+}
+.hl-lavender {
+  background: #ddd6fe;
+}
+.dark .hl-yellow {
+  background: rgba(234, 179, 8, 0.38);
+}
+.dark .hl-green {
+  background: rgba(34, 197, 94, 0.32);
+}
+.dark .hl-lavender {
+  background: rgba(167, 139, 250, 0.34);
+}
+.hl-flash {
+  animation: hl-pulse 0.8s ease-in-out 2;
+}
+@keyframes hl-pulse {
+  0%,
+  100% {
+    outline: 2px solid transparent;
+  }
+  50% {
+    outline: 2px solid #f59e0b;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hl-flash {
+    animation: none;
+    outline: 2px solid #f59e0b;
+  }
+}
+
 /* ---- Yazdır / PDF ---- */
 @media print {
   body * {
