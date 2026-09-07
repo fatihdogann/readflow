@@ -431,6 +431,107 @@ export function SelectionToolbar({
   );
 }
 
+/** Vurguya tıklayınca açılan küçük popover: not, renk, silme. */
+export function HighlightPopover({
+  annotation,
+  position,
+  onUpdate,
+  onRemove,
+  onClose,
+}: {
+  annotation: AnnotationRow;
+  position: { x: number; y: number };
+  onUpdate: (id: number, patch: { note?: string; color?: AnnotationColor }) => Promise<boolean>;
+  onRemove: (id: number) => Promise<boolean>;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState(annotation.note);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        returnFocus?.focus();
+      }
+    };
+    const onDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [onClose]);
+
+  const colorDot = (color: AnnotationColor, label: string) => (
+    <button
+      key={color}
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={annotation.color === color}
+      onClick={() => void onUpdate(annotation.id, { color })}
+      className={`h-6 w-6 rounded-full border hover:scale-110 transition-transform ${
+        annotation.color === color ? "border-stone-900 dark:border-white" : "border-stone-300 dark:border-stone-600"
+      } hl-dot-${color}`}
+    />
+  );
+
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label="Vurgu detayı"
+      className="no-print fixed z-50 w-64 rounded-lg border border-stone-300 bg-white p-2.5 shadow-xl dark:border-stone-700 dark:bg-stone-900"
+      style={{
+        left: Math.min(Math.max(position.x, 8), (typeof window !== "undefined" ? window.innerWidth : 800) - 272),
+        top: Math.min(Math.max(position.y, 8), (typeof window !== "undefined" ? window.innerHeight : 800) - 180),
+      }}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1">
+          {colorDot("yellow", "Sarı")}
+          {colorDot("green", "Yeşil")}
+          {colorDot("lavender", "Lavanta")}
+        </div>
+        <button
+          type="button"
+          aria-label="Vurguyu kaldır"
+          className="flex h-7 w-7 items-center justify-center rounded text-stone-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40"
+          onClick={() => {
+            void onRemove(annotation.id);
+            onClose();
+          }}
+        >
+          ×
+        </button>
+      </div>
+      <p className="mt-1.5 max-h-16 overflow-y-auto text-[11px] italic text-stone-500 dark:text-stone-400">
+        “{annotation.quote.slice(0, 160)}
+        {annotation.quote.length > 160 ? "…" : ""}”
+      </p>
+      <textarea
+        value={draft}
+        onChange={(event) => {
+          if (event.target.value.length <= 5000) setDraft(event.target.value);
+        }}
+        onBlur={() => {
+          if (draft !== annotation.note) void onUpdate(annotation.id, { note: draft });
+        }}
+        placeholder="Not ekle…"
+        rows={3}
+        aria-label="Vurgu notu"
+        className="mt-1.5 w-full resize-none rounded border border-stone-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500"
+      />
+    </div>
+  );
+}
+
 /** Vurgu notlarının panel listesi ( popover yerine satır içi düzenleme). */
 export function AnnotationList({
   annotations,

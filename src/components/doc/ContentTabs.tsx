@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { mutateJson } from "@/lib/client/api";
@@ -14,6 +14,7 @@ import {
   computeRanges,
   HighlightedArticle,
   HighlightedText,
+  HighlightPopover,
   SelectionToolbar,
   useAnnotations,
 } from "./Highlights";
@@ -180,6 +181,17 @@ export function ContentTabs({
       setTimeout(() => element.classList.remove("hl-flash"), 1600);
     }
   };
+
+  const [popover, setPopover] = useState<{ id: number; x: number; y: number } | null>(null);
+  const onMarkClick = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName !== "MARK" || !target.id.startsWith("ann-")) return;
+    const id = Number(target.id.slice(4));
+    const annotation = annotations.find((candidate) => candidate.id === id);
+    if (!annotation) return;
+    const rect = target.getBoundingClientRect();
+    setPopover({ id, x: rect.left + window.scrollX, y: rect.bottom + window.scrollY + 6 });
+  }, [annotations]);
 
   const focusNote = (annotationId: number): void => {
     setFocusNoteId(annotationId);
@@ -360,7 +372,10 @@ export function ContentTabs({
         className="min-w-0"
       >
         {/* Yazdırma: yalnızca bu alan basılır (globals.css @media print) */}
-        <div id="print-root">
+        <div
+          id="print-root"
+          onClick={onMarkClick}
+        >
         {effectiveTab === "original" ? (
           <div className="flex flex-col gap-3">
             {doc.source_type === "url" && doc.original_html ? (
@@ -463,6 +478,23 @@ export function ContentTabs({
         ) : null}
         </div>
       </div>
+
+      {/* Vurgu popover */}
+      {popover
+        ? (() => {
+            const annotation = annotations.find((candidate) => candidate.id === popover.id);
+            if (!annotation) return null;
+            return (
+              <HighlightPopover
+                annotation={annotation}
+                position={{ x: popover.x, y: popover.y }}
+                onUpdate={(id, patch) => updateAnnotation(id, patch)}
+                onRemove={async (id) => removeAnnotation(id)}
+                onClose={() => setPopover(null)}
+              />
+            );
+          })()
+        : null}
 
       {/* Vurgu notları */}
       <section aria-labelledby="annotations-heading" className="no-print flex flex-col gap-2 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
