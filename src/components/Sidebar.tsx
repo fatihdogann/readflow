@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { ThemeToggle } from "./ThemeToggle";
 import { NAV_ITEMS } from "./nav-items";
-import { AddDocumentIcon, CloseIcon, FolderIcon, HeartIcon, HistoryIcon, MenuIcon, PlusIcon, SettingsIcon } from "./Icons";
+import { AddDocumentIcon, CloseIcon, FolderIcon, HeartIcon, HighlightIcon, HistoryIcon, MenuIcon, PlusIcon, SettingsIcon } from "./Icons";
 import { FOLDERS_CHANGED_EVENT, notifyFoldersChanged } from "@/lib/client/events";
 
 interface FolderItem {
@@ -76,6 +76,7 @@ function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
     "/": AddDocumentIcon,
     "/history": HistoryIcon,
     "/favorites": HeartIcon,
+    "/highlights": HighlightIcon,
     "/settings": SettingsIcon,
   } as const;
   return (

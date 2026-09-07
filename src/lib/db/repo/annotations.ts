@@ -24,6 +24,60 @@ export function listAnnotations(db: SqliteDb, documentId: number): AnnotationRow
     .all(documentId) as AnnotationRow[];
 }
 
+/** Arşiv görünümü için belge bilgisiyle zenginleştirilmiş vurgu. */
+export interface AnnotationWithDocument extends AnnotationRow {
+  document_title: string;
+  document_domain: string | null;
+  document_source_url: string | null;
+}
+
+export interface AnnotationQuery {
+  color?: AnnotationColor;
+  /** Alıntı veya notta geçen metin. */
+  q?: string;
+  /** Yalnız notu olan vurgular. */
+  withNote?: boolean;
+  documentId?: number;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Tüm belgelerdeki vurgular, en yeniden eskiye.
+ * Silinmiş (çöpteki) belgelerin vurguları listelenmez.
+ */
+export function listAllAnnotations(db: SqliteDb, query: AnnotationQuery = {}): AnnotationWithDocument[] {
+  const where: string[] = ["d.deleted_at IS NULL"];
+  const params: Array<string | number> = [];
+
+  if (query.color) {
+    where.push(`a.color = ?`);
+    params.push(query.color);
+  }
+  if (query.documentId) {
+    where.push(`a.document_id = ?`);
+    params.push(query.documentId);
+  }
+  if (query.withNote) where.push(`a.note != ''`);
+  if (query.q?.trim()) {
+    where.push(`(a.quote LIKE ? ESCAPE '\\' OR a.note LIKE ? ESCAPE '\\')`);
+    const like = `%${query.q.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    params.push(like, like);
+  }
+
+  return db
+    .prepare(
+      `SELECT a.*, d.title AS document_title, d.source_domain AS document_domain,
+              d.source_url AS document_source_url
+       FROM document_annotations a
+       JOIN documents d ON d.id = a.document_id
+       WHERE ${where.join(" AND ")}
+       ORDER BY a.id DESC
+       LIMIT ? OFFSET ?`,
+    )
+    .all(...params, Math.min(query.limit ?? 100, 500), Math.max(query.offset ?? 0, 0)) as AnnotationWithDocument[];
+}
+
 export interface CreateAnnotationInput {
   documentId: number;
   contentKind: AnnotationContentKind;

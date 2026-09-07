@@ -52,6 +52,7 @@ scripts/             migrate, mock-agent.mjs
 - `documents.original_text` / `original_html` ilk kayıttan sonra **asla değişmez**.
 - Silme geri alınabilir: `documents.deleted_at` doldurulur (`softDeleteDocument`), tüm listeler/arama/sayaçlar bunu süzer. Kalıcı `deleteDocument` yalnızca çöpü temizlemek içindir.
 - Kullanıcı sürümü `document_edits` tablosunda (revision + optimistic concurrency; uyumsuz revision → 409). AI çıktıları `document_outputs` + `document_output_revisions`. Elle düzenleme asla sahte AI job'ı olarak modellenmez.
+- Vurgular (`document_annotations`) metnin içine yazılmaz; alıntı + önek/sonek bağlamıyla saklanır ve okuma sırasında eşleştirilir. Orijinal HTML yolunda DOM'da `<mark>` sarılır, Markdown yollarında `rehypeHighlights` ile AST'ye eklenir — React'ın yönettiği ağaca sonradan düğüm sokulmaz.
 - Notlar (`documents.note`) varsayılan AI'a gönderilmez; yalnızca iş bazında açıkça dahil edilirse snapshot'a girer ve prompt'a "ek bağlam" bloğu olarak eklenir.
 
 ## AI profilleri

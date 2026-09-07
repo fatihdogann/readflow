@@ -208,7 +208,7 @@ Bugün `fetchArticle` content-type'ı html/xhtml/plain değilse reddediyor. Ekle
 
 ---
 
-## Faz 6 — Vurgu arşivi
+## Faz 6 — Vurgu arşivi ✅ TAMAMLANDI
 
 - `/highlights`: tüm belgelerdeki vurgular; renk / etiket / belge filtresi; tıkla → belgede o noktaya git.
 - Markdown export (mevcut `src/lib/export/registry.ts` üzerinden).
@@ -242,6 +242,8 @@ streaming yanıt · tarayıcı eklentisi (bookmarklet yetmezse).
 
 ## Sıra
 
+Tüm fazlar tamamlandı.
+
 ```
 Faz 0  ✅ (günlük kullanım: worker autostart · model zinciri · ikonlar · güvenlik)
 Faz 0.5 ✅ (doküman temizliği)
@@ -250,7 +252,7 @@ Faz 2  ✅ (vurgu motoru + mobil)
 Faz 3  ✅ (not + alıntı + AI)
 Faz 4  ✅ (okuma akışı)
 Faz 5  ✅ (PDF/Word/her format + 403 zinciri + bookmarklet)
-Faz 6  (vurgu arşivi)  ← sıradaki
+Faz 6  ✅ (vurgu arşivi)
 ```
 
 Faz 0 + 0.5 tek oturumda biter. Faz 1–3 birlikte "okuma deneyimi" sürümünü oluşturur;

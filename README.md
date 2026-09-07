@@ -23,7 +23,8 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 - Dört içerik türü nettir: **Orijinal** (asla değişmez), **Düzenlenmiş** (kullanıcının kendi sürümü, revision kontrollü), **AI Düzenlemesi** (okunabilirlik çıktısı) ve **Özet** (Kısa/Normal/Detaylı).
 - AI işlemleri **remote LLM API'si ile değil**, kendi bilgisayarındaki coding-agent CLI üzerinden yapılır. **Hiçbir LLM API key istemez.** CLI'ın kendisi kendi oturumuyla uzak model sağlayıcısına bağlanabilir; Readflow'un verisi (dokümanlar, notlar, çıktılar) ise yalnızca `~/.readflow/` içinde saklanır — "yerel saklama" ile "AI tamamen çevrimdışı" aynı şey değildir.
 - İş oluşturulduğunda **kaynak metin, notlar ve AI yapılandırması snapshot olarak sabitlenir**; sonraki değişiklikler bekleyen işi etkilemez. Retry aynı snapshot ile çalışır.
-- Arama, favoriler, klasörler, etiketler, domain/AI filtreleri ve "Notlu"/"Düzenlenmiş" filtreleriyle arşivde gezilir. Her AI çıktısının değişmez sürüm geçmişi tutulur.
+- Arama, favoriler, klasörler, etiketler, okuma durumu (Okunacak/Okuyorum/Bitti), domain/AI filtreleri ve "Notlu"/"Düzenlenmiş" filtreleriyle arşivde gezilir. Her AI çıktısının değişmez sürüm geçmişi tutulur.
+- **Vurgular** sayfası tüm belgelerdeki altı çizilenleri ve notları bir arada gösterir: renk/metin/notlu filtreleri, belgeye atlama ve Markdown olarak panoya kopyalama.
 - Çıktılar panoya, TXT, Markdown, PDF (yazdır), DOCX olarak yerel olarak dışa aktarılır; Notion/Telegram adapter'ları env ile kurulur.
 
 ## Gereksinimler
