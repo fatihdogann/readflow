@@ -10,6 +10,7 @@ import { DocHeader } from "./doc/DocHeader";
 import { AiActions, type AiSelection } from "./doc/AiActions";
 import { ContentTabs } from "./doc/ContentTabs";
 import { NotesPanel } from "./doc/NotesPanel";
+import { ChatPanel } from "./doc/ChatPanel";
 
 export function DocWorkspace({
   initial,
@@ -28,11 +29,22 @@ export function DocWorkspace({
   });
   const [notice, setNotice] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [pendingQuote, setPendingQuote] = useState<string | null>(null);
+
+  function toggleNotes(): void {
+    setNotesOpen((value) => !value);
+    setChatOpen(false);
+  }
+  function toggleChat(): void {
+    setChatOpen((value) => !value);
+    setNotesOpen(false);
+  }
 
   return (
     <div
       className={`mx-auto flex w-full justify-center gap-8 transition-[max-width] duration-300 ${
-        notesOpen ? "max-w-6xl" : "max-w-5xl"
+        notesOpen || chatOpen ? "max-w-6xl" : "max-w-5xl"
       }`}
     >
       <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
@@ -42,7 +54,7 @@ export function DocWorkspace({
           </p>
         ) : null}
 
-        <DocHeader detail={detail} folders={folders} onChange={setDetail} onNotesToggle={() => setNotesOpen((value) => !value)} notesOpen={notesOpen} />
+        <DocHeader detail={detail} folders={folders} onChange={setDetail} onNotesToggle={toggleNotes} notesOpen={notesOpen} onChatToggle={toggleChat} chatOpen={chatOpen} />
 
         <AiActions
           detail={detail}
@@ -79,6 +91,14 @@ export function DocWorkspace({
         initialUpdatedAt={detail.document.note_updated_at}
         open={notesOpen}
         onClose={() => setNotesOpen(false)}
+      />
+
+      <ChatPanel
+        documentId={detail.document.id}
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        pendingQuote={pendingQuote}
+        onQuoteConsumed={() => setPendingQuote(null)}
       />
     </div>
   );

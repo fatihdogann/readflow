@@ -3,6 +3,9 @@ import { z } from "zod";
 export const OPERATIONS = ["readability", "summary"] as const;
 export type Operation = (typeof OPERATIONS)[number];
 
+/** Kuyrukta geçebilecek tüm iş türleri (chat, remote worker ile belgeye bağlı soru-cevaptır). */
+export type JobOperation = Operation | "chat";
+
 export const SUMMARY_LEVELS = ["short", "normal", "detailed"] as const;
 export type SummaryLevel = (typeof SUMMARY_LEVELS)[number];
 

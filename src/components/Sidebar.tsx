@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { ThemeToggle } from "./ThemeToggle";
@@ -177,6 +177,7 @@ export function Sidebar() {
 
 function LogoutButton() {
   const [enabled, setEnabled] = useState(false);
+  const router = useRouter();
   useEffect(() => {
     const initial = setTimeout(async () => {
       try {
@@ -197,7 +198,7 @@ function LogoutButton() {
       type="button"
       onClick={async () => {
         await fetch("/api/auth/logout", { method: "POST" });
-        window.location.href = "/login";
+        router.push("/login");
       }}
       className="flex min-h-[40px] items-center gap-2 rounded-md px-2 text-left text-xs text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60"
     >

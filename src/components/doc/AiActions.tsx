@@ -301,7 +301,7 @@ export function AiActions({
       {rerunJob ? (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-stone-300 px-3 py-2 text-xs dark:border-stone-700">
           <span>
-            “{operationLabel[rerunJob.operation]}
+            “{rerunJob.operation === "chat" ? "Soru" : operationLabel[rerunJob.operation]}
             {rerunJob.operation === "summary" && rerunJob.summary_level
               ? ` · ${summaryLevelLabel[rerunJob.summary_level as SummaryLevel]}`
               : ""}” işini hangi AI ile yeniden çalıştırayım?
@@ -310,6 +310,7 @@ export function AiActions({
             aria-label="Yeniden çalıştırma AI seçimi"
             onChange={(event) => {
               const value = event.target.value;
+              if (rerunJob.operation === "chat") return;
               void createJob(rerunJob.operation, (rerunJob.summary_level || undefined) as SummaryLevel | undefined, true, value === "" ? null : Number(value));
             }}
             defaultValue=""
@@ -345,7 +346,7 @@ export function AiActions({
             return (
               <div key={job.id} className="flex flex-wrap items-center gap-2 border-t border-stone-200/80 pt-2 text-xs first:border-0 first:pt-0 dark:border-stone-800">
                 <span className={`rounded px-1.5 py-0.5 font-medium ${statusBadgeClass(job.status, cancelled)}`}>
-                  {operationLabel[job.operation]}
+                  {job.operation === "chat" ? "Soru" : operationLabel[job.operation]}
                   {job.operation === "summary" && job.summary_level
                     ? ` · ${summaryLevelLabel[job.summary_level as SummaryLevel]}`
                     : ""}
@@ -397,11 +398,13 @@ export function AiActions({
                       disabled={busy}
                       className="min-h-[32px] underline underline-offset-2 hover:text-stone-900 disabled:opacity-40 dark:hover:text-stone-100"
                       onClick={() =>
-                        void createJob(
-                          job.operation,
-                          (job.summary_level || undefined) as SummaryLevel | undefined,
-                          true,
-                        )
+                        job.operation === "chat"
+                          ? undefined
+                          : void createJob(
+                              job.operation,
+                              (job.summary_level || undefined) as SummaryLevel | undefined,
+                              true,
+                            )
                       }
                     >
                       İptal et ve mevcut ayarlarla yeniden başlat

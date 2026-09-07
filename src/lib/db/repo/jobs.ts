@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { Operation, StoredSummaryLevel } from "../../types";
+import type { JobOperation, StoredSummaryLevel } from "../../types";
 import type { SqliteDb } from "../connection";
 import { nowIso } from "./now";
 import { upsertOutput } from "./outputs";
+import { findMessageByJob, insertAssistantMessage, setMessageStatus } from "./chat";
 
 export type JobStatus = "pending" | "processing" | "completed" | "failed";
 export type SourceKind = "original" | "edited" | "auto";
@@ -23,7 +24,7 @@ export interface AiConfigSnapshot {
 export interface JobRow {
   id: number;
   document_id: number;
-  operation: Operation;
+  operation: JobOperation;
   summary_level: StoredSummaryLevel;
   status: JobStatus;
   attempts: number;
@@ -52,7 +53,7 @@ export const DEFAULT_LEASE_MS = 10 * 60 * 1000;
 
 export interface CreateJobInput {
   documentId: number;
-  operation: Operation;
+  operation: JobOperation;
   summaryLevel?: StoredSummaryLevel;
   sourceKind?: SourceKind;
   sourceText?: string;
@@ -239,6 +240,26 @@ export function completeJob(db: SqliteDb, input: CompleteJobInput): CompleteOutc
     if (job.cancelled === 1) {
       throw new Error("İş iptal edildi; geç gelen sonuç kabul edilmedi");
     }
+    // Chat job'ları document_outputs'a yazılmaz; assistant mesajı chat_messages'a düşer.
+    if (job.operation === "chat") {
+      let chatContext: { chatMessageId?: number } = {};
+      try {
+        chatContext = JSON.parse(job.notes_text ?? "{}") as { chatMessageId?: number };
+      } catch {
+        /* bağlam yok */
+      }
+      const userMessage = chatContext.chatMessageId
+        ? findMessageByJob(db, input.jobId)
+        : null;
+      if (userMessage) {
+        insertAssistantMessage(db, userMessage.conversation_id, job.document_id, input.content);
+        setMessageStatus(db, userMessage.id, "completed");
+      }
+      db.prepare(
+        `UPDATE jobs SET status = 'completed', completed_at = ?, error = NULL WHERE id = ?`,
+      ).run(nowIso(), job.id);
+      return { job: getJob(db, job.id)!, outputId: 0, revisionId: 0 };
+    }
     const output = upsertOutput(db, {
       documentId: job.document_id,
       operation: job.operation,
@@ -280,6 +301,10 @@ export function failJob(db: SqliteDb, jobId: number, owner: string, error: strin
     if (!job) throw new Error(`Job bulunamadı: ${jobId}`);
     if (job.status !== "processing") throw new Error(`Job işlenmiyor durumda değil: ${job.status}`);
     if (job.owner !== owner) throw new Error("İş sahipliği değişti; hata kaydı kabul edilmedi");
+    if (job.operation === "chat") {
+      const userMessage = findMessageByJob(db, jobId);
+      if (userMessage) setMessageStatus(db, userMessage.id, "failed");
+    }
     const result = db.prepare(
       `UPDATE jobs SET status = 'failed', completed_at = ?, error = ?
        WHERE id = ? AND status = 'processing' AND owner = ?`,
@@ -303,6 +328,10 @@ export function retryJob(db: SqliteDb, jobId: number): JobRow {
        WHERE id = ? AND status = 'failed' AND attempts < 5`,
     ).run(jobId);
     if (result.changes === 0) throw new Error("İş durumu değişti; yeniden deneme başlatılamadı");
+    if (job.operation === "chat") {
+      const userMessage = findMessageByJob(db, jobId);
+      if (userMessage) setMessageStatus(db, userMessage.id, "queued");
+    }
     return getJob(db, jobId)!;
   });
   return tx.immediate();
@@ -327,6 +356,10 @@ export function cancelJob(db: SqliteDb, jobId: number): CancelOutcome {
       db.prepare(
         `UPDATE jobs SET status = 'failed', cancelled = 1, error = ?, completed_at = ? WHERE id = ? AND status = 'pending'`,
       ).run("İptal edildi", nowIso(), jobId);
+      if (job.operation === "chat") {
+        const userMessage = findMessageByJob(db, jobId);
+        if (userMessage) setMessageStatus(db, userMessage.id, "cancelled");
+      }
       return { action: "cancelled", job: getJob(db, jobId)! };
     }
     if (job.status === "processing") {

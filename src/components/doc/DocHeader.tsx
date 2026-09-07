@@ -7,7 +7,7 @@ import type { FolderRow } from "@/lib/db/repo/folders";
 import type { DocumentDetail } from "@/lib/documents/service";
 import { mutateJson } from "@/lib/client/api";
 import { formatAuthorByline } from "@/lib/text/author";
-import { NoteIcon, StarIcon } from "@/components/Icons";
+import { ChatIcon, NoteIcon, StarIcon } from "@/components/Icons";
 import { notifyFoldersChanged } from "@/lib/client/events";
 
 export function DocHeader({
@@ -16,12 +16,16 @@ export function DocHeader({
   onChange,
   onNotesToggle,
   notesOpen,
+  onChatToggle,
+  chatOpen,
 }: {
   detail: DocumentDetail;
   folders: FolderRow[];
   onChange: (next: DocumentDetail) => void;
   onNotesToggle: () => void;
   notesOpen: boolean;
+  onChatToggle: () => void;
+  chatOpen: boolean;
 }) {
   const router = useRouter();
   const doc = detail.document;
@@ -99,6 +103,17 @@ export function DocHeader({
           >
             <NoteIcon size={16} /> Not
             {doc.note ? <span className="text-[10px] text-amber-600 dark:text-amber-400" aria-hidden>●</span> : null}
+          </button>
+          <button
+            type="button"
+            onClick={() => void onChatToggle()}
+            aria-expanded={chatOpen}
+            className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
+              chatOpen ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
+            }`}
+            title="Belgeyle ilgili soru sor"
+          >
+            <ChatIcon size={16} /> AI&apos;a sor
           </button>
           <details className="group relative">
             <summary className="flex h-10 cursor-pointer list-none items-center rounded-lg px-3 text-sm text-stone-500 marker:hidden hover:bg-stone-200/70 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100">

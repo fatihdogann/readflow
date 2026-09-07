@@ -1,4 +1,4 @@
-import { assertLocalRequest } from "@/lib/api/local";
+import { assertMutationAllowed } from "@/lib/api/local";
 import { apiErrorResponse } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
 import { getProfile, setValidationResult } from "@/lib/db/repo/agentProfiles";
@@ -17,7 +17,7 @@ const TEST_PROMPT = "Bu bir bağlantı testidir. Yalnızca şu kelimeyi yaz: TAM
  */
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   try {
-    assertLocalRequest(request);
+    await assertMutationAllowed(request);
     const { id } = await context.params;
     const profileId = Number(id);
     if (!Number.isInteger(profileId) || profileId <= 0) throw new InputError("Geçersiz profil");

@@ -91,14 +91,18 @@ server.registerTool(
     } catch {
       images = [];
     }
-    const prompt = buildPromptForSnapshot({
-      operation: job.operation,
-      summaryLevel: job.summary_level,
-      sourceText,
-      notesIncluded: job.notes_included === 1,
-      notesText: job.notes_text,
-      images,
-    });
+    // Chat işleri MCP'de desteklenmez; sıradaki readability/summary işi alınır.
+    const prompt =
+      job.operation === "chat"
+        ? "[Chat işleri yalnızca Readflow arayüzü üzerinden çalışır]"
+        : buildPromptForSnapshot({
+            operation: job.operation,
+            summaryLevel: job.summary_level,
+            sourceText,
+            notesIncluded: job.notes_included === 1,
+            notesText: job.notes_text,
+            images,
+          });
     return textResult({
       job,
       documentTitle: document?.title ?? null,

@@ -1,6 +1,6 @@
 import { getMeta, setMeta } from "@/lib/db/repo/meta";
 import { apiErrorResponse } from "@/lib/api/http";
-import { assertLocalRequest } from "@/lib/api/local";
+import { assertMutationAllowed } from "@/lib/api/local";
 import { getDb } from "@/lib/db/connection";
 import { TelegramExporter } from "@/lib/export/telegram";
 
@@ -35,7 +35,7 @@ export async function GET(): Promise<Response> {
 /** Yalnızca açıkça tetiklenen bağlantı testi: tek kısa mesaj gönderir. */
 export async function POST(request: Request): Promise<Response> {
   try {
-    assertLocalRequest(request);
+    await assertMutationAllowed(request);
     const exporter = new TelegramExporter();
     const result = await exporter.sendTest();
     const db = getDb();

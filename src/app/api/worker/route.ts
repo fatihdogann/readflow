@@ -15,6 +15,7 @@ import {
 import { getDocument } from "@/lib/db/repo/documents";
 import { buildPromptForSnapshot } from "@/lib/ai/instructions";
 import { readHeartbeat, writeHeartbeat, HEARTBEAT_KEY } from "@/lib/jobs/worker";
+import { buildChatPromptForJob } from "@/lib/jobs/chat-context";
 import { setMeta } from "@/lib/db/repo/meta";
 import { InputError } from "@/lib/types";
 
@@ -96,14 +97,17 @@ export async function POST(request: Request): Promise<Response> {
       } catch {
         images = [];
       }
-      const prompt = buildPromptForSnapshot({
-        operation: job.operation,
-        summaryLevel: job.summary_level,
-        sourceText,
-        notesIncluded: job.notes_included === 1,
-        notesText: job.notes_text,
-        images,
-      });
+      const prompt =
+        job.operation === "chat"
+          ? buildChatPromptForJob(db, job)
+          : buildPromptForSnapshot({
+              operation: job.operation,
+              summaryLevel: job.summary_level,
+              sourceText,
+              notesIncluded: job.notes_included === 1,
+              notesText: job.notes_text,
+              images,
+            });
       let aiConfig: AiConfigSnapshot | null = null;
       try {
         aiConfig = job.ai_config ? (JSON.parse(job.ai_config) as AiConfigSnapshot) : null;

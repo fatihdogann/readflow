@@ -25,6 +25,10 @@ export function NoteIcon(props: IconProps) {
   return <Icon {...props}><path d="M5 4.75A1.75 1.75 0 0 1 6.75 3h10.5A1.75 1.75 0 0 1 19 4.75v14.5A1.75 1.75 0 0 1 17.25 21H6.75A1.75 1.75 0 0 1 5 19.25z"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></Icon>;
 }
 
+export function ChatIcon(props: IconProps) {
+  return <Icon {...props}><path d="M20 12a8 8 0 1 0-3.1 6.3L21 19.5l-.8-3.6A7.9 7.9 0 0 0 20 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></Icon>;
+}
+
 export function EditIcon(props: IconProps) {
   return <Icon {...props}><path d="m14.7 5.3 4 4M4 20l3.9-.8L19 8.1a1.8 1.8 0 0 0 0-2.6l-.5-.5a1.8 1.8 0 0 0-2.6 0L4.8 16.1z"/></Icon>;
 }

@@ -19,6 +19,7 @@ import { buildPromptForSnapshot } from "../ai/instructions";
 import { adapterForJobConfig, provenanceFor } from "../agent/profiles";
 import { agentTimeoutMs, resolveAdapter, type AgentAdapter, type AgentRuntimeInfo } from "../agent";
 import { safeParseConfig } from "./create";
+import { buildChatPromptForJob } from "./chat-context";
 
 export const HEARTBEAT_KEY = "worker_heartbeat";
 export const HEARTBEAT_MAX_AGE_MS = 20_000;
@@ -87,14 +88,18 @@ export async function processJob(
 ): Promise<void> {
   const sourceText = ensureSnapshotText(db, job);
   const aiConfig = safeParseConfig(job.ai_config);
-  const prompt = buildPromptForSnapshot({
-    operation: job.operation,
-    summaryLevel: job.summary_level,
-    sourceText,
-    notesIncluded: job.notes_included === 1,
-    notesText: job.notes_text,
-    images: parseImages(job.source_images),
-  });
+  // Chat: soru + sınırlı geçmiş saklı mesajlardan; diğer işler snapshot metninden.
+  const prompt =
+    job.operation === "chat"
+      ? buildChatPromptForJob(db, job)
+      : buildPromptForSnapshot({
+          operation: job.operation,
+          summaryLevel: job.summary_level,
+          sourceText,
+          notesIncluded: job.notes_included === 1,
+          notesText: job.notes_text,
+          images: parseImages(job.source_images),
+        });
   const snapshotTimeout = aiConfig?.kind === "profile" ? aiConfig.timeout_ms : undefined;
   const timeoutMs =
     typeof snapshotTimeout === "number" && Number.isFinite(snapshotTimeout) && snapshotTimeout >= 1_000

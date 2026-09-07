@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assertLocalRequest } from "@/lib/api/local";
+import { assertMutationAllowed } from "@/lib/api/local";
 import { apiErrorResponse, readJsonBody } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
 import { deleteProfile, getProfile, updateProfile } from "@/lib/db/repo/agentProfiles";
@@ -29,7 +29,7 @@ async function idFrom(context: RouteContext): Promise<number> {
 
 export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
   try {
-    assertLocalRequest(request);
+    await assertMutationAllowed(request);
     const id = await idFrom(context);
     const body = patchSchema.parse(await readJsonBody(request));
     const profile = getProfile(getDb(), id);
@@ -57,7 +57,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
 
 export async function DELETE(request: Request, context: RouteContext): Promise<Response> {
   try {
-    assertLocalRequest(request);
+    await assertMutationAllowed(request);
     const id = await idFrom(context);
     const removed = deleteProfile(getDb(), id);
     return Response.json({ ok: removed });

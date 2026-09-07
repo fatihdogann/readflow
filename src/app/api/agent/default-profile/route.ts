@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assertLocalRequest } from "@/lib/api/local";
+import { assertMutationAllowed } from "@/lib/api/local";
 import { apiErrorResponse, readJsonBody } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
 import {
@@ -25,7 +25,7 @@ export async function GET(): Promise<Response> {
 
 export async function PUT(request: Request): Promise<Response> {
   try {
-    assertLocalRequest(request);
+    await assertMutationAllowed(request);
     const body = putSchema.parse(await readJsonBody(request));
     if (body.profileId !== null) {
       const profile = getProfile(getDb(), body.profileId);

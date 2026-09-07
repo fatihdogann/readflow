@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assertLocalRequest } from "@/lib/api/local";
+import { assertMutationAllowed } from "@/lib/api/local";
 import { apiErrorResponse, readJsonBody } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
 import {
@@ -42,7 +42,7 @@ export async function GET(): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    assertLocalRequest(request);
+    await assertMutationAllowed(request);
     const body = createSchema.parse(await readJsonBody(request));
     const caps = getCachedCapabilities(body.cli);
     if (!caps.found) {

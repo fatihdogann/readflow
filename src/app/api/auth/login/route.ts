@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { z } from "zod";
 import { apiErrorResponse, readJsonBody } from "@/lib/api/http";
 import {

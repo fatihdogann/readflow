@@ -10,9 +10,13 @@ function isPublic(pathname: string): boolean {
 /**
  * Tek kullanıcı oturumu: kimlik bilgileri env ile yapılandırılmışsa tüm sayfa ve
  * API istekleri oturum ister (worker uçları kendi token'ıyla ayrı yetki sınırındadır).
- * Mutasyonlarda origin denetimi de yapılır (CSRF).
+ *
+ * CSRF/origin: Origin başlığı tarayıcıdan gelir; aynı origin ise geçer, farklıysa
+ * reddedilir. Origin başlığı yoksa (curl/worker gibi tarayıcı dışı istemciler)
+ * istek oturum cookie'siyle yetkilendirilmek zorundadır — cookie HttpOnly +
+ * SameSite=Lax olduğundan tarayıcılar arası CSRF yüzeyi kapalıdır.
  */
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export default async function proxy(request: NextRequest): Promise<NextResponse> {
   if (!isAuthConfigured()) return NextResponse.next();
 
   const { pathname } = request.nextUrl;

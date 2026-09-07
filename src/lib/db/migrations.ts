@@ -340,6 +340,79 @@ const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    id: 13,
+    name: "chat-and-jobs-rebuild",
+    up: (db) => {
+      // jobs.operation CHECK kısıtına 'chat' eklenemeyeceği için tablo
+      // birebir yeniden oluşturulur (veri kopyalanır).
+      runAll(db, [
+        `CREATE TABLE jobs_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+          operation TEXT NOT NULL CHECK (operation IN ('readability','summary','chat')),
+          summary_level TEXT NOT NULL DEFAULT '' CHECK (summary_level IN ('','short','normal','detailed')),
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','processing','completed','failed')),
+          attempts INTEGER NOT NULL DEFAULT 0,
+          error TEXT,
+          created_at TEXT NOT NULL,
+          started_at TEXT,
+          completed_at TEXT,
+          owner TEXT,
+          lease_expires_at TEXT,
+          source_kind TEXT NOT NULL DEFAULT 'auto',
+          source_text TEXT NOT NULL DEFAULT '',
+          source_revision INTEGER NOT NULL DEFAULT 0,
+          notes_included INTEGER NOT NULL DEFAULT 0,
+          notes_text TEXT,
+          ai_config TEXT,
+          source_images TEXT NOT NULL DEFAULT '[]',
+          request_key TEXT NOT NULL DEFAULT '',
+          cancelled INTEGER NOT NULL DEFAULT 0,
+          cancel_requested INTEGER NOT NULL DEFAULT 0
+        )`,
+        `INSERT INTO jobs_new
+           (id, document_id, operation, summary_level, status, attempts, error, created_at,
+            started_at, completed_at, owner, lease_expires_at, source_kind, source_text,
+            source_revision, notes_included, notes_text, ai_config, source_images,
+            request_key, cancelled, cancel_requested)
+         SELECT
+            id, document_id, operation, summary_level, status, attempts, error, created_at,
+            started_at, completed_at, owner, lease_expires_at, source_kind, source_text,
+            source_revision, notes_included, notes_text, ai_config, source_images,
+            request_key, cancelled, cancel_requested
+         FROM jobs`,
+        `DROP TABLE jobs`,
+        `ALTER TABLE jobs_new RENAME TO jobs`,
+        `CREATE INDEX idx_jobs_status ON jobs (status, created_at)`,
+        `CREATE INDEX idx_jobs_document ON jobs (document_id)`,
+        `CREATE UNIQUE INDEX idx_jobs_active_request_unique ON jobs (request_key)
+         WHERE status IN ('pending','processing')`,
+        `CREATE TABLE chat_conversations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_id INTEGER NOT NULL UNIQUE REFERENCES documents(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`,
+        `CREATE TABLE chat_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+          role TEXT NOT NULL CHECK (role IN ('user','assistant')),
+          content TEXT NOT NULL,
+          source_kind TEXT NOT NULL DEFAULT 'auto',
+          source_revision INTEGER NOT NULL DEFAULT 0,
+          quote TEXT NOT NULL DEFAULT '',
+          include_notes INTEGER NOT NULL DEFAULT 0,
+          ai_config TEXT,
+          job_id INTEGER,
+          status TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready','queued','processing','completed','failed','cancelled')),
+          created_at TEXT NOT NULL
+        )`,
+        `CREATE INDEX idx_chat_messages_conv ON chat_messages (conversation_id, id)`,
+      ]);
+    },
+  },
 ];
 
 function runAll(db: SqliteDb, statements: string[]): void {
