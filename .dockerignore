@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.readflow
+data
+exports
+/tmp
+*.log
+.env.local

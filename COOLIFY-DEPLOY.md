@@ -1,39 +1,66 @@
-# Coolify dağıtım planı ve Mac AI worker (YOL HARİTASI — tamamen uygulanmadı)
+# Coolify dağıtımı ve Mac AI worker
 
-> **Durum:** Bu belge hedef mimariyi, güvenlik modelini ve uygulama adımlarını tanımlar.
-> Aşağıdaki "Henüz uygulanmadı" bölümündeki parçalar kodda **yoktur**; mevcut uygulama
-> hâlâ tek makinede SQLite + yerel worker ile çalışır. Bu parçalar tamamlanmadan
-> üretim dağıtımı yapılmamalıdır.
+> **Durum (güncel):** Remote worker protokolü **uygulandı** (`/api/worker` + `src/worker/remote.ts` +
+> `pnpm worker:remote`) ve **Dockerfile** hazır — Coolify'a repo bağlanıp dağıtılabilir.
+> Merkezi kuyruk şu an **SQLite (volume üstünde)** ile çalışır; **PostgreSQL geçişi ve
+> SQLite→PG içe aktarma aracı henüz uygulanmadı** (aşağıda plan). Chat de bu geçişten sonra.
 
-## Hedef mimari
+## Hızlı dağıtım (mevcut durum)
+
+1. Coolify → New Resource → Dockerfile tabanlı deploy (repo: fatihdogann/readflow, main).
+2. Environment (Coolify secrets):
+   - `WORKER_ENROLLMENT_SECRET=<uzun rastgele değer>` (Mac worker için)
+   - `READFLOW_TELEGRAM_BOT_TOKEN`, `READFLOW_TELEGRAM_CHAT_ID` (opsiyonel)
+   - `READFLOW_DATA_DIR=/data` (Dockerfile'da varsayılan; Coolify volume'u `/data`'ya bağla)
+3. Domain + HTTPS: Coolify domain ekleyin; **Basic Auth** açın (ilk güvenlik katmanı).
+4. Health check: `GET /api/worker` → `{"ok":true,"enrollmentConfigured":...}`.
+5. Mac worker (launchd veya terminal):
+   ```
+   READFLOW_SERVER_URL=https://<domain> \
+   READFLOW_WORKER_TOKEN=<WORKER_ENROLLMENT_SECRET ile aynı> \
+   pnpm worker:remote
+   ```
+   - Mac CLI oturumları (jcode/claude/codex) kullanıcının kendi oturumunda doğrulanır.
+   - `READFLOW_AGENT_CMD` ile Mac tarafında zorlama yapılabilir; yapılırsa Ayarlar
+     "Environment tarafından yönetiliyor" gösterir (sunucu env'si değil, worker env'si).
+   - Yerel test: sunucu + worker aynı makinedeyken `READFLOW_WORKER_ALLOW_PRIVATE=1`.
+6. Kuyruk davranışı: Mac kapalıyken işler `pending` bekler (UI: "Agent bağlı değil");
+   worker bağlanınca claim + lease devralır. Uygulama güncellemesi (redeploy) worker'ı
+   etkilemez; worker yalnızca HTTP konuşur.
+
+## Henüz uygulanmadı
+
+1. **PostgreSQL repository/migration katmanı** — `src/lib/db/**` şu an better-sqlite3.
+   SQLite volume'da tek app-instance ile çalışır; pg geçişi için `pg` repo katmanı +
+   migration runner + FTS (tsvector) karşılığı gerekli.
+2. **SQLite → PostgreSQL içe aktarma aracı** — `scripts/import-sqlite-to-pg.ts`
+   (önce `pnpm db:backup`, sonra idempotent yükleme + doğrulama).
+3. **Belgeye bağlı AI chat** (merkezi konuşma/mesaj modeli + chat iş türü + panel).
+
+## Hedef mimari (pg geçişi sonrası)
 
 ```
 Telefon / Masaüstü ──HTTPS──▶ Coolify: Next.js (production) + PostgreSQL
                                    │  jobs tablosu (merkezi kuyruk)
                                    ▲
-MacBook ──outbound HTTPS──▶ /api/worker/* (claim / heartbeat / complete / fail / abort)
+MacBook ──outbound HTTPS──▶ /api/worker (claim / heartbeat / complete / fail / cancel-ack)
    └─ yerel worker + jcode/claude/codex CLI profilleri
 ```
 
-- Web + veri Coolify'da; Mac'e inbound port/açık HTTP yok. Worker yalnızca dışarı
-  doğru, token'lı HTTPS isteği açar (poll tabanlı claim; gecikme ≈ poll aralığı).
-- SQLite asla ağ diski/Coolify volume'a bağlanmaz; veri bir kez içe aktarılır.
+## Güvenlik katmanları
 
-## Henüz uygulanmadı (bu parçalar kodda yok)
+1. Coolify reverse-proxy Basic Auth (IP allowlist tek başına kullanılmaz).
+2. Uygulama içi tek kullanıcı oturumu + mutasyonlarda origin denetimi (pg geçişiyle birlikte).
+3. Worker uçları ayrı yetki sınırı: `WORKER_ENROLLMENT_SECRET` (timing-safe karşılaştırma,
+   yalnız worker uçlarına erişir; web oturumu/Telegram secret'larından ayrı).
+4. Secret'lar yalnız Coolify environment'ta; log/metadata'ya asla yazılmaz.
 
-1. **PostgreSQL repository/migration katmanı** — `src/lib/db/**` şu an better-sqlite3.
-   Gerekli: `pg` istemcili ikinci repo katmanı (ya da sorgu soyutlaması), migration
-   runner'ın pg karşılığı, mevcut SQLite şemasının birebir DDL çevirisi
-   (FTS5 → pg `tsvector`, `VACUUM INTO` yedeği → `pg_dump`).
-2. **Worker remote protokolü** — `POST /api/worker/claim|heartbeat|complete|fail|cancel`
-   uçları + `WORKER_ENROLLMENT_SECRET` (yalnız bu uçlara yetkili, döndürülebilir,
-   web oturumu/Telegram secret'larından ayrı) + worker'ın HTTP client modu.
-   Cancel'ın uzak süreci sonlandırması mevcut yerel `abort()` yolunu kullanır.
-3. **SQLite → PostgreSQL içe aktarma aracı** — `scripts/import-sqlite-to-pg.ts`:
-   önce `pnpm db:backup`, sonra idempotent yükleme + satır sayısı/örneklem doğrulaması.
-4. **Chat** (merkezi PostgreSQL konuşma/mesaj modeli + chat iş türü + panel) — bu
-   pivot tamamlandıktan sonra yapılacak.
-5. **Vurgu/bağlam notları** (annotations tablosu + seçim araç çubuğu) — aynı şekilde.
+## Mac worker: launchd (üretimde)
+
+`~/Library/LaunchAgents/com.readflow.worker.plist`: `ProgramArguments` →
+`/usr/bin/env READFLOW_SERVER_URL=... READFLOW_WORKER_TOKEN=... <repo>/node_modules/.bin/tsx <repo>/src/worker/remote.ts`,
+`KeepAlive` + `RunAtLoad` + `StandardOutPath/StandardErrorPath`. CLI oturumları kullanıcı
+oturumunda doğrulanmalı; PATH için tam yollar kullanılır.
 
 ## Coolify kurulum adımları (1-3 tamamlandığında)
 
