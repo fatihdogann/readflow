@@ -460,13 +460,23 @@ export function HighlightPopover({
     const onDown = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) onClose();
     };
+    // Sayfa kaydırılınca popover metinden kopmasın: konumu vurguya kilitle
+    const onScroll = () => {
+      const mark = document.getElementById(`ann-${annotation.id}`);
+      if (!mark || !ref.current) return;
+      const rect = mark.getBoundingClientRect();
+      ref.current.style.left = `${Math.max(8, rect.left)}px`;
+      ref.current.style.top = `${Math.max(8, rect.bottom + 6)}px`;
+    };
     document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onDown);
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("scroll", onScroll);
     };
-  }, [onClose]);
+  }, [annotation.id, onClose]);
 
   const colorDot = (color: AnnotationColor, label: string) => (
     <button
