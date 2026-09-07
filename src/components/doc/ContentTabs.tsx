@@ -150,6 +150,7 @@ export function ContentTabs({
   onAskWithQuote,
   annotations: annotationStore,
   onFocusNote,
+  onLinkedChange,
 }: {
   detail: DocumentDetail;
   tab: TabKey;
@@ -162,6 +163,8 @@ export function ContentTabs({
   annotations: UseAnnotations;
   /** Vurgu notunu düzenlemek için sağ rafı Vurgular sekmesinde açar. */
   onFocusNote: (annotationId: number) => void;
+  /** Metinde gerçekten bağlanabilen vurgu kimlikleri (rafta rozet için). */
+  onLinkedChange: (linkedIds: number[]) => void;
 }) {
   const doc = detail.document;
   const [editing, setEditing] = useState(false);
@@ -170,11 +173,26 @@ export function ContentTabs({
   const [summaryRevision, setSummaryRevision] = useState<{ id: number; content: string } | null>(null);
   const { annotations, create: createAnnotation, update: updateAnnotation, remove: removeAnnotation } = annotationStore;
 
-  const originalAnnotations = annotations.filter((item) => item.content_kind === "original");
+  // Referans sabit kalsın: HighlightedArticle efekti her render'da <mark>'ları
+  // çözüp yeniden sarmasın.
+  const originalAnnotations = useMemo(
+    () => annotations.filter((item) => item.content_kind === "original"),
+    [annotations],
+  );
   const originalEntries = useMemo(
     () => computeRanges(doc.original_text, originalAnnotations),
     [doc.original_text, originalAnnotations],
   );
+
+  // Düz metin yolunda bağlanan vurgular aralık hesabından bilinir; HTML yolunda
+  // HighlightedArticle kendi sonucunu bildirir.
+  const isHtmlPath = doc.source_type === "url" && doc.original_html !== null;
+  useEffect(() => {
+    if (isHtmlPath) return;
+    onLinkedChange(
+      originalEntries.filter((entry) => entry.range !== null).map((entry) => entry.annotation.id),
+    );
+  }, [isHtmlPath, originalEntries, onLinkedChange]);
 
   const [popover, setPopover] = useState<{ id: number; x: number; y: number } | null>(null);
   const onMarkClick = useCallback((event: React.MouseEvent) => {
@@ -183,8 +201,9 @@ export function ContentTabs({
     const id = Number(target.id.slice(4));
     const annotation = annotations.find((candidate) => candidate.id === id);
     if (!annotation) return;
+    // Popover position:fixed — viewport koordinatı kullanılır, scroll eklenmez.
     const rect = target.getBoundingClientRect();
-    setPopover({ id, x: rect.left + window.scrollX, y: rect.bottom + window.scrollY + 6 });
+    setPopover({ id, x: rect.left, y: rect.bottom + 6 });
   }, [annotations]);
 
   const readabilityOutput = useMemo(
@@ -365,7 +384,8 @@ export function ContentTabs({
             {doc.source_type === "url" && doc.original_html ? (
               <HighlightedArticle
                 html={doc.original_html}
-                entries={originalAnnotations.map((annotation) => ({ annotation, range: { start: 0, end: 0 } }))}
+                annotations={originalAnnotations}
+                onLinkedChange={onLinkedChange}
               />
             ) : (
               <div className="article whitespace-pre-wrap">

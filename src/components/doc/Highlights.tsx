@@ -10,6 +10,11 @@ export interface SelectionPoint {
   end: number;
 }
 
+/** Seçim araç çubuğu ölçüleri (konumlandırma için) ve yoklama gecikmesi. */
+const TOOLBAR_HEIGHT = 46;
+const TOOLBAR_WIDTH = 300;
+const SELECTION_DEBOUNCE_MS = 180;
+
 /** Dokümanın vurgularını yükleyip değiştirmek için hook. */
 export function useAnnotations(documentId: number) {
   const [annotations, setAnnotations] = useState<AnnotationRow[]>([]);
@@ -166,51 +171,58 @@ export function HighlightedText({
 /**
  * Sanitize edilmiş HTML içinde metin düğümlerinde vurgu arar ve <mark> ile sarar.
  * Yalnızca tek metin düğümü içindeki eşleşmeler bağlanır; düğümler arası alıntı
- * "bağlantısı bulunamadı" olarak panelde kalır.
+ * bağlanamaz ve `onLinkedChange` ile panele bildirilir.
+ *
+ * HTML yalnızca React tarafından bir kez basılır; efekt her çalıştığında önceki
+ * <mark>'ları çözüp yeniden sarar — tüm belgeyi tekrar parse etmez.
  */
 export function HighlightedArticle({
   html,
-  entries,
+  annotations,
+  onLinkedChange,
 }: {
   html: string;
-  entries: Array<{ annotation: AnnotationRow; range: MatchedRange | null }>;
+  annotations: AnnotationRow[];
+  onLinkedChange: (linkedIds: number[]) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    container.innerHTML = html;
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-    const targets: Array<{ node: Text; annotation: AnnotationRow; range: MatchedRange }> = [];
-    for (const entry of entries) {
-      if (!entry.range) continue;
-      const normQuote = entry.annotation.quote.replace(/\s+/g, " ").trim();
+
+    // Önceki vurguları çöz: innerHTML'i yeniden yazmadan temiz sayfaya dön.
+    for (const mark of Array.from(container.querySelectorAll("mark.hl"))) {
+      mark.replaceWith(...Array.from(mark.childNodes));
+    }
+    container.normalize();
+
+    const linked: number[] = [];
+    for (const annotation of annotations) {
+      const normQuote = normalizeOf(annotation.quote);
       if (!normQuote) continue;
-      walker.currentNode = container;
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
       let node = walker.nextNode() as Text | null;
-      let placed = false;
-      while (node && !placed) {
+      while (node) {
+        // Zaten vurgulanmış düğümlerin içine ikinci kez girme (çakışma).
+        if (node.parentElement?.closest("mark.hl")) {
+          node = walker.nextNode() as Text | null;
+          continue;
+        }
         const nodeText = node.textContent ?? "";
         const start = normalizeOf(nodeText).indexOf(normQuote);
         if (start !== -1) {
-      const realSpan = offsetInNode(nodeText, start, normQuote.length);
-      if (realSpan !== null) {
-        targets.push({ node, annotation: entry.annotation, range: realSpan });
-        placed = true;
-      }
+          const span = offsetInNode(nodeText, start, normQuote.length);
+          if (span !== null && wrapRange(node, span, annotation)) {
+            linked.push(annotation.id);
+            break;
+          }
         }
         node = walker.nextNode() as Text | null;
       }
     }
-    for (const target of targets) {
-      try {
-        wrapRange(target.node, target.range, target.annotation);
-      } catch {
-        /* kırpılamayan düğüm: panelde bağlantısız kalır */
-      }
-    }
-  }, [html, entries]);
+    onLinkedChange(linked);
+  }, [html, annotations, onLinkedChange]);
 
   return <article ref={containerRef} className="article" dangerouslySetInnerHTML={{ __html: html }} />;
 }
@@ -250,11 +262,12 @@ function offsetInNode(
   return { start, end };
 }
 
+/** Metin düğümünün bir parçasını <mark> ile sarar; sarılamazsa false döner. */
 function wrapRange(
   node: Text,
   span: { start: number; end: number },
   annotation: AnnotationRow,
-): void {
+): boolean {
   const range = document.createRange();
   range.setStart(node, span.start);
   range.setEnd(node, span.end);
@@ -264,8 +277,10 @@ function wrapRange(
   if (annotation.note) mark.title = annotation.note;
   try {
     range.surroundContents(mark);
+    return true;
   } catch {
-    /* kırpılamayan düğüm: panelde bağlantısız kalır */
+    // Düğüm sınırlarını aşan seçim: panelde "bağlanamadı" olarak kalır.
+    return false;
   }
 }
 
@@ -293,7 +308,7 @@ export function SelectionToolbar({
   onNoteCreated: (annotationId: number) => void;
   onAskWithQuote: (quote: string) => void;
 }) {
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [position, setPosition] = useState<{ x: number; y: number; below: boolean } | null>(null);
   const [selection, setSelection] = useState<SelectionPoint | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -301,45 +316,59 @@ export function SelectionToolbar({
     const container = document.querySelector(containerSelector);
     if (!container) return;
 
-    const onMouseUp = () => {
+    const clear = () => {
+      setPosition(null);
+      setSelection(null);
+    };
+
+    const evaluate = () => {
       const domSelection = window.getSelection();
-      if (!domSelection || domSelection.isCollapsed || domSelection.rangeCount === 0) {
-        setPosition(null);
-        setSelection(null);
-        return;
-      }
+      if (!domSelection || domSelection.isCollapsed || domSelection.rangeCount === 0) return clear();
       const domRange = domSelection.getRangeAt(0);
-      if (!container.contains(domRange.commonAncestorContainer)) {
-        setPosition(null);
-        setSelection(null);
-        return;
-      }
-      const fullText = fullTextResolver();
+      if (!container.contains(domRange.commonAncestorContainer)) return clear();
       const selectionText = domSelection.toString().trim();
-      if (!selectionText) {
-        setPosition(null);
-        setSelection(null);
-        return;
-      }
+      if (!selectionText) return clear();
       // Seçimi normalize edilmiş eşleştirmeyle orijinal metin ofsetlerine çevir
-      const matched = findQuoteRange(fullText, { quote: selectionText });
-      if (!matched) {
-        setPosition(null);
-        setSelection(null);
-        return;
-      }
-      const domRect = domRange.getBoundingClientRect();
+      const matched = findQuoteRange(fullTextResolver(), { quote: selectionText });
+      if (!matched) return clear();
+
+      // Araç çubuğu position:fixed — konum viewport'a göredir, scroll ofseti
+      // EKLENMEZ (eklenirse sayfa kaydırılınca araç çubuğu ekrandan çıkar).
+      const rect = domRange.getBoundingClientRect();
+      const viewportWidth = document.documentElement.clientWidth;
+      const viewportHeight = document.documentElement.clientHeight;
+      // Tepede yer yoksa seçimin altına açılır, metnin üstüne binmez.
+      const below = rect.top < TOOLBAR_HEIGHT + 8;
       setPosition({
-        x: domRect.left + window.scrollX,
-        y: domRect.top + window.scrollY - 46,
+        x: Math.min(Math.max(rect.left, 8), Math.max(8, viewportWidth - TOOLBAR_WIDTH - 8)),
+        y: Math.min(
+          below ? rect.bottom + 8 : rect.top - TOOLBAR_HEIGHT,
+          viewportHeight - TOOLBAR_HEIGHT - 8,
+        ),
+        below,
       });
       setSelection({ start: matched.start, end: matched.end });
     };
-    document.addEventListener("mouseup", onMouseUp);
-    document.addEventListener("selectionchange", onMouseUp);
+
+    // selectionchange sürükleme boyunca sürekli tetiklenir ve her seferinde
+    // tüm metinde arama yapardı; debounce hem donmayı hem mobilde tutamaç
+    // ayarlanırken erken kapanmayı önler.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(evaluate, SELECTION_DEBOUNCE_MS);
+    };
+
+    document.addEventListener("mouseup", schedule);
+    document.addEventListener("touchend", schedule);
+    document.addEventListener("keyup", schedule);
+    document.addEventListener("selectionchange", schedule);
     return () => {
-      document.removeEventListener("mouseup", onMouseUp);
-      document.removeEventListener("selectionchange", onMouseUp);
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("mouseup", schedule);
+      document.removeEventListener("touchend", schedule);
+      document.removeEventListener("keyup", schedule);
+      document.removeEventListener("selectionchange", schedule);
     };
   }, [containerSelector, fullTextResolver]);
 
@@ -387,6 +416,7 @@ export function SelectionToolbar({
       aria-label="Vurgu araçları"
       className="no-print fixed z-40 flex items-center gap-1 rounded-lg border border-stone-300 bg-white px-2 py-1.5 shadow-lg dark:border-stone-700 dark:bg-stone-900"
       style={{ left: position.x, top: Math.max(position.y, 8) }}
+      data-below={position.below || undefined}
     >
       {(
         [
@@ -574,6 +604,7 @@ export function AnnotationList({
   onRemove,
   onGoTo,
   onAsk,
+  linkedIds,
 }: {
   annotations: AnnotationRow[];
   focusNoteId: number | null;
@@ -582,6 +613,8 @@ export function AnnotationList({
   onGoTo: (id: number) => void;
   /** Alıntıyı sohbete taşır. */
   onAsk: (quote: string) => void;
+  /** Metinde gerçekten bulunabilen vurgular; diğerleri "bağlanamadı" gösterilir. */
+  linkedIds: number[];
 }) {
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const lastFocused = useRef<number | null>(null);
@@ -607,6 +640,7 @@ export function AnnotationList({
   return (
     <ul className="flex flex-col gap-2">
       {annotations.map((annotation) => {
+        const linked = linkedIds.includes(annotation.id);
         return (
           <li key={annotation.id} className="rounded-lg border border-stone-200 p-2.5 text-xs dark:border-stone-800">
             <div className="flex items-center gap-1.5">
@@ -614,8 +648,9 @@ export function AnnotationList({
               <button
                 type="button"
                 onClick={() => onGoTo(annotation.id)}
-                className="min-h-[24px] flex-1 truncate text-left italic text-stone-600 hover:underline dark:text-stone-300"
-                title="Vurguya git"
+                disabled={!linked}
+                className="min-h-[24px] flex-1 truncate text-left italic text-stone-600 hover:underline disabled:cursor-default disabled:no-underline dark:text-stone-300"
+                title={linked ? "Vurguya git" : "Metinde karşılığı bulunamadı"}
               >
                 “{annotation.quote.slice(0, 80)}
                 {annotation.quote.length > 80 ? "…" : ""}”
@@ -639,6 +674,11 @@ export function AnnotationList({
               </button>
             </div>
 
+            {!linked ? (
+              <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-400">
+                Metinde karşılığı bulunamadı — alıntı ve notun saklı
+              </p>
+            ) : null}
             <div className="mt-1.5 flex items-center gap-1.5">
               <textarea
                 value={drafts[annotation.id] ?? annotation.note}

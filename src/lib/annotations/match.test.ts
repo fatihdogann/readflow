@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildQuoteContext, findQuoteRange, rangesOverlap } from "./match";
+import { buildQuoteContext, findQuoteRange, normalizeText, rangesOverlap } from "./match";
 
 const ARTICLE = `Giriş bölümü burada yer alıyor.
 
@@ -56,5 +56,37 @@ describe("rangesOverlap", () => {
   it("çakışan aralıkları doğru bildirir", () => {
     expect(rangesOverlap({ start: 0, end: 10 }, { start: 5, end: 15 })).toBe(true);
     expect(rangesOverlap({ start: 0, end: 10 }, { start: 10, end: 20 })).toBe(false);
+  });
+});
+
+describe("çok satırlı ve boşluk-normalize eşleşme", () => {
+  it("satır sonları ve çoklu boşluk alıntıyı bozmaz", () => {
+    const text = "Birinci  satır\n\n   ikinci satır devam ediyor.";
+    const range = findQuoteRange(text, { quote: "satır ikinci satır" });
+    expect(range).not.toBeNull();
+    expect(normalizeText(text.slice(range!.start, range!.end))).toBe("satır ikinci satır");
+  });
+
+  it("aynı metin iki kez geçiyorsa prefix doğru olanı seçer", () => {
+    const text = "alfa hedef beta. gamma hedef delta.";
+    const first = findQuoteRange(text, { quote: "hedef", prefix: "alfa" });
+    const second = findQuoteRange(text, { quote: "hedef", prefix: "gamma" });
+    expect(first!.start).toBeLessThan(second!.start);
+    expect(text.slice(second!.start, second!.end)).toBe("hedef");
+  });
+
+  it("metinde olmayan alıntı null döner (panelde 'bağlanamadı')", () => {
+    expect(findQuoteRange("kısa metin", { quote: "burada olmayan cümle" })).toBeNull();
+  });
+
+  it("buildQuoteContext bağlamı alıntıyı içermez", () => {
+    const text = "önce gelen kısım SEÇİM sonra gelen kısım";
+    const start = text.indexOf("SEÇİM");
+    const context = buildQuoteContext(text, start, start + 5);
+    expect(context.quote).toBe("SEÇİM");
+    expect(context.prefix).not.toContain("SEÇİM");
+    expect(context.suffix).not.toContain("SEÇİM");
+    // Bağlamla birlikte tekrar bulunabilmeli
+    expect(findQuoteRange(text, context)).toEqual({ start, end: start + 5 });
   });
 });

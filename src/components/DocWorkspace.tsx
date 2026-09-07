@@ -39,6 +39,7 @@ export function DocWorkspace({
   const [rail, setRail] = useState<RailTab | null>(null);
   const [pendingQuote, setPendingQuote] = useState<string | null>(null);
   const [focusNoteId, setFocusNoteId] = useState<number | null>(null);
+  const [linkedIds, setLinkedIds] = useState<number[]>([]);
   const [deleted, setDeleted] = useState(false);
   const [undoError, setUndoError] = useState<string | null>(null);
   const router = useRouter();
@@ -59,6 +60,13 @@ export function DocWorkspace({
   const focusNote = useCallback((annotationId: number): void => {
     setRail("highlights");
     setFocusNoteId(annotationId);
+  }, []);
+
+  /** Aynı liste tekrar gelirse render döngüsü açmasın. */
+  const handleLinkedChange = useCallback((ids: number[]): void => {
+    setLinkedIds((current) =>
+      current.length === ids.length && current.every((id, index) => id === ids[index]) ? current : ids,
+    );
   }, []);
 
   const askWithQuote = useCallback((quote: string): void => {
@@ -173,6 +181,7 @@ export function DocWorkspace({
           onAskWithQuote={askWithQuote}
           annotations={annotationStore}
           onFocusNote={focusNote}
+          onLinkedChange={handleLinkedChange}
         />
       </div>
 
@@ -203,6 +212,7 @@ export function DocWorkspace({
                 onRemove={(id) => removeAnnotation(id)}
                 onGoTo={goToAnnotation}
                 onAsk={askWithQuote}
+                linkedIds={linkedIds}
               />
             </div>
           ) : null}

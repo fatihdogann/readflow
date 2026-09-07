@@ -119,7 +119,7 @@ Atlanan: sürüklenebilir genişlik, raf konumu tercihi.
 
 ---
 
-## Faz 2 — Vurgu motoru + mobil
+## Faz 2 — Vurgu motoru + mobil ✅ TAMAMLANDI
 
 - **Touch**: `SelectionToolbar` yalnız `mouseup` dinliyor → **mobilde vurgu hiç çalışmıyor**.
   `touchend` + debounce'lu `selectionchange`.
@@ -244,8 +244,8 @@ streaming yanıt · tarayıcı eklentisi (bookmarklet yetmezse).
 Faz 0  ✅ (günlük kullanım: worker autostart · model zinciri · ikonlar · güvenlik)
 Faz 0.5 ✅ (doküman temizliği)
 Faz 1  ✅ (tek sağ raf)
-Faz 2  (vurgu motoru + mobil)  ← sıradaki
-Faz 3  (not + alıntı + AI)
+Faz 2  ✅ (vurgu motoru + mobil)
+Faz 3  (not + alıntı + AI — büyük kısmı Faz 1'de bitti)  ← sıradaki
 Faz 4  (okuma akışı)
 Faz 5  (PDF/Word/her format + 403 zinciri + bookmarklet)
 Faz 6  (vurgu arşivi)
