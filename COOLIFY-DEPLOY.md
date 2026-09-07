@@ -9,6 +9,10 @@
 
 1. Coolify → New Resource → Dockerfile tabanlı deploy (repo: fatihdogann/readflow, main).
 2. Environment (Coolify secrets):
+   - `READFLOW_AUTH_USERNAME` + `READFLOW_AUTH_PASSWORD` → siteye tek kullanıcı girişi
+     (girilmezse site şifresiz açık çalışır — yerel kullanım). Oturum HttpOnly imzalı
+     cookie; mutasyonlarda origin denetimi vardır. Ayrı `READFLOW_SESSION_SECRET`
+     verilirse imza onunla yapılır (parola değişince oturumlar düşmesin istersen kullan).
    - `WORKER_ENROLLMENT_SECRET=<uzun rastgele değer>` (Mac worker için)
    - `READFLOW_TELEGRAM_BOT_TOKEN`, `READFLOW_TELEGRAM_CHAT_ID` (opsiyonel)
    - `READFLOW_DATA_DIR=/data` (Dockerfile'da varsayılan; Coolify volume'u `/data`'ya bağla)

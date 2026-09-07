@@ -169,8 +169,40 @@ export function Sidebar() {
       <div className="mt-auto flex flex-col gap-0.5 border-t border-stone-200 pt-3 dark:border-stone-800">
         <AgentStatusBadge />
         <ThemeToggle />
+        <LogoutButton />
       </div>
     </aside>
+  );
+}
+
+function LogoutButton() {
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    const initial = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/auth/status", { cache: "no-store" });
+        if (response.ok) {
+          const body = (await response.json()) as { authEnabled: boolean };
+          setEnabled(body.authEnabled);
+        }
+      } catch {
+        /* yoksay */
+      }
+    }, 0);
+    return () => clearTimeout(initial);
+  }, []);
+  if (!enabled) return null;
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        window.location.href = "/login";
+      }}
+      className="flex min-h-[40px] items-center gap-2 rounded-md px-2 text-left text-xs text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60"
+    >
+      Çıkış yap
+    </button>
   );
 }
 
