@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { mutateJson } from "@/lib/client/api";
 import { LockIcon } from "@/components/Icons";
 
@@ -48,6 +48,7 @@ export function AgentSettings() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [validating, setValidating] = useState<number | null>(null);
+  const dataRef = useRef<ProfilesResponse | null>(null);
   const [form, setForm] = useState({
     name: "",
     cli: "claude",
@@ -61,7 +62,9 @@ export function AgentSettings() {
     try {
       const response = await fetch("/api/agent/profiles", { cache: "no-store" });
       if (response.ok) {
-        setData((await response.json()) as ProfilesResponse);
+        const body = (await response.json()) as ProfilesResponse;
+        setData(body);
+        dataRef.current = body;
         setError(null);
       } else {
         setError(`Profiller yüklenemedi (HTTP ${response.status})`);
@@ -134,11 +137,24 @@ export function AgentSettings() {
     setError(null);
     setNotice(null);
     try {
-      const body = await mutateJson<{ ok: boolean; message: string }>(
+      await mutateJson<{ ok: boolean; pending: boolean; message: string }>(
         `/api/agent/profiles/${profile.id}/validate`,
         "POST",
       );
-      setNotice(body.message);
+      // Sonuç Mac worker'dan gelir: birkaç tur yeniden yükle
+      for (let attempt = 0; attempt < 8; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await load();
+        const latest = dataRef.current?.profiles.find((candidate) => candidate.id === profile.id);
+        if (latest?.last_validated_at) {
+          setNotice(
+            latest.last_validation_ok
+              ? "Doğrulama başarılı."
+              : `Doğrulama başarısız: ${latest.last_error ?? "bilinmeyen hata"}`,
+          );
+          break;
+        }
+      }
       await load();
     } catch (validateError) {
       setError(validateError instanceof Error ? validateError.message : "Doğrulama çağrılamadı");

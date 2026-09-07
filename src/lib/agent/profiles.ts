@@ -133,6 +133,41 @@ export function createProfileAdapter(config: {
   });
 }
 
+/** Ayarlar ekranındaki "Bağlantıyı doğrula" için örnek test çağrısı. */
+export const VALIDATION_TEST_PROMPT = "Bu bir bağlantı testidir. Yalnızca şu kelimeyi yaz: TAMAM";
+
+export interface ValidationOutcome {
+  ok: boolean;
+  message: string;
+  durationMs: number;
+}
+
+/** Profilin gerçekten çalışıp çalışmadığını örnek metinle test eder (adapter varsa). */
+export async function runProfileValidation(
+  adapter: AgentAdapter,
+  timeoutMs: number,
+): Promise<ValidationOutcome> {
+  const startedAt = Date.now();
+  try {
+    const result = await adapter.run({ prompt: VALIDATION_TEST_PROMPT, timeoutMs: Math.min(timeoutMs, 90_000) });
+    const durationMs = Date.now() - startedAt;
+    const ok = /TAMAM/.test(result.text);
+    return {
+      ok,
+      durationMs,
+      message: ok
+        ? `Doğrulandı (${(durationMs / 1000).toFixed(1)} sn içinde TAMAM yanıtı)`
+        : `CLI yanıt verdi ancak beklenen test yanıtı alınamadı: ${result.text.slice(0, 120)}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      durationMs: Date.now() - startedAt,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export function profileToSnapshot(profile: AgentProfileRow): AiConfigSnapshot {
   return {
     kind: "profile",

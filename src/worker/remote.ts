@@ -12,8 +12,9 @@
  */
 import { loadLocalEnv } from "../lib/env";
 import { resolveAdapter, agentTimeoutMs, type AgentAdapter, type AgentRuntimeInfo } from "../lib/agent";
-import { adapterForJobConfig } from "../lib/agent/profiles";
+import { adapterForJobConfig, createProfileAdapter, runProfileValidation } from "../lib/agent/profiles";
 import { assertPublicHttpUrl } from "../lib/extraction/fetchArticle";
+import { discoverAllCapabilities } from "../lib/agent/capabilities";
 import type { AiConfigSnapshot } from "../lib/db/repo/jobs";
 
 loadLocalEnv();
@@ -85,11 +86,27 @@ async function main(): Promise<void> {
       const heartbeat = await call("heartbeat", {
         agentName: resolution.adapter?.name ?? null,
         agentMode: resolution.info.mode,
+        capabilities: discoverAllCapabilities(),
       });
 
       // Sunucudaki iptal talebi: çalışan süreci sonlandır
       if (currentJobId !== null && heartbeat.cancelRequested === true) {
         currentAdapter?.abort?.();
+      }
+
+      // Sunucudan gelen profil doğrulama isteği: kendi CLI'ıyla test et, sonucu bildir
+      const validateRequest = heartbeat.validateRequest as
+        | { profileId: number; config: { cli: "claude" | "codex" | "jcode"; model: string | null; provider: string | null; transport: "stdin" | "argv"; timeout_ms: number } }
+        | undefined;
+      if (validateRequest && !currentJobId) {
+        const adapter = createProfileAdapter(validateRequest.config);
+        const outcome = await runProfileValidation(adapter, validateRequest.config.timeout_ms ?? 60_000);
+        await call("validate-result", {
+          validateProfileId: validateRequest.profileId,
+          validateOk: outcome.ok,
+          validateMessage: outcome.message,
+        });
+        console.log(`[remote] profil #${validateRequest.profileId} doğrulaması: ${outcome.ok ? "başarılı" : "başarısız"}`);
       }
 
       if (!resolution.adapter) {

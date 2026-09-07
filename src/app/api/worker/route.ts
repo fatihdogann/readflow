@@ -16,7 +16,7 @@ import { getDocument } from "@/lib/db/repo/documents";
 import { buildPromptForSnapshot } from "@/lib/ai/instructions";
 import { readHeartbeat, writeHeartbeat, HEARTBEAT_KEY } from "@/lib/jobs/worker";
 import { buildChatPromptForJob } from "@/lib/jobs/chat-context";
-import { setMeta } from "@/lib/db/repo/meta";
+import { getMeta, setMeta } from "@/lib/db/repo/meta";
 import { InputError } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ function authorized(request: Request): boolean {
 }
 
 const schema = z.object({
-  action: z.enum(["claim", "heartbeat", "complete", "fail", "cancel-ack"]),
+  action: z.enum(["claim", "heartbeat", "complete", "fail", "cancel-ack", "validate-result"]),
   workerId: z.string().min(3).max(80),
   currentJobId: z.number().int().positive().nullable().optional(),
   agentName: z.string().max(100).nullable().optional(),
@@ -45,6 +45,10 @@ const schema = z.object({
   jobId: z.number().int().positive().optional(),
   content: z.string().min(1).optional(),
   error: z.string().max(2000).optional(),
+  validateProfileId: z.number().int().positive().optional(),
+  validateOk: z.boolean().optional(),
+  validateMessage: z.string().max(400).optional(),
+  capabilities: z.array(z.record(z.string(), z.unknown())).max(20).optional(),
 });
 
 const LEASE_MS = 10 * 60 * 1000;
@@ -75,15 +79,50 @@ export async function POST(request: Request): Promise<Response> {
         lastError: existing?.lastError,
       });
       if (body.currentJobId) renewLease(db, body.currentJobId, body.workerId, LEASE_MS);
+      // Mac'te tespit edilen CLI yeteneklerini sakla (Ayarlar ekranı bunları gösterir)
+      if (body.capabilities) {
+        setMeta(db, "worker_capabilities", JSON.stringify(body.capabilities));
+      }
       const cancelRequested = body.currentJobId ? isCancelRequested(db, body.currentJobId) : false;
-      const counts = {
-        pending: db.prepare(`SELECT COUNT(*) AS c FROM jobs WHERE status='pending'`).get() as { c: number },
-      };
+      const pending = db
+        .prepare(`SELECT COUNT(*) AS c FROM jobs WHERE status='pending'`)
+        .get() as { c: number };
+      // Bekleyen profil doğrulama isteği varsa worker'a bildir
+      const validateRaw = getMeta(db, "profile_validate_request");
+      let validateRequest: { profileId: number; config: Record<string, unknown> } | null = null;
+      if (validateRaw) {
+        try {
+          const parsed = JSON.parse(validateRaw) as { profileId: number };
+          const profileRow = db
+            .prepare(`SELECT id, cli, model, provider, transport, timeout_ms FROM agent_profiles WHERE id = ?`)
+            .get(parsed.profileId) as Record<string, unknown> | undefined;
+          if (profileRow) {
+            validateRequest = { profileId: parsed.profileId, config: profileRow };
+          } else {
+            setMeta(db, "profile_validate_request", "");
+          }
+        } catch {
+          setMeta(db, "profile_validate_request", "");
+        }
+      }
       return Response.json({
         ok: true,
         cancelRequested,
-        pending: counts.pending.c,
+        pending: pending.c,
+        validateRequest,
       });
+    }
+
+    if (body.action === "validate-result") {
+      // Mac worker doğrulamayı çalıştırdı: sonucu profile yaz, isteği temizle
+      if (!body.validateProfileId) throw new InputError("validateProfileId gerekli");
+      const ok = body.validateOk === true;
+      db.prepare(
+        `UPDATE agent_profiles SET last_validated_at = ?, last_validation_ok = ?, last_error = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(now, ok ? 1 : 0, ok ? null : (body.validateMessage ?? "").slice(0, 400), now, body.validateProfileId);
+      setMeta(db, "profile_validate_request", "");
+      return Response.json({ ok: true });
     }
 
     if (body.action === "claim") {

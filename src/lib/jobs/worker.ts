@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { SqliteDb } from "../db/connection";
 import { getDocument } from "../db/repo/documents";
+import { getMeta, setMeta } from "../db/repo/meta";
+import { getProfile, setValidationResult } from "../db/repo/agentProfiles";
 import {
   claimNextJob,
   completeJob,
@@ -14,12 +16,11 @@ import {
   type AiConfigSnapshot,
   type JobRow,
 } from "../db/repo/jobs";
-import { getMeta, setMeta } from "../db/repo/meta";
 import { buildPromptForSnapshot } from "../ai/instructions";
-import { adapterForJobConfig, provenanceFor } from "../agent/profiles";
+import { buildChatPromptForJob } from "./chat-context";
+import { adapterForJobConfig, provenanceFor, createProfileAdapter, runProfileValidation } from "../agent/profiles";
 import { agentTimeoutMs, resolveAdapter, type AgentAdapter, type AgentRuntimeInfo } from "../agent";
 import { safeParseConfig } from "./create";
-import { buildChatPromptForJob } from "./chat-context";
 
 export const HEARTBEAT_KEY = "worker_heartbeat";
 export const HEARTBEAT_MAX_AGE_MS = 20_000;
@@ -198,6 +199,31 @@ export class ReadflowWorker {
             // Yalnızca süresi dolmuş lease'ler kurtarılır; toplu geri alma yok.
             recoverExpiredLeases(this.db);
             lastLeaseCheck = Date.now();
+          }
+
+          // Bekleyen profil doğrulama isteği varsa yerelde çalıştır
+          const validateRaw = getMeta(this.db, "profile_validate_request");
+          if (validateRaw) {
+            try {
+              const parsed = JSON.parse(validateRaw) as { profileId?: number };
+              if (parsed.profileId) {
+                const profile = getProfile(this.db, parsed.profileId);
+                if (profile) {
+                  const adapter = createProfileAdapter(profile);
+                  const outcome = await runProfileValidation(adapter, profile.timeout_ms);
+                  setValidationResult(this.db, profile.id, outcome.ok, outcome.ok ? null : outcome.message.slice(0, 400));
+                  setMeta(this.db, "profile_validate_request", "");
+                  console.log(`[worker] profil #${profile.id} doğrulaması: ${outcome.ok ? "başarılı" : "başarısız"}`);
+                } else {
+                  setMeta(this.db, "profile_validate_request", "");
+                }
+              } else {
+                setMeta(this.db, "profile_validate_request", "");
+              }
+            } catch (validateError) {
+              console.error(`[worker] doğrulama hatası: ${validateError instanceof Error ? validateError.message : validateError}`);
+              setMeta(this.db, "profile_validate_request", "");
+            }
           }
 
           if (!resolution.adapter && Date.now() - lastDetect > detectIntervalMs) {

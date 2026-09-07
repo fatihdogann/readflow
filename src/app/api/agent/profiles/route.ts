@@ -11,6 +11,7 @@ import {
 import { discoverAllCapabilities, getCachedCapabilities } from "@/lib/agent/capabilities";
 import { getEnvironmentLock } from "@/lib/agent/profiles";
 import { buildArgvForProfile, resolveTransport } from "@/lib/agent/profiles";
+import { getMeta } from "@/lib/db/repo/meta";
 import { InputError } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -29,11 +30,37 @@ const createSchema = z.object({
 export async function GET(): Promise<Response> {
   try {
     const db = getDb();
+    // Yetenekler öncelikle Mac worker'ın raporladığından okunur (Coolify'da
+    // container'da CLI olmadığı için sunucu tespiti boş/yanıltıcı olabilir);
+    // worker raporu yoksa sunucu tarafı tespit denenir.
+    const workerCapsRaw = getMeta(db, "worker_capabilities");
+    let candidates: ReturnType<typeof discoverAllCapabilities> = [];
+    if (workerCapsRaw) {
+      try {
+        candidates = JSON.parse(workerCapsRaw) as ReturnType<typeof discoverAllCapabilities>;
+      } catch {
+        candidates = [];
+      }
+    }
+    if (candidates.length === 0) {
+      candidates = discoverAllCapabilities();
+    }
+    let validatePending = false;
+    const pendingRaw = getMeta(db, "profile_validate_request");
+    if (pendingRaw) {
+      try {
+        validatePending = Boolean((JSON.parse(pendingRaw) as { profileId?: number }).profileId);
+      } catch {
+        validatePending = false;
+      }
+    }
     return Response.json({
       envLock: getEnvironmentLock(),
-      candidates: discoverAllCapabilities(),
+      candidates,
       profiles: listProfiles(db),
       defaultProfileId: getDefaultProfileId(db),
+      validatePending,
+      source: workerCapsRaw ? "worker" : "server",
     });
   } catch (error) {
     return apiErrorResponse(error);
