@@ -36,7 +36,8 @@ if (parsedServer.protocol !== "https:" && parsedServer.protocol !== "http:") {
 const SERVER = rawServer;
 const TOKEN = process.env.READFLOW_WORKER_TOKEN ?? "";
 const WORKER_ID = `remote-${process.env.USER ?? "mac"}-${Date.now().toString(36)}`;
-const POLL_MS = 3_000;
+// Yoklama aralığı: varsayılan 3 sn; READFLOW_POLL_MS ile artırılabilir (ör. 30000 = 30 sn).
+const POLL_MS = Math.min(Math.max(Number(process.env.READFLOW_POLL_MS) || 3_000, 1_000), 600_000);
 
 if (!TOKEN) {
   console.error("[remote] READFLOW_WORKER_TOKEN gerekli");
