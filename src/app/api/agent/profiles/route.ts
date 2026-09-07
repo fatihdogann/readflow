@@ -2,21 +2,33 @@ import { z } from "zod";
 import { assertMutationAllowed } from "@/lib/api/local";
 import { apiErrorResponse, readJsonBody } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
+import { createProfile, getDefaultProfileId, listProfiles } from "@/lib/db/repo/agentProfiles";
 import {
-  createProfile,
-  getDefaultProfileId,
-  listProfiles,
+  discoverAllCapabilities,
+  getCachedCapabilities,
+  type CliCapabilities,
   type SupportedCli,
-} from "@/lib/db/repo/agentProfiles";
-import { discoverAllCapabilities, getCachedCapabilities } from "@/lib/agent/capabilities";
-import { getEnvironmentLock } from "@/lib/agent/profiles";
-import { buildArgvForProfile, resolveTransport } from "@/lib/agent/profiles";
+} from "@/lib/agent/capabilities";
+import { getEnvironmentLock, buildArgvForProfile, resolveTransport } from "@/lib/agent/profiles";
 import { getMeta } from "@/lib/db/repo/meta";
 import { InputError } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const SUPPORTED: SupportedCli[] = ["claude", "codex", "jcode"];
+/** Yetenek kaynağı: Mac worker raporu öncelikli, yoksa sunucu tespiti. */
+function effectiveCaps(db: ReturnType<typeof getDb>, cli: SupportedCli): CliCapabilities {
+  const raw = getMeta(db, "worker_capabilities");
+  if (raw) {
+    try {
+      const all = JSON.parse(raw) as CliCapabilities[];
+      const match = all.find((candidate) => candidate.cli === cli);
+      if (match) return match;
+    } catch {
+      /* bozuk kayıt */
+    }
+  }
+  return getCachedCapabilities(cli);
+}
 
 const createSchema = z.object({
   name: z.string().min(1).max(80),
@@ -71,13 +83,10 @@ export async function POST(request: Request): Promise<Response> {
   try {
     await assertMutationAllowed(request);
     const body = createSchema.parse(await readJsonBody(request));
-    const caps = getCachedCapabilities(body.cli);
-    if (!caps.found) {
-      throw new InputError(`${body.cli} kurulu değil — profil oluşturulamaz`);
-    }
-    if (!caps.nonInteractive) {
-      throw new InputError(`${body.cli} için non-interactive kullanım doğrulanamadı`);
-    }
+    // Yetenek kaynağı: önce Mac worker'ın raporladığı veriler (Coolify'da
+    // container'da CLI olmadığından sunucu tespiti bulunamayabilir); worker
+    // çalışma sırasında bayrakları kendi tarafında yeniden doğrular.
+    const caps = effectiveCaps(getDb(), body.cli);
     const model = body.model?.trim() || null;
     if (model && caps.modelOptions && !caps.modelOptions.includes(model)) {
       const suggestions = caps.modelOptions
@@ -90,22 +99,20 @@ export async function POST(request: Request): Promise<Response> {
     // Komut üretimi yalnızca doğrulanmış preset + bayraklarla olur; serbest metin kabul edilmez.
     buildArgvForProfile({ cli: body.cli, model, provider: body.provider ?? null }, caps);
     const capabilitiesJson = JSON.stringify(caps);
-    const profile = createProfile(
-      getDb(),
-      {
-        name: body.name,
-        cli: body.cli,
-        model,
-        provider: body.provider ?? null,
-        transport: resolveTransport(caps, body.transport),
-        timeoutMs: body.timeoutMs,
-      },
-      capabilitiesJson,
-    );
+      const profile = createProfile(
+        getDb(),
+        {
+          name: body.name,
+          cli: body.cli as SupportedCli,
+          model,
+          provider: body.provider ?? null,
+          transport: resolveTransport(caps, body.transport),
+          timeoutMs: body.timeoutMs,
+        },
+        capabilitiesJson,
+      );
     return Response.json({ profile }, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error);
   }
 }
-
-export const SUPPORTED_CLIS = SUPPORTED;
