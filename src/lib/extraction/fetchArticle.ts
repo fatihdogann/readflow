@@ -5,9 +5,12 @@ import { Readability } from "@mozilla/readability";
 import { formatAuthorByline } from "../text/author";
 import { InputError } from "../types";
 import { sanitizeArticleHtml } from "./sanitize";
+import { extractFromBuffer } from "./fromBuffer";
 
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+/** PDF/Word gövdeleri HTML'den çok daha büyük olabilir. */
+const MAX_BINARY_BYTES = 25 * 1024 * 1024;
 const MAX_TEXT_CHARS = 2_000_000;
 const MAX_HTML_CHARS = 3_000_000;
 const MAX_REDIRECTS = 4;
@@ -133,6 +136,29 @@ async function assertResolvesToPublicIp(url: URL): Promise<void> {
   }
 }
 
+/** Gövdeyi ikili olarak, sınırı aşmadan okur (PDF/Word yolu). */
+async function readBinaryCapped(response: Response, limit: number): Promise<Buffer> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > limit) throw new InputError("Dosya çok büyük");
+    return Buffer.from(buffer);
+  }
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > limit) {
+      await reader.cancel();
+      throw new InputError(`Dosya çok büyük (sınır: ${Math.round(limit / 1024 / 1024)} MB)`);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function readBodyCapped(response: Response): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) {
@@ -159,8 +185,70 @@ async function readBodyCapped(response: Response): Promise<string> {
   return text;
 }
 
+/** Sitenin bizi engellediği durumlar: yedek yollar denenmeye değer. */
+export class BlockedError extends InputError {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Adresi indirip doküman çıkarır. Site bizi engellerse (401/403/429) sırayla
+ * yedek yollar denenir; hepsi başarısızsa sitenin kendi hatası fırlatılır ve
+ * kullanıcıya "HTML'i kendin yapıştır" kaçış yolu kalır.
+ */
 export async function fetchArticle(rawUrl: string): Promise<ArticleExtraction> {
-  let url = assertPublicHttpUrl(rawUrl);
+  const url = assertPublicHttpUrl(rawUrl);
+  try {
+    return await fetchAndExtract(url);
+  } catch (error) {
+    if (!(error instanceof BlockedError)) throw error;
+    const archived = await tryWaybackSnapshot(url);
+    if (archived) return archived;
+    throw error;
+  }
+}
+
+/**
+ * Wayback Machine'de erişilebilir bir kopya varsa oradan çıkarır.
+ * Başarısızlık sessizdir: yedek yol, asıl hatanın yerine geçmemeli.
+ */
+async function tryWaybackSnapshot(url: URL): Promise<ArticleExtraction | null> {
+  try {
+    const lookup = new URL("https://archive.org/wayback/available");
+    lookup.searchParams.set("url", url.href);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    let snapshotUrl: string | null = null;
+    try {
+      const response = await fetch(lookup.href, {
+        signal: controller.signal,
+        headers: { "user-agent": USER_AGENT, accept: "application/json" },
+      });
+      if (!response.ok) return null;
+      const body = (await response.json()) as {
+        archived_snapshots?: { closest?: { available?: boolean; url?: string } };
+      };
+      const closest = body.archived_snapshots?.closest;
+      if (closest?.available && closest.url) snapshotUrl = closest.url;
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!snapshotUrl) return null;
+
+    const article = await fetchAndExtract(assertPublicHttpUrl(snapshotUrl.replace(/^http:/, "https:")));
+    // Arşivden gelse de belge kullanıcının verdiği adrese ait sayılır.
+    return { ...article, domain: url.hostname };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAndExtract(startUrl: URL): Promise<ArticleExtraction> {
+  let url = startUrl;
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
     assertPublicHttpUrl(url.href);
@@ -192,6 +280,9 @@ export async function fetchArticle(rawUrl: string): Promise<ArticleExtraction> {
       continue;
     }
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403 || response.status === 429) {
+        throw new BlockedError(describeHttpFailure(response.status), response.status);
+      }
       throw new InputError(describeHttpFailure(response.status));
     }
     const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
@@ -210,7 +301,16 @@ export async function fetchArticle(rawUrl: string): Promise<ArticleExtraction> {
       };
     }
     if (!/text\/html|application\/xhtml\+xml/.test(contentType)) {
-      throw new InputError(`Desteklenmeyen içerik türü: ${contentType || "bilinmiyor"}`);
+      // PDF / Word / Markdown gibi dosyalar: imzasından tanınıp metne çevrilir.
+      const buffer = await readBinaryCapped(response, MAX_BINARY_BYTES);
+      const fileName = decodeURIComponent(url.pathname.split("/").pop() ?? "");
+      const extraction = await extractFromBuffer(buffer, {
+        contentType,
+        fileName,
+        label: fileName.replace(/\.[^.]+$/, "") || url.hostname,
+      });
+      // Kaynak adresten gelen dosyada alan adı korunsun (arşiv filtreleri için).
+      return { ...extraction, domain: url.hostname };
     }
     const html = await readBodyCapped(response);
     return extractFromHtml(html, url.href);
@@ -221,10 +321,10 @@ export async function fetchArticle(rawUrl: string): Promise<ArticleExtraction> {
 /** HTTP hatasını kullanıcının ne yapacağını anlayacağı şekilde açıklar. */
 function describeHttpFailure(status: number): string {
   if (status === 401 || status === 403) {
-    return `Site isteği reddetti (HTTP ${status}) — bot koruması veya oturum gerekiyor. Sayfayı kopyalayıp metin olarak yapıştırabilirsin.`;
+    return `Site isteği reddetti (HTTP ${status}) — bot koruması veya oturum gerekiyor. Arşiv kopyası da bulunamadı; sayfanın HTML'ini yapıştırarak ekleyebilirsin.`;
   }
   if (status === 404 || status === 410) return `Sayfa bulunamadı (HTTP ${status})`;
-  if (status === 429) return "Site çok fazla istek gördü (HTTP 429) — biraz sonra tekrar dene";
+  if (status === 429) return "Site çok fazla istek gördü (HTTP 429) — biraz sonra tekrar dene veya sayfanın HTML'ini yapıştır";
   if (status >= 500) return `Sitenin sunucusu hata verdi (HTTP ${status})`;
   return `Sayfa indirilemedi (HTTP ${status})`;
 }

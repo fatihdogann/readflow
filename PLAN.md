@@ -169,7 +169,7 @@ Altyapı var, UI bağlamıyor.
 
 ---
 
-## Faz 5 — İçerik alma: her formattan, her siteden
+## Faz 5 — İçerik alma: her formattan, her siteden ✅ TAMAMLANDI
 
 Hedef: "yapıştırdığım hiçbir şey geri çevrilmesin."
 
@@ -192,8 +192,9 @@ Bugün `fetchArticle` content-type'ı html/xhtml/plain değilse reddediyor. Ekle
 
 ### 5.2 403 / paywall / JS-site zinciri
 
-- Sırayla: normal fetch → AMP sürümü → Wayback (`archive.org/wayback/available`) →
-  başarısızsa **"HTML'i kendin yapıştır"** kaçış yolu.
+- Sırayla: normal fetch → Wayback (`archive.org/wayback/available`) → başarısızsa
+  **"HTML'i kendin yapıştır"** kaçış yolu. AMP adımı atlandı: Google AMP'i
+  kullanımdan kaldırdı, tahmine dayalı `/amp` adresleri değer üretmiyor.
 - Hata mesajı sebebi söylesin ("site bot koruması döndürdü"), genel "indirilemedi" demesin.
 
 ### 5.3 Bookmarklet (kök çözüm)
@@ -248,8 +249,8 @@ Faz 1  ✅ (tek sağ raf)
 Faz 2  ✅ (vurgu motoru + mobil)
 Faz 3  ✅ (not + alıntı + AI)
 Faz 4  ✅ (okuma akışı)
-Faz 5  (PDF/Word/her format + 403 zinciri + bookmarklet)  ← sıradaki
-Faz 6  (vurgu arşivi)
+Faz 5  ✅ (PDF/Word/her format + 403 zinciri + bookmarklet)
+Faz 6  (vurgu arşivi)  ← sıradaki
 ```
 
 Faz 0 + 0.5 tek oturumda biter. Faz 1–3 birlikte "okuma deneyimi" sürümünü oluşturur;

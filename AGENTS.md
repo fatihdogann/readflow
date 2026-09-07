@@ -23,10 +23,11 @@ src/lib/db/          SQLite bağlantısı (WAL), migrations.ts (sürüm meta tab
 src/lib/jobs/        job queue yardımcıları + ReadflowWorker döngüsü (kalp atışı meta'ya yazılır)
 src/lib/agent/       AgentAdapter sözleşmesi; CommandAgentAdapter (stdin/stdout, shell yok), MockAgentAdapter, detect (CLI --help imza doğrulaması)
 src/lib/ai/instructions/  Tüm prompt'lar burada — React component'larına asla gömme
-src/lib/extraction/  URL fetch (timeout/boyut/redirect/SSRF kontrolleri) + Readability + sanitize
+src/lib/extraction/  URL fetch (timeout/boyut/redirect/SSRF+DNS kontrolleri, 403'te Wayback yedeği) + Readability + sanitize + fromBuffer (PDF/DOCX/metin)
 src/lib/export/      format (md/txt), docx, notion/telegram adapter'ları (env-gated)
 src/lib/documents/   createDocumentFromInput + getDocumentDetail servisleri
 src/mcp/             yerel MCP sunucusu (stdio) — web core'una gömülü değildir
+public/bookmarklet.js  tarayıcıdan gönderme kaynağı; /api/bookmarklet token gömüp javascript: bağlantısına çevirir
 src/worker/          worker giriş noktası (pnpm dev:worker)
 src/app/             Next.js App Router UI + API route'ları
 scripts/             migrate, mock-agent.mjs
@@ -87,4 +88,6 @@ Testler vitest; test'ler geçici dizinde kendi SQLite'ını kurar (`src/lib/db/t
 
 - Adapter seçimi: `READFLOW_AGENT_MODE` (auto/command/mock/none) → `READFLOW_AGENT_CMD` → bilinen CLI preset'leri (`claude -p`, `codex exec -`, `jcode run`+argv; her preset kendi `--help` imzası doğrulanırsa kullanılır). CLI bayrakları **tahmin edilmez**.
 - MCP yolu: `pnpm dev:mcp` stdio konuşur; tool'lar job queue'ya ve dokümanlara adapter düzeyinde erişir (`src/mcp/server.ts`). MCP'ye yeni tool eklerken iş mantığını `src/lib/db/repo`'da tut.
+- Doküman girişi dört yoldan olur: URL (sunucu indirir), düz metin, dosya yükleme (multipart; PDF/DOCX/metin) ve `html` alanı (bookmarklet veya elle yapıştırma — sunucu siteye istek atmaz). Hepsi `createDocumentFromInput` üzerinden geçer.
+- `/api/ingest` bookmarklet ucudur: oturum cookie'si yerine `meta.ingest_token` taşıyıcı token'ı kullanır (cross-origin POST'ta SameSite=Lax cookie gitmez) ve `proxy.ts` oturum sınırının dışındadır. Token'ı döndüren `/api/bookmarklet` ise oturum ister — bilinçli olarak `/api/ingest` altında değildir.
 - `src/lib/extraction/fetchArticle.ts` SSRF kontrolleri içerir: protokol/hostname allowlist **artı** her istek öncesi `dns.lookup` ile gerçek IP doğrulaması (rebinding'e karşı), redirect ve boyut sınırları — gevşetme.

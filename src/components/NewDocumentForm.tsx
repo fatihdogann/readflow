@@ -2,16 +2,29 @@
 
 import { useRouter } from "next/navigation";
 import { FileTextIcon, LinkIcon } from "./Icons";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { looksLikeUrl } from "@/lib/types";
+
+const ACCEPTED = ".pdf,.docx,.md,.markdown,.txt,.csv";
 
 export function NewDocumentForm() {
   const router = useRouter();
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // URL engellendiğinde açılan kaçış yolu: sayfanın kaynağını elle yapıştır.
+  const [pasteFor, setPasteFor] = useState<string | null>(null);
+  const [pastedHtml, setPastedHtml] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const isUrl = useMemo(() => looksLikeUrl(value), [value]);
+
+  async function open(response: Response): Promise<void> {
+    const body = (await response.json()) as { id?: number; error?: string };
+    if (!response.ok || !body.id) throw new Error(body.error ?? "İçerik kaydedilemedi");
+    router.push(`/doc/${body.id}`);
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -19,31 +32,88 @@ export function NewDocumentForm() {
     if (!trimmed || busy) return;
     setBusy(true);
     setError(null);
+    setPasteFor(null);
     try {
       const response = await fetch("/api/documents", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(isUrl ? { url: trimmed } : { text: trimmed }),
       });
-      const body = (await response.json()) as { id?: number; error?: string };
-      if (!response.ok || !body.id) {
-        setError(body.error ?? "İçerik kaydedilemedi");
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        setError(body?.error ?? "İçerik kaydedilemedi");
+        // Site bizi engellediyse kullanıcı sayfayı kendi tarayıcısından getirebilir.
+        if (isUrl) setPasteFor(trimmed);
         return;
       }
-      router.push(`/doc/${body.id}`);
-    } catch {
-      setError("Sunucuya ulaşılamadı");
+      await open(response);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Sunucuya ulaşılamadı");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitHtml(): Promise<void> {
+    const html = pastedHtml.trim();
+    if (!html || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await open(
+        await fetch("/api/documents", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ html, sourceUrl: pasteFor ?? undefined }),
+        }),
+      );
+    } catch (htmlError) {
+      setError(htmlError instanceof Error ? htmlError.message : "Sayfa kaynağı işlenemedi");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitFile(file: File): Promise<void> {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setPasteFor(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await open(await fetch("/api/documents", { method: "POST", body: form }));
+    } catch (fileError) {
+      setError(fileError instanceof Error ? fileError.message : "Dosya işlenemedi");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white/70 p-3 shadow-[0_16px_45px_rgba(28,25,23,0.07)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none sm:p-4">
+    <form
+      onSubmit={submit}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDragging(false);
+        const file = event.dataTransfer.files[0];
+        if (file) void submitFile(file);
+      }}
+      className={`flex flex-col gap-3 rounded-2xl border bg-white/70 p-3 shadow-[0_16px_45px_rgba(28,25,23,0.07)] transition dark:bg-stone-900/35 dark:shadow-none sm:p-4 ${
+        dragging
+          ? "border-stone-500 bg-stone-100/80 dark:border-stone-500"
+          : "border-stone-200 dark:border-stone-800"
+      }`}
+    >
       <textarea
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        placeholder="Bağlantı ekle veya metin yapıştır…"
+        placeholder="Bağlantı ekle, metin yapıştır veya dosya bırak…"
         rows={isUrl ? 2 : 8}
         className="w-full resize-y rounded-xl border-0 bg-transparent px-2 py-2 text-[15px] leading-relaxed outline-none placeholder:text-stone-400 focus:ring-0 dark:placeholder:text-stone-500"
         autoFocus
@@ -56,6 +126,26 @@ export function NewDocumentForm() {
         >
           {busy ? "Alınıyor…" : "Kaydet"}
         </button>
+        <button
+          type="button"
+          onClick={() => fileInput.current?.click()}
+          disabled={busy}
+          className="rounded-xl border border-stone-300 px-3 py-2.5 text-sm text-stone-700 hover:bg-stone-100 disabled:opacity-40 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+        >
+          Dosya seç
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept={ACCEPTED}
+          className="sr-only"
+          aria-label="PDF, Word veya metin dosyası"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void submitFile(file);
+          }}
+        />
         {value.trim() ? (
           <span className="text-xs text-stone-500">
             <span className="inline-flex items-center gap-1.5">
@@ -65,11 +155,49 @@ export function NewDocumentForm() {
           </span>
         ) : (
           <span className="text-xs text-stone-400">
-            URL otomatik algılanır; yapıştırdığın her şey yalnızca bu bilgisayarda saklanır.
+            PDF · Word · Markdown sürükleyebilirsin. Her şey yalnızca bu bilgisayarda saklanır.
           </span>
         )}
       </div>
+
       {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+
+      {pasteFor ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-900/50">
+          <p className="text-xs text-stone-600 dark:text-stone-400">
+            Sayfayı tarayıcında aç, <strong>sağ tık → Sayfa kaynağını görüntüle</strong> (veya ⌘/Ctrl+U),
+            tümünü kopyalayıp buraya yapıştır. Oturum ve bot koruması senin tarayıcında zaten çözülü.
+          </p>
+          <textarea
+            value={pastedHtml}
+            onChange={(event) => setPastedHtml(event.target.value)}
+            rows={4}
+            placeholder="<!doctype html>…"
+            aria-label="Sayfa kaynağı (HTML)"
+            className="w-full resize-y rounded-lg border border-stone-300 bg-white px-2.5 py-2 font-mono text-[11px] outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-950/40"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void submitHtml()}
+              disabled={!pastedHtml.trim() || busy}
+              className="min-h-[36px] rounded-lg bg-stone-900 px-3 text-xs font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900"
+            >
+              Kaynaktan ekle
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPasteFor(null);
+                setPastedHtml("");
+              }}
+              className="min-h-[36px] rounded-lg px-3 text-xs text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800"
+            >
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

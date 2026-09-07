@@ -4,7 +4,8 @@ import { getEdit } from "../db/repo/documentEdits";
 import { listJobsByDocument, type JobRow } from "../db/repo/jobs";
 import { listOutputs, type OutputRow } from "../db/repo/outputs";
 import { listDocumentTags } from "../db/repo/tags";
-import { fetchArticle } from "../extraction/fetchArticle";
+import { assertPublicHttpUrl, extractFromHtml, fetchArticle } from "../extraction/fetchArticle";
+import { extractFromBuffer } from "../extraction/fromBuffer";
 import { InputError, looksLikeUrl } from "../types";
 
 export interface DocumentEditInfo {
@@ -26,6 +27,12 @@ export interface DocumentDetail {
 export interface CreateDocumentInput {
   url?: string;
   text?: string;
+  /** Tarayıcıdan gelen sayfa kaynağı (bookmarklet / elle yapıştırma). */
+  html?: string;
+  /** `html` ile birlikte: sayfanın gerçek adresi. */
+  sourceUrl?: string;
+  /** Yüklenen dosya (PDF/Word/metin). */
+  file?: { buffer: Buffer; fileName: string; contentType: string };
   title?: string;
   folderId?: number | null;
 }
@@ -54,6 +61,52 @@ export async function createDocumentFromInput(
 ): Promise<DocumentRow> {
   const url = input.url?.trim();
   const text = input.text?.trim();
+  const html = input.html?.trim();
+
+  // Dosya yükleme: PDF / Word / Markdown / düz metin.
+  if (input.file) {
+    const article = await extractFromBuffer(input.file.buffer, {
+      contentType: input.file.contentType,
+      fileName: input.file.fileName,
+      label: input.file.fileName.replace(/\.[^.]+$/, ""),
+    });
+    return insertDocument(db, {
+      title: (input.title?.trim() || article.title).slice(0, TITLE_MAX),
+      sourceType: "text",
+      sourceDomain: article.domain,
+      author: article.author,
+      publishedAt: article.publishedAt,
+      originalText: article.originalText,
+      originalHtml: article.originalHtml,
+      folderId: input.folderId ?? null,
+    });
+  }
+
+  /**
+   * Tarayıcıdan gelen HTML: sunucu sayfayı indirmez. Bot koruması, paywall ve
+   * JS ile üretilen sayfalar bu yoldan geçer — içerik kullanıcının kendi
+   * oturumundaki tarayıcıda zaten çözülmüştür.
+   */
+  if (html) {
+    const sourceUrl = input.sourceUrl?.trim();
+    if (sourceUrl && !looksLikeUrl(sourceUrl)) {
+      throw new InputError("Kaynak adres geçerli bir http(s) adresi değil");
+    }
+    // Yalnızca adresin doğruluğu doğrulanır; istek atılmaz.
+    const base = sourceUrl ? assertPublicHttpUrl(sourceUrl).href : "https://readflow.local/";
+    const article = extractFromHtml(html, base);
+    return insertDocument(db, {
+      title: (input.title?.trim() || article.title).slice(0, TITLE_MAX),
+      sourceType: sourceUrl ? "url" : "text",
+      sourceUrl: sourceUrl ?? null,
+      sourceDomain: sourceUrl ? article.domain : null,
+      author: article.author,
+      publishedAt: article.publishedAt,
+      originalText: article.originalText,
+      originalHtml: article.originalHtml,
+      folderId: input.folderId ?? null,
+    });
+  }
 
   if (url) {
     if (!looksLikeUrl(url)) {
@@ -82,7 +135,7 @@ export async function createDocumentFromInput(
     });
   }
 
-  throw new InputError("Bir bağlantı veya metin sağlamalısın");
+  throw new InputError("Bir bağlantı, metin, HTML veya dosya sağlamalısın");
 }
 
 export function getDocumentDetail(db: SqliteDb, id: number): DocumentDetail | null {

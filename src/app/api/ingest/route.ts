@@ -1,0 +1,76 @@
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { z } from "zod";
+import { apiErrorResponse } from "@/lib/api/http";
+import { getDb } from "@/lib/db/connection";
+import { getMeta, setMeta } from "@/lib/db/repo/meta";
+import { createDocumentFromInput } from "@/lib/documents/service";
+
+export const dynamic = "force-dynamic";
+
+const TOKEN_KEY = "ingest_token";
+const MAX_HTML_CHARS = 5_000_000;
+
+/**
+ * Bookmarklet giriş noktası.
+ *
+ * Tarayıcı sekmesindeki HTML'i alır; sunucu sayfayı indirmez. Bot koruması,
+ * paywall ve JS ile üretilen sayfalar kullanıcının kendi oturumundan geçer.
+ *
+ * Yetki oturum cookie'siyle olamaz: bookmarklet başka bir sitenin origin'inden
+ * çalışır ve `SameSite=Lax` cookie cross-site POST'a eklenmez. Bu yüzden
+ * `/api/worker` ile aynı desende ayrı bir taşıyıcı token kullanılır.
+ */
+export function getOrCreateIngestToken(): string {
+  const db = getDb();
+  const existing = getMeta(db, TOKEN_KEY);
+  if (existing && existing.length >= 32) return existing;
+  const token = randomBytes(24).toString("base64url");
+  setMeta(db, TOKEN_KEY, token);
+  return token;
+}
+
+function authorized(request: Request): boolean {
+  const expected = getMeta(getDb(), TOKEN_KEY);
+  if (!expected) return false; // token üretilmemişse uç kapalı
+  const provided = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!provided) return false;
+  const a = createHash("sha256").update(expected).digest();
+  const b = createHash("sha256").update(provided).digest();
+  return timingSafeEqual(a, b);
+}
+
+/** Token ile yetkilendirildiği için origin serbest; cookie hiç kullanılmaz. */
+const CORS_HEADERS: Record<string, string> = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-allow-headers": "content-type, authorization",
+  "access-control-max-age": "86400",
+};
+
+export function OPTIONS(): Response {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+const schema = z.object({
+  html: z.string().min(1).max(MAX_HTML_CHARS),
+  sourceUrl: z.string().max(2000).optional(),
+  title: z.string().max(300).optional(),
+});
+
+export async function POST(request: Request): Promise<Response> {
+  try {
+    if (!authorized(request)) {
+      return Response.json({ error: "Yetkisiz" }, { status: 401, headers: CORS_HEADERS });
+    }
+    const body = schema.parse(await request.json());
+    const document = await createDocumentFromInput(getDb(), body);
+    return Response.json(
+      { id: document.id, title: document.title },
+      { status: 201, headers: CORS_HEADERS },
+    );
+  } catch (error) {
+    const response = apiErrorResponse(error);
+    for (const [key, value] of Object.entries(CORS_HEADERS)) response.headers.set(key, value);
+    return response;
+  }
+}

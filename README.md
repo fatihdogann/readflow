@@ -16,8 +16,10 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 
 ## Readflow nedir?
 
-- Bir **URL yapıştırırsın**: sayfa sunucu tarafında indirilir, Mozilla Readability ile ana makaleye ayrıştırılır (navigation, reklam, cookie banner gürültüsü atılır, HTML sanitize edilir).
+- Bir **URL yapıştırırsın**: sayfa sunucu tarafında indirilir, Mozilla Readability ile ana makaleye ayrıştırılır (navigation, reklam, cookie banner gürültüsü atılır, HTML sanitize edilir). Site bot koruması verirse Wayback Machine kopyası denenir.
 - Bir **metin yapıştırırsın**: doğrudan arşive kaydedilir.
+- Bir **dosya bırakırsın**: PDF, Word (.docx), Markdown ve düz metin sürükle-bırak ya da "Dosya seç" ile eklenir. Taranmış (görsel) PDF'te metin yoksa net hata verir — OCR yoktur.
+- **Bookmarklet ile gönderirsin**: yer imleri çubuğundaki "Readflow'a gönder" düğmesi, açık sekmenin HTML'ini doğrudan Readflow'a yollar. Sunucu siteye hiç istek atmadığı için bot koruması, paywall, çerez duvarı ve JavaScript ile üretilen sayfalar da eklenebilir. Ayarlar ekranından kurulur.
 - Dört içerik türü nettir: **Orijinal** (asla değişmez), **Düzenlenmiş** (kullanıcının kendi sürümü, revision kontrollü), **AI Düzenlemesi** (okunabilirlik çıktısı) ve **Özet** (Kısa/Normal/Detaylı).
 - AI işlemleri **remote LLM API'si ile değil**, kendi bilgisayarındaki coding-agent CLI üzerinden yapılır. **Hiçbir LLM API key istemez.** CLI'ın kendisi kendi oturumuyla uzak model sağlayıcısına bağlanabilir; Readflow'un verisi (dokümanlar, notlar, çıktılar) ise yalnızca `~/.readflow/` içinde saklanır — "yerel saklama" ile "AI tamamen çevrimdışı" aynı şey değildir.
 - İş oluşturulduğunda **kaynak metin, notlar ve AI yapılandırması snapshot olarak sabitlenir**; sonraki değişiklikler bekleyen işi etkilemez. Retry aynı snapshot ile çalışır.
@@ -115,7 +117,7 @@ Tüm veri (dokümanlar, çıktılar, job geçmişi) yalnızca `~/.readflow/` iç
 - **better-sqlite3 kurulmuyor**: `pnpm rebuild better-sqlite3` — Node sürümün için prebuilt binary yoksa Xcode CLT gerekir.
 - **Port 3000 dolu**: `pnpm dev:web -- -p 3001`. Eski Next süreçleri `pkill -f next-server` ile bulunur (Next 16 süreç adını yeniden adlandırır).
 - **Node 26'da "ExperimentalWarning: localStorage"**: `docx` paketinin Node 26 uyumluluk shim'i modül yüklenirken global `localStorage`'a dokunur; zararsızdır ve docx güncellemesiyle kaybolur. Readflow'un kendi kodu Node tarafında localStorage'a erişmez.
-- **URL eklenemiyor (HTTP 403/401)**: site bot koruması uyguluyor veya oturum istiyor. Hata mesajı sebebi söyler; şimdilik sayfayı kopyalayıp metin olarak yapıştır.
+- **URL eklenemiyor (HTTP 403/401)**: site bot koruması uyguluyor veya oturum istiyor. Readflow önce Wayback Machine kopyasını dener; o da yoksa iki yol kalır: Ayarlar'daki **bookmarklet** (önerilen — sayfayı kendi tarayıcından gönderir) veya hata kutusunda açılan **sayfa kaynağını yapıştır** alanı.
 
 ## Mimari
 
@@ -123,7 +125,7 @@ Readflow bağımsız süreçler halinde çalışır; hepsi aynı SQLite dosyası
 
 | Süreç | Komut | Sorumluluk |
 |---|---|---|
-| Web uygulaması | `pnpm dev:web` | Next.js 16 (App Router): UI, REST API, URL extraction, export servisleri |
+| Web uygulaması | `pnpm dev:web` | Next.js 16 (App Router): UI, REST API, URL/dosya extraction, export servisleri |
 | Worker | `pnpm dev:worker` | `pending` job'ları atomik claim eder, agent CLI'ı çalıştırır, çıktıyı yazar |
 | MCP sunucusu | `pnpm dev:mcp` | Coding agent'lara stdio üzerinden job/doküman tool'ları sunar |
 | Remote worker | `pnpm worker:install` | Uygulama sunucuda (Coolify), AI Mac'te: worker `/api/worker` ucuna outbound HTTPS ile bağlanır, prompt'u alır, CLI'ı çalıştırır, sonucu yazar. launchd servisi olarak açılışta başlar |
@@ -188,8 +190,8 @@ Katmanlar tek yönlü bağımlılıkla ayrışır: UI → servisler → repo'lar
 
 1. Textarea'da `https://…` algılanır (client + server çift kontrol) → `POST /api/documents {url}`.
 2. `assertPublicHttpUrl`: yalnızca http(s), kimlik bilgisi ve private ağ adresleri (localhost, 127/8, 10/8, 192.168/16, 172.16-31, 169.254/16, .local, .internal…) reddedilir.
-3. Fetch: 12 sn timeout, 5 MB gövde sınırı, en fazla 4 redirect (her adımda SSRF kontrolü tekrar), content-type html/xhtml/plain doğrulaması.
-4. JSDOM + Mozilla Readability: başlık (makale h1'i tercih edilir), yazar, yayın tarihi, ana metin; görsel adresleri mutlaklaştırılır, `srcset` temizlenir.
+3. Fetch: 12 sn timeout, 5 MB HTML / 25 MB ikili gövde sınırı, en fazla 4 redirect (her adımda SSRF kontrolü + DNS ile gerçek IP doğrulaması). 401/403/429 gelirse Wayback Machine kopyası denenir.
+4. İçerik HTML değilse (PDF / Word / Markdown) imzasından tanınıp `src/lib/extraction/fromBuffer.ts` ile metne çevrilir; HTML ise JSDOM + Mozilla Readability: başlık (makale h1'i tercih edilir), yazar, yayın tarihi, ana metin; görsel adresleri mutlaklaştırılır, `srcset` temizlenir.
 5. `sanitize-html` allowlist: script/iframe/style ve event handler'ları düşer, linklere `rel="noopener noreferrer"` eklenir → `documents` tablosuna kayıt. Bu aşamada **AI kullanılmaz**.
 
 ### Güvenlik duruşu

@@ -1,7 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isAuthConfigured, verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/status", "/api/worker", "/api/health"];
+// /api/ingest kendi taşıyıcı token'ıyla yetkilidir (bookmarklet cross-origin
+// çalışır, SameSite=Lax cookie oraya gitmez) — oturum sınırının dışındadır.
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/status",
+  "/api/worker",
+  "/api/ingest",
+  "/api/health",
+];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
@@ -22,7 +31,7 @@ export default async function proxy(request: NextRequest): Promise<NextResponse>
   const { pathname } = request.nextUrl;
 
   const mutating = ["POST", "PUT", "PATCH", "DELETE"].includes(request.method);
-  if (mutating && !pathname.startsWith("/api/worker")) {
+  if (mutating && !pathname.startsWith("/api/worker") && !pathname.startsWith("/api/ingest")) {
     const origin = request.headers.get("origin");
     if (origin) {
       const originHost = new URL(origin).host;
