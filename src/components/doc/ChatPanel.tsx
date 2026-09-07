@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { mutateJson } from "@/lib/client/api";
 import { CloseIcon } from "@/components/Icons";
 
@@ -20,35 +22,28 @@ const SUGGESTIONS = [
   "Metindeki karşı görüşler veya riskler neler?",
 ];
 
-/** Belgeye bağlı "AI'a sor" paneli: masaüstünde yardımcı sütun, mobilde alt sayfa. */
+/**
+ * Belgeye bağlı "AI'a sor" içeriği. Kabuk RightRail'e aittir.
+ *
+ * Alıntı, soru metnine gömülmez: API'nin `quote` alanıyla gönderilir ve
+ * mesajın yanında kendi bağlam şeridi olarak görünür.
+ */
 export function ChatPanel({
   documentId,
-  open,
-  onClose,
   pendingQuote,
   onQuoteConsumed,
 }: {
   documentId: number;
-  open: boolean;
-  onClose: () => void;
   pendingQuote: string | null;
   onQuoteConsumed: () => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [quote, setQuote] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 1023px)");
-    const sync = () => setIsMobile(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -59,36 +54,33 @@ export function ChatPanel({
     }
   }, [documentId]);
 
+  // Yanıt bekleyen mesaj varken sık, yokken seyrek yokla.
+  const waiting = messages.some(
+    (message) => message.role === "user" && (message.status === "queued" || message.status === "processing"),
+  );
   useEffect(() => {
-    if (!open) return;
-    const media = window.matchMedia("(max-width: 1023px)");
     const initial = setTimeout(() => void refresh(), 0);
-    const timer = setInterval(() => void refresh(), 2000);
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && media.matches) {
-        event.preventDefault();
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", onKey);
+    const timer = setInterval(() => void refresh(), waiting ? 2000 : 15_000);
     return () => {
-      document.removeEventListener("keydown", onKey);
       clearTimeout(initial);
       clearInterval(timer);
     };
-  }, [open, onClose, refresh]);
+  }, [refresh, waiting]);
 
-  // Seçim araç çubuğundan gelen alıntı: inputa bağlam olarak eklenir
   useEffect(() => {
-    if (!pendingQuote || !open) return;
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  }, [messages.length]);
+
+  // Seçim araç çubuğundan gelen alıntı: ayrı bağlam alanına düşer, inputa değil.
+  useEffect(() => {
+    if (!pendingQuote) return;
     const timer = setTimeout(() => {
-      setInput((prev) =>
-        prev ? `${prev}\n\n"${pendingQuote}" hakkında: ` : `"${pendingQuote}" hakkında ne anlatıyor?`,
-      );
+      setQuote(pendingQuote);
       onQuoteConsumed();
+      inputRef.current?.focus();
     }, 0);
     return () => clearTimeout(timer);
-  }, [pendingQuote, open, onQuoteConsumed]);
+  }, [pendingQuote, onQuoteConsumed]);
 
   async function send(question: string): Promise<void> {
     const trimmed = question.trim();
@@ -99,7 +91,7 @@ export function ChatPanel({
       const response = await fetch(`/api/documents/${documentId}/chat`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: trimmed }),
+        body: JSON.stringify({ question: trimmed, quote: quote?.slice(0, 2000) || undefined }),
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -107,6 +99,7 @@ export function ChatPanel({
         return;
       }
       setInput("");
+      setQuote(null);
       await refresh();
     } catch {
       setError("Sunucuya ulaşılamadı");
@@ -124,27 +117,11 @@ export function ChatPanel({
     }
   }
 
-  if (!open) return null;
-
-  const body = (
-    <>
-      <div className="flex items-center justify-between">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">
-          AI&apos;a sor
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Sohbet panelini kapat"
-          className="flex h-9 w-9 items-center justify-center rounded hover:bg-stone-200/60 dark:hover:bg-stone-800"
-        >
-          <CloseIcon size={16} />
-        </button>
-      </div>
-
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto rounded-md bg-white/60 p-2 dark:bg-stone-900/40"
+        className="min-h-[160px] flex-1 overflow-y-auto rounded-md bg-white/60 p-2 dark:bg-stone-900/40"
         aria-live="polite"
       >
         {messages.length === 0 ? (
@@ -172,7 +149,19 @@ export function ChatPanel({
                     : "mr-4 border border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900"
                 }`}
               >
-                <div className="whitespace-pre-wrap">{message.content}</div>
+                {message.quote ? (
+                  <p className="mb-1.5 border-l-2 border-stone-400 pl-2 text-[11px] italic text-stone-600 dark:border-stone-500 dark:text-stone-400">
+                    “{message.quote.slice(0, 240)}
+                    {message.quote.length > 240 ? "…" : ""}”
+                  </p>
+                ) : null}
+                {message.role === "assistant" ? (
+                  <div className="chat-markdown">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-wrap">{message.content}</div>
+                )}
                 {message.role === "user" && message.status !== "completed" ? (
                   <div className="mt-1 flex items-center gap-2 text-[10px] text-stone-500 dark:text-stone-400">
                     <span>
@@ -204,6 +193,23 @@ export function ChatPanel({
         </p>
       ) : null}
 
+      {quote ? (
+        <div className="flex items-start gap-1.5 rounded-md border border-stone-200 bg-white/70 px-2 py-1.5 text-[11px] dark:border-stone-700 dark:bg-stone-900/50">
+          <span className="min-w-0 flex-1 italic text-stone-600 dark:text-stone-400">
+            “{quote.slice(0, 160)}
+            {quote.length > 160 ? "…" : ""}”
+          </span>
+          <button
+            type="button"
+            onClick={() => setQuote(null)}
+            aria-label="Alıntıyı kaldır"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-200/70 dark:hover:bg-stone-800"
+          >
+            <CloseIcon size={12} />
+          </button>
+        </div>
+      ) : null}
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -212,6 +218,7 @@ export function ChatPanel({
         className="flex items-end gap-1.5"
       >
         <textarea
+          ref={inputRef}
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => {
@@ -221,7 +228,7 @@ export function ChatPanel({
             }
           }}
           rows={2}
-          placeholder="Belgeyle ilgili sorunu yaz… (Enter gönderir)"
+          placeholder={quote ? "Bu alıntı hakkında sor…" : "Belgeyle ilgili sorunu yaz… (Enter gönderir)"}
           aria-label="Soru"
           className="w-full flex-1 resize-none rounded-md border border-stone-300 bg-white px-2.5 py-2 text-xs outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500"
         />
@@ -233,30 +240,6 @@ export function ChatPanel({
           {sending ? "…" : "Gönder"}
         </button>
       </form>
-    </>
-  );
-
-  if (isMobile) {
-    return (
-      <div className="no-print fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="AI'a sor">
-        <button type="button" aria-label="Kapat" className="absolute inset-0 bg-black/30" onClick={onClose} />
-        <div
-          ref={panelRef}
-          className="absolute bottom-0 left-0 right-0 flex h-[75vh] flex-col rounded-t-xl border border-stone-200 bg-[#faf9f7] p-4 dark:border-stone-800 dark:bg-[#171512]"
-        >
-          {body}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <aside
-      ref={panelRef}
-      className="no-print sticky top-6 flex h-fit max-h-[calc(100vh-3rem)] min-h-[420px] w-80 shrink-0 flex-col gap-2 rounded-lg border border-stone-200 bg-stone-100/60 p-3 dark:border-stone-800 dark:bg-stone-900/40"
-      aria-label="AI'a sor paneli"
-    >
-      {body}
-    </aside>
+    </div>
   );
 }

@@ -95,6 +95,8 @@ export function useAnnotations(documentId: number) {
   return { annotations, loaded, refresh, create, update, remove };
 }
 
+export type UseAnnotations = ReturnType<typeof useAnnotations>;
+
 /** Vurgu aralıklarını hesaplar (çakışma kontrolüyle). */
 export function computeRanges(
   fullText: string,
@@ -437,12 +439,18 @@ export function HighlightPopover({
   position,
   onUpdate,
   onRemove,
+  onAsk,
+  onOpenNote,
   onClose,
 }: {
   annotation: AnnotationRow;
   position: { x: number; y: number };
   onUpdate: (id: number, patch: { note?: string; color?: AnnotationColor }) => Promise<boolean>;
   onRemove: (id: number) => Promise<boolean>;
+  /** Bu alıntıyı sohbete taşır. */
+  onAsk: (quote: string) => void;
+  /** Rafta bu vurgunun notuna gider. */
+  onOpenNote: (id: number) => void;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState(annotation.note);
@@ -538,6 +546,22 @@ export function HighlightPopover({
         aria-label="Vurgu notu"
         className="mt-1.5 w-full resize-none rounded border border-stone-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500"
       />
+      <div className="mt-1.5 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onAsk(annotation.quote)}
+          className="min-h-[32px] flex-1 rounded-md border border-stone-300 px-2 text-[11px] text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
+        >
+          AI&apos;a sor
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenNote(annotation.id)}
+          className="min-h-[32px] flex-1 rounded-md border border-stone-300 px-2 text-[11px] text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
+        >
+          Rafta aç
+        </button>
+      </div>
     </div>
   );
 }
@@ -549,12 +573,15 @@ export function AnnotationList({
   onUpdate,
   onRemove,
   onGoTo,
+  onAsk,
 }: {
   annotations: AnnotationRow[];
   focusNoteId: number | null;
   onUpdate: (id: number, patch: { note?: string; color?: AnnotationColor }) => Promise<boolean>;
   onRemove: (id: number) => Promise<boolean>;
   onGoTo: (id: number) => void;
+  /** Alıntıyı sohbete taşır. */
+  onAsk: (quote: string) => void;
 }) {
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const lastFocused = useRef<number | null>(null);
@@ -583,7 +610,7 @@ export function AnnotationList({
         return (
           <li key={annotation.id} className="rounded-lg border border-stone-200 p-2.5 text-xs dark:border-stone-800">
             <div className="flex items-center gap-1.5">
-              <span className={`h-2.5 w-2.5 rounded-full hl-dot-${annotation.color}`} aria-hidden />
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full hl-dot-${annotation.color}`} aria-hidden />
               <button
                 type="button"
                 onClick={() => onGoTo(annotation.id)}
@@ -595,13 +622,23 @@ export function AnnotationList({
               </button>
               <button
                 type="button"
+                onClick={() => onAsk(annotation.quote)}
+                aria-label="Bu alıntıyı AI'a sor"
+                title="AI'a sor"
+                className="shrink-0 rounded px-1 text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+              >
+                ✦
+              </button>
+              <button
+                type="button"
                 onClick={() => void onRemove(annotation.id)}
                 aria-label="Vurguyu kaldır"
-                className="text-stone-400 hover:text-red-500"
+                className="shrink-0 text-stone-400 hover:text-red-500"
               >
                 ×
               </button>
             </div>
+
             <div className="mt-1.5 flex items-center gap-1.5">
               <textarea
                 value={drafts[annotation.id] ?? annotation.note}

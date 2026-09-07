@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FolderRow } from "@/lib/db/repo/folders";
 import type { JobRow } from "@/lib/db/repo/jobs";
@@ -12,6 +12,8 @@ import { AiActions, type AiSelection } from "./doc/AiActions";
 import { ContentTabs } from "./doc/ContentTabs";
 import { NotesPanel } from "./doc/NotesPanel";
 import { ChatPanel } from "./doc/ChatPanel";
+import { RightRail, type RailTab } from "./doc/RightRail";
+import { AnnotationList, useAnnotations } from "./doc/Highlights";
 import { notifyFoldersChanged } from "@/lib/client/events";
 
 /** Silme sonrası "Geri al" penceresi; dolunca arşive yönlendirilir. */
@@ -33,12 +35,16 @@ export function DocWorkspace({
     summaryLevel: "normal",
   });
   const [notice, setNotice] = useState<string | null>(null);
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  // Tek yardımcı sütun: Not / Vurgular / AI'a sor aynı rafta sekme.
+  const [rail, setRail] = useState<RailTab | null>(null);
   const [pendingQuote, setPendingQuote] = useState<string | null>(null);
+  const [focusNoteId, setFocusNoteId] = useState<number | null>(null);
   const [deleted, setDeleted] = useState(false);
   const [undoError, setUndoError] = useState<string | null>(null);
   const router = useRouter();
+
+  const annotationStore = useAnnotations(detail.document.id);
+  const { annotations, update: updateAnnotation, remove: removeAnnotation } = annotationStore;
 
   // Silindikten sonra geri alma penceresi: süre dolunca arşive dön.
   useEffect(() => {
@@ -47,14 +53,27 @@ export function DocWorkspace({
     return () => clearTimeout(timer);
   }, [deleted, router]);
 
-  function toggleNotes(): void {
-    setNotesOpen((value) => !value);
-    setChatOpen(false);
-  }
-  function toggleChat(): void {
-    setChatOpen((value) => !value);
-    setNotesOpen(false);
-  }
+  const toggleRail = (next: RailTab): void => setRail((current) => (current === next ? null : next));
+
+  /** Vurgu notunu düzenlemek için rafı Vurgular sekmesinde açar. */
+  const focusNote = useCallback((annotationId: number): void => {
+    setRail("highlights");
+    setFocusNoteId(annotationId);
+  }, []);
+
+  const askWithQuote = useCallback((quote: string): void => {
+    setPendingQuote(quote);
+    setRail("chat");
+  }, []);
+
+  /** Vurguya git: metinde konumuna kaydır ve kısa süre yanıp sönsün. */
+  const goToAnnotation = (id: number): void => {
+    const element = document.getElementById(`ann-${id}`);
+    if (!element) return;
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    element.classList.add("hl-flash");
+    setTimeout(() => element.classList.remove("hl-flash"), 1600);
+  };
 
   async function undoDelete(): Promise<void> {
     setUndoError(null);
@@ -106,7 +125,7 @@ export function DocWorkspace({
   return (
     <div
       className={`mx-auto flex w-full justify-center gap-8 transition-[max-width] duration-300 ${
-        notesOpen || chatOpen ? "max-w-6xl" : "max-w-5xl"
+        rail ? "max-w-6xl" : "max-w-5xl"
       }`}
     >
       <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
@@ -116,7 +135,15 @@ export function DocWorkspace({
           </p>
         ) : null}
 
-        <DocHeader detail={detail} folders={folders} onChange={setDetail} onNotesToggle={toggleNotes} notesOpen={notesOpen} onChatToggle={toggleChat} chatOpen={chatOpen} onDeleted={() => setDeleted(true)} />
+        <DocHeader
+          detail={detail}
+          folders={folders}
+          onChange={setDetail}
+          rail={rail}
+          onRailToggle={toggleRail}
+          highlightCount={annotations.length}
+          onDeleted={() => setDeleted(true)}
+        />
 
         <AiActions
           detail={detail}
@@ -143,30 +170,51 @@ export function DocWorkspace({
           onSummaryLevelChange={(level: SummaryLevel) => setSelection((prev) => ({ ...prev, summaryLevel: level }))}
           onNotice={setNotice}
           onEditChange={(edit) => setDetail({ ...detail, edit })}
-          onAskWithQuote={(quote) => {
-            setPendingQuote(quote);
-            setChatOpen(true);
-            setNotesOpen(false);
-          }}
+          onAskWithQuote={askWithQuote}
+          annotations={annotationStore}
+          onFocusNote={focusNote}
         />
       </div>
 
-      <NotesPanel
-        key={detail.document.id}
-        documentId={detail.document.id}
-        initialNote={detail.document.note}
-        initialUpdatedAt={detail.document.note_updated_at}
-        open={notesOpen}
-        onClose={() => setNotesOpen(false)}
-      />
-
-      <ChatPanel
-        documentId={detail.document.id}
-        open={chatOpen}
-        onClose={() => setChatOpen(false)}
-        pendingQuote={pendingQuote}
-        onQuoteConsumed={() => setPendingQuote(null)}
-      />
+      {rail ? (
+        <RightRail
+          tab={rail}
+          onTabChange={setRail}
+          onClose={() => setRail(null)}
+          badges={{
+            note: detail.document.note ? "•" : undefined,
+            highlights: annotations.length > 0 ? String(annotations.length) : undefined,
+          }}
+        >
+          {rail === "note" ? (
+            <NotesPanel
+              key={detail.document.id}
+              documentId={detail.document.id}
+              initialNote={detail.document.note}
+              initialUpdatedAt={detail.document.note_updated_at}
+            />
+          ) : null}
+          {rail === "highlights" ? (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <AnnotationList
+                annotations={annotations}
+                focusNoteId={focusNoteId}
+                onUpdate={(id, patch) => updateAnnotation(id, patch)}
+                onRemove={(id) => removeAnnotation(id)}
+                onGoTo={goToAnnotation}
+                onAsk={askWithQuote}
+              />
+            </div>
+          ) : null}
+          {rail === "chat" ? (
+            <ChatPanel
+              documentId={detail.document.id}
+              pendingQuote={pendingQuote}
+              onQuoteConsumed={() => setPendingQuote(null)}
+            />
+          ) : null}
+        </RightRail>
+      ) : null}
     </div>
   );
 }

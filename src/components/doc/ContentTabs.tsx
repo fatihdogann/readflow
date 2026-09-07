@@ -10,13 +10,12 @@ import { summaryLevelLabel, SUMMARY_LEVELS, type SummaryLevel } from "@/lib/type
 import { ExportMenu } from "../ExportMenu";
 import { EditorPanel } from "./EditorPanel";
 import {
-  AnnotationList,
   computeRanges,
   HighlightedArticle,
   HighlightedText,
   HighlightPopover,
   SelectionToolbar,
-  useAnnotations,
+  type UseAnnotations,
 } from "./Highlights";
 import { EditIcon } from "@/components/Icons";
 
@@ -149,6 +148,8 @@ export function ContentTabs({
   onNotice,
   onEditChange,
   onAskWithQuote,
+  annotations: annotationStore,
+  onFocusNote,
 }: {
   detail: DocumentDetail;
   tab: TabKey;
@@ -158,29 +159,22 @@ export function ContentTabs({
   onNotice: (message: string) => void;
   onEditChange: (edit: DocumentDetail["edit"]) => void;
   onAskWithQuote: (quote: string) => void;
+  annotations: UseAnnotations;
+  /** Vurgu notunu düzenlemek için sağ rafı Vurgular sekmesinde açar. */
+  onFocusNote: (annotationId: number) => void;
 }) {
   const doc = detail.document;
   const [editing, setEditing] = useState(false);
   const [compare, setCompare] = useState(false);
   const [aiRevision, setAiRevision] = useState<{ id: number; content: string } | null>(null);
   const [summaryRevision, setSummaryRevision] = useState<{ id: number; content: string } | null>(null);
-  const [focusNoteId, setFocusNoteId] = useState<number | null>(null);
-  const { annotations, create: createAnnotation, update: updateAnnotation, remove: removeAnnotation } = useAnnotations(doc.id);
+  const { annotations, create: createAnnotation, update: updateAnnotation, remove: removeAnnotation } = annotationStore;
 
   const originalAnnotations = annotations.filter((item) => item.content_kind === "original");
   const originalEntries = useMemo(
     () => computeRanges(doc.original_text, originalAnnotations),
     [doc.original_text, originalAnnotations],
   );
-
-  const goToAnnotation = (id: number): void => {
-    const element = document.getElementById(`ann-${id}`);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-      element.classList.add("hl-flash");
-      setTimeout(() => element.classList.remove("hl-flash"), 1600);
-    }
-  };
 
   const [popover, setPopover] = useState<{ id: number; x: number; y: number } | null>(null);
   const onMarkClick = useCallback((event: React.MouseEvent) => {
@@ -192,16 +186,6 @@ export function ContentTabs({
     const rect = target.getBoundingClientRect();
     setPopover({ id, x: rect.left + window.scrollX, y: rect.bottom + window.scrollY + 6 });
   }, [annotations]);
-
-  const focusNote = (annotationId: number): void => {
-    setFocusNoteId(annotationId);
-    setTimeout(() => {
-      document
-        .querySelector<HTMLTextAreaElement>(`textarea[data-ann-id="${annotationId}"]`)
-        ?.focus();
-      document.getElementById("annotations-heading")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
-  };
 
   const readabilityOutput = useMemo(
     () => detail.outputs.find((output) => output.operation === "readability") ?? null,
@@ -490,25 +474,19 @@ export function ContentTabs({
                 position={{ x: popover.x, y: popover.y }}
                 onUpdate={(id, patch) => updateAnnotation(id, patch)}
                 onRemove={async (id) => removeAnnotation(id)}
+                onAsk={(text) => {
+                  onAskWithQuote(text);
+                  setPopover(null);
+                }}
+                onOpenNote={(id) => {
+                  onFocusNote(id);
+                  setPopover(null);
+                }}
                 onClose={() => setPopover(null)}
               />
             );
           })()
         : null}
-
-      {/* Vurgu notları */}
-      <section aria-labelledby="annotations-heading" className="no-print flex flex-col gap-2 rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-        <h2 id="annotations-heading" className="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">
-          Vurgular ({annotations.length})
-        </h2>
-        <AnnotationList
-          annotations={annotations}
-          focusNoteId={focusNoteId}
-          onUpdate={(id, patch) => updateAnnotation(id, patch)}
-          onRemove={(id) => removeAnnotation(id)}
-          onGoTo={goToAnnotation}
-        />
-      </section>
 
       {effectiveTab === "original" ? (
         <SelectionToolbar
@@ -517,7 +495,7 @@ export function ContentTabs({
           contentRevision={0}
           fullTextResolver={() => doc.original_text}
           onCreate={async (input) => createAnnotation(input)}
-          onNoteCreated={(annotationId) => focusNote(annotationId)}
+          onNoteCreated={onFocusNote}
           onAskWithQuote={onAskWithQuote}
         />
       ) : null}

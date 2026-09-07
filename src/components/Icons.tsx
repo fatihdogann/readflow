@@ -84,3 +84,7 @@ export function SettingsIcon(props: IconProps) {
 export function FolderIcon(props: IconProps) {
   return <Icon {...props}><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/></Icon>;
 }
+
+export function HighlightIcon(props: IconProps) {
+  return <Icon {...props}><path d="M4 20h16"/><path d="m9 15 8.5-8.5a2.1 2.1 0 0 0-3-3L6 12v3h3z"/></Icon>;
+}

@@ -102,7 +102,7 @@ Kod ilerledi, dokümanlar geride kaldı. Doğrulanan sapmalar:
 
 ---
 
-## Faz 1 — Tek sağ raf
+## Faz 1 — Tek sağ raf ✅ TAMAMLANDI
 
 Bugün Not / Sohbet birbirini kapatıyor, Vurgular ise makalenin **en altında** kutu; uzun
 makalede vurguna bakmak için sonuna kaydırıyorsun.
@@ -243,8 +243,8 @@ streaming yanıt · tarayıcı eklentisi (bookmarklet yetmezse).
 ```
 Faz 0  ✅ (günlük kullanım: worker autostart · model zinciri · ikonlar · güvenlik)
 Faz 0.5 ✅ (doküman temizliği)
-Faz 1  (tek sağ raf)  ← sıradaki
-Faz 2  (vurgu motoru + mobil)
+Faz 1  ✅ (tek sağ raf)
+Faz 2  (vurgu motoru + mobil)  ← sıradaki
 Faz 3  (not + alıntı + AI)
 Faz 4  (okuma akışı)
 Faz 5  (PDF/Word/her format + 403 zinciri + bookmarklet)

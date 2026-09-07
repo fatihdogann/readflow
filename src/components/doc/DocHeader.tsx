@@ -5,26 +5,25 @@ import type { FolderRow } from "@/lib/db/repo/folders";
 import type { DocumentDetail } from "@/lib/documents/service";
 import { mutateJson } from "@/lib/client/api";
 import { formatAuthorByline } from "@/lib/text/author";
-import { ChatIcon, NoteIcon, StarIcon } from "@/components/Icons";
+import { ChatIcon, HighlightIcon, NoteIcon, StarIcon } from "@/components/Icons";
+import type { RailTab } from "./RightRail";
 import { notifyFoldersChanged } from "@/lib/client/events";
 
 export function DocHeader({
   detail,
   folders,
   onChange,
-  onNotesToggle,
-  notesOpen,
-  onChatToggle,
-  chatOpen,
+  rail,
+  onRailToggle,
+  highlightCount,
   onDeleted,
 }: {
   detail: DocumentDetail;
   folders: FolderRow[];
   onChange: (next: DocumentDetail) => void;
-  onNotesToggle: () => void;
-  notesOpen: boolean;
-  onChatToggle: () => void;
-  chatOpen: boolean;
+  rail: RailTab | null;
+  onRailToggle: (tab: RailTab) => void;
+  highlightCount: number;
   onDeleted: () => void;
 }) {
   const doc = detail.document;
@@ -99,11 +98,13 @@ export function DocHeader({
 
   return (
     <header className="flex flex-col gap-4 border-b border-stone-200 pb-5 dark:border-stone-800">
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
-        <h1 className="min-w-0 max-w-[28ch] text-2xl font-semibold leading-[1.18] tracking-[-0.028em] md:text-3xl">
+      {/* Başlık ile araç grubu aynı satıra sığmazsa grup alt satıra iner:
+          shrink-0 grup başlığı tek kelimelik sütuna sıkıştırmasın. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <h1 className="min-w-0 flex-1 basis-[20ch] max-w-[34ch] text-2xl font-semibold leading-[1.18] tracking-[-0.028em] md:text-3xl">
           {doc.title}
         </h1>
-        <div className="no-print flex shrink-0 items-center gap-1 sm:pt-0.5">
+        <div className="no-print flex shrink-0 flex-wrap items-center gap-1 sm:pt-0.5">
           <button
             type="button"
             onClick={() => void patch({ favorite: doc.favorite === 0 })}
@@ -116,10 +117,10 @@ export function DocHeader({
           </button>
           <button
             type="button"
-            onClick={() => void onNotesToggle()}
-            aria-expanded={notesOpen}
+            onClick={() => onRailToggle("note")}
+            aria-expanded={rail === "note"}
             className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
-              notesOpen ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
+              rail === "note" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
             }`}
             title="Kişisel notu aç/kapat"
           >
@@ -128,10 +129,26 @@ export function DocHeader({
           </button>
           <button
             type="button"
-            onClick={() => void onChatToggle()}
-            aria-expanded={chatOpen}
+            onClick={() => onRailToggle("highlights")}
+            aria-expanded={rail === "highlights"}
             className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
-              chatOpen ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
+              rail === "highlights" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
+            }`}
+            title="Vurguları aç/kapat"
+          >
+            <HighlightIcon size={16} /> Vurgular
+            {highlightCount > 0 ? (
+              <span className="rounded-full bg-stone-200 px-1.5 text-[10px] tabular-nums text-stone-700 dark:bg-stone-700 dark:text-stone-200">
+                {highlightCount}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            onClick={() => onRailToggle("chat")}
+            aria-expanded={rail === "chat"}
+            className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
+              rail === "chat" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
             }`}
             title="Belgeyle ilgili soru sor"
           >
