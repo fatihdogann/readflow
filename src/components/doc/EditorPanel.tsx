@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { mutateJson } from "@/lib/client/api";
 import type { DocumentEditInfo } from "@/lib/documents/service";
+import {
+  HighlightedMarkdown,
+  HighlightPopover,
+  SelectionToolbar,
+  type UseAnnotations,
+} from "./Highlights";
 
 export interface EditorPanelProps {
   documentId: number;
@@ -13,6 +17,11 @@ export interface EditorPanelProps {
   /** Orijinal/Düzenlenmiş karşılaştırması için. */
   onEditChange: (edit: DocumentEditInfo | null) => void;
   onNotice: (message: string) => void;
+  /** Bu sürüme ait vurgular — yalnız önizlemede gösterilir (textarea'ya işaret konamaz). */
+  annotations: UseAnnotations;
+  onLinkedChange: (linkedIds: number[]) => void;
+  onFocusNote: (annotationId: number) => void;
+  onAskWithQuote: (quote: string) => void;
 }
 
 function countWords(text: string): number {
@@ -25,7 +34,17 @@ function countWords(text: string): number {
  * kayıt yapar. 409 çakışmasında taslak korunur ve kullanıcıya yeniden
  * yükleme seçeneği sunulur.
  */
-export function EditorPanel({ documentId, edit, originalText, onEditChange, onNotice }: EditorPanelProps) {
+export function EditorPanel({
+  documentId,
+  edit,
+  originalText,
+  onEditChange,
+  onNotice,
+  annotations: annotationStore,
+  onLinkedChange,
+  onFocusNote,
+  onAskWithQuote,
+}: EditorPanelProps) {
   const [draft, setDraft] = useState(edit?.content ?? originalText);
   const [revision, setRevision] = useState<number | null>(edit?.revision ?? 0);
   const [dirty, setDirty] = useState(false);
@@ -33,6 +52,24 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
   const [preview, setPreview] = useState(false);
   const [conflict, setConflict] = useState<{ currentContent: string; currentRevision: number } | null>(null);
   const [status, setStatus] = useState<string>("");
+  const [popover, setPopover] = useState<{ id: number; x: number; y: number } | null>(null);
+
+  const editedAnnotations = useMemo(
+    () => annotationStore.annotations.filter((item) => item.content_kind === "edited"),
+    [annotationStore.annotations],
+  );
+
+  const onMarkClick = useCallback(
+    (event: React.MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName !== "MARK" || !target.id.startsWith("ann-")) return;
+      const id = Number(target.id.slice(4));
+      if (!editedAnnotations.some((candidate) => candidate.id === id)) return;
+      const rect = target.getBoundingClientRect();
+      setPopover({ id, x: rect.left, y: rect.bottom + 6 });
+    },
+    [editedAnnotations],
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dirtyRef = useRef(dirty);
   const draftRef = useRef(draft);
@@ -215,8 +252,16 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
       ) : null}
 
       {preview ? (
-        <div className="article min-h-[200px] rounded-md border border-stone-200 p-4 dark:border-stone-800">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft || "_Boş_"}</ReactMarkdown>
+        <div
+          id="edited-preview"
+          className="min-h-[200px] rounded-md border border-stone-200 p-4 dark:border-stone-800"
+          onClick={onMarkClick}
+        >
+          <HighlightedMarkdown
+            markdown={draft || "_Boş_"}
+            annotations={editedAnnotations}
+            onLinkedChange={onLinkedChange}
+          />
         </div>
       ) : (
         <div className="relative -mx-3 rounded-2xl bg-white px-3 py-2 shadow-[0_14px_45px_rgba(28,25,23,0.06)] ring-1 ring-stone-200/80 dark:bg-stone-950/30 dark:shadow-none dark:ring-stone-800/80 sm:mx-0 sm:px-8 sm:py-7">
@@ -236,6 +281,42 @@ export function EditorPanel({ documentId, edit, originalText, onEditChange, onNo
           <div className="pointer-events-none absolute inset-y-8 left-3 w-px bg-stone-200/80 dark:bg-stone-800 sm:left-5" aria-hidden />
         </div>
       )}
+
+      {preview ? (
+        <SelectionToolbar
+          containerSelector="#edited-preview"
+          contentKind="edited"
+          contentRevision={edit?.revision ?? 0}
+          fullTextResolver={() => draftRef.current}
+          onCreate={(input) => annotationStore.create(input)}
+          onNoteCreated={onFocusNote}
+          onAskWithQuote={onAskWithQuote}
+        />
+      ) : null}
+
+      {popover
+        ? (() => {
+            const annotation = editedAnnotations.find((candidate) => candidate.id === popover.id);
+            if (!annotation) return null;
+            return (
+              <HighlightPopover
+                annotation={annotation}
+                position={popover}
+                onUpdate={(id, patch) => annotationStore.update(id, patch)}
+                onRemove={(id) => annotationStore.remove(id)}
+                onAsk={(text) => {
+                  onAskWithQuote(text);
+                  setPopover(null);
+                }}
+                onOpenNote={(id) => {
+                  onFocusNote(id);
+                  setPopover(null);
+                }}
+                onClose={() => setPopover(null)}
+              />
+            );
+          })()
+        : null}
 
       <div className="no-print flex items-center gap-2">
         <button

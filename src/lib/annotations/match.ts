@@ -109,3 +109,39 @@ export function buildQuoteContext(
 export function rangesOverlap(a: MatchedRange, b: MatchedRange): boolean {
   return a.start < b.end && b.start < a.end;
 }
+
+/**
+ * Tek bir metin parçası içinde, normalize edilmiş eşleşmenin ham (orijinal)
+ * karakter aralığını verir. Boşluk sıkıştırması geri sarılır.
+ * Eşleşme parçanın dışına taşarsa null döner.
+ */
+export function rawSpanForNormalizedMatch(
+  text: string,
+  normStart: number,
+  normLength: number,
+): MatchedRange | null {
+  const map: number[] = [];
+  let ni = 0;
+  let inWs = false;
+  let started = false;
+  for (let oi = 0; oi < text.length; oi++) {
+    const isWs = /\s/.test(text[oi]);
+    if (isWs && started) {
+      if (!inWs) {
+        map[ni++] = oi;
+        inWs = true;
+      }
+      continue;
+    }
+    if (isWs) continue;
+    inWs = false;
+    map[ni] = oi;
+    ni += 1;
+    started = true;
+  }
+  map[ni] = text.length;
+  const start = map[normStart];
+  const end = map[normStart + normLength];
+  if (start === undefined || end === undefined || end <= start) return null;
+  return { start, end };
+}

@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { mutateJson } from "@/lib/client/api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { buildQuoteContext, findQuoteRange, rangesOverlap, type MatchedRange } from "@/lib/annotations/match";
+import { rehypeHighlights } from "@/lib/annotations/rehype-highlights";
 import type { AnnotationRow, AnnotationColor } from "@/lib/db/repo/annotations";
 
 export interface SelectionPoint {
@@ -225,6 +228,50 @@ export function HighlightedArticle({
   }, [html, annotations, onLinkedChange]);
 
   return <article ref={containerRef} className="article" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/**
+ * Markdown içeriğini vurgularla render eder. DOM'a `<mark>` sokmak yerine
+ * rehype eklentisiyle AST'ye eklenir; React kendi ağacını yönetmeye devam eder.
+ */
+export function HighlightedMarkdown({
+  markdown,
+  annotations,
+  onLinkedChange,
+  className = "article",
+}: {
+  markdown: string;
+  annotations: AnnotationRow[];
+  onLinkedChange: (linkedIds: number[]) => void;
+  className?: string;
+}) {
+  const { plugins, placed } = useMemo(() => {
+    const found: number[] = [];
+    const specs = annotations.map((annotation) => ({
+      id: annotation.id,
+      quote: annotation.quote,
+      color: annotation.color,
+      note: annotation.note || undefined,
+    }));
+    // Tip react-markdown'ın kendi prop'undan alınır: unified doğrudan bağımlılık değil.
+    const plugins = [[rehypeHighlights, specs, found]] as ComponentProps<
+      typeof ReactMarkdown
+    >["rehypePlugins"];
+    return { plugins, placed: found };
+  }, [annotations]);
+
+  // `placed` render sırasında dolar; sonucu render sonrası bildir.
+  useEffect(() => {
+    onLinkedChange([...placed]);
+  }, [placed, markdown, onLinkedChange]);
+
+  return (
+    <div className={className}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={plugins}>
+        {markdown}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 function normalizeOf(text: string): string {
@@ -674,7 +721,12 @@ export function AnnotationList({
               </button>
             </div>
 
-            {!linked ? (
+            {annotation.content_kind === "edited" ? (
+              <p className="mt-1 text-[10px] text-sky-700 dark:text-sky-400">
+                Düzenlenmiş sürümde — o sekmenin önizlemesinde görünür
+              </p>
+            ) : null}
+            {!linked && annotation.content_kind !== "edited" ? (
               <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-400">
                 Metinde karşılığı bulunamadı — alıntı ve notun saklı
               </p>

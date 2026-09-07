@@ -187,12 +187,14 @@ export function ContentTabs({
   // Düz metin yolunda bağlanan vurgular aralık hesabından bilinir; HTML yolunda
   // HighlightedArticle kendi sonucunu bildirir.
   const isHtmlPath = doc.source_type === "url" && doc.original_html !== null;
+  // Bağlanan vurguları yalnız etkin sekme bildirir: Düzenlenmiş sekmesindeyken
+  // Orijinal'in sonucu rafı ezmesin.
   useEffect(() => {
-    if (isHtmlPath) return;
+    if (isHtmlPath || tab !== "original") return;
     onLinkedChange(
       originalEntries.filter((entry) => entry.range !== null).map((entry) => entry.annotation.id),
     );
-  }, [isHtmlPath, originalEntries, onLinkedChange]);
+  }, [isHtmlPath, tab, originalEntries, onLinkedChange]);
 
   const [popover, setPopover] = useState<{ id: number; x: number; y: number } | null>(null);
   const onMarkClick = useCallback((event: React.MouseEvent) => {
@@ -419,6 +421,10 @@ export function ContentTabs({
                 setEditing(false);
               }}
               onNotice={onNotice}
+              annotations={annotationStore}
+              onLinkedChange={onLinkedChange}
+              onFocusNote={onFocusNote}
+              onAskWithQuote={onAskWithQuote}
             />
             {compare ? (
               <div className="grid gap-4 md:grid-cols-2">

@@ -137,7 +137,7 @@ Test: `annotations/match.test.ts`'e cross-node ve boşluk-normalizasyon vakalar�
 
 ---
 
-## Faz 3 — Not + alıntı + AI (asıl hedef)
+## Faz 3 — Not + alıntı + AI (asıl hedef) ✅ TAMAMLANDI
 
 Altyapı var, UI bağlamıyor.
 
@@ -245,8 +245,8 @@ Faz 0  ✅ (günlük kullanım: worker autostart · model zinciri · ikonlar · 
 Faz 0.5 ✅ (doküman temizliği)
 Faz 1  ✅ (tek sağ raf)
 Faz 2  ✅ (vurgu motoru + mobil)
-Faz 3  (not + alıntı + AI — büyük kısmı Faz 1'de bitti)  ← sıradaki
-Faz 4  (okuma akışı)
+Faz 3  ✅ (not + alıntı + AI)
+Faz 4  (okuma akışı)  ← sıradaki
 Faz 5  (PDF/Word/her format + 403 zinciri + bookmarklet)
 Faz 6  (vurgu arşivi)
 ```
