@@ -7,6 +7,7 @@ import { mutateJson } from "@/lib/client/api";
 import { formatAuthorByline } from "@/lib/text/author";
 import { ChatIcon, HighlightIcon, NoteIcon, StarIcon } from "@/components/Icons";
 import type { RailTab } from "./RightRail";
+import { ReadStateControl } from "./ReadStateControl";
 import { notifyFoldersChanged } from "@/lib/client/events";
 
 export function DocHeader({
@@ -194,7 +195,14 @@ export function DocHeader({
             {part}
           </span>
         ))}
-        <label className="flex min-h-[32px] items-center gap-1 sm:ml-auto">
+        <span className="sm:ml-auto">
+          <ReadStateControl
+            value={doc.read_state}
+            onChange={(next) => void patch({ readState: next })}
+            size="sm"
+          />
+        </span>
+        <label className="flex min-h-[32px] items-center gap-1">
           <span>Klasör:</span>
           <select
             value={doc.folder_id === null ? "" : String(doc.folder_id)}

@@ -30,6 +30,7 @@ function buildQuery(filters: HistoryViewFilters, offset: number): string {
   if (filters.folderId === "none") params.set("folder", "none");
   else if (typeof filters.folderId === "number") params.set("folder", String(filters.folderId));
   if (filters.favorite) params.set("favorite", "1");
+  if (filters.readState) params.set("durum", filters.readState);
   if (filters.notlu) params.set("notlu", "1");
   if (filters.duzenlenmis) params.set("duzenlenmis", "1");
   if (offset > 0) params.set("offset", String(offset));
@@ -115,6 +116,7 @@ export function HistoryView({
               ? Number(params.get("folder"))
               : undefined,
         favorite: params.get("favorite") === "1",
+        readState: (["unread", "reading", "done"] as const).find((state) => state === params.get("durum")),
         notlu: params.get("notlu") === "1",
         duzenlenmis: params.get("duzenlenmis") === "1",
         offset: Number(params.get("offset")) || 0,
@@ -166,7 +168,7 @@ export function HistoryView({
     applyFilters({ ...filters, ...partial, offset: 0 });
   }
 
-  type ChipKind = "q" | "domain" | "tag" | "agent" | "folder-none" | "folder" | "notlu" | "duzenlenmis" | "favorite";
+  type ChipKind = "q" | "domain" | "tag" | "agent" | "folder-none" | "folder" | "notlu" | "duzenlenmis" | "favorite" | "durum";
   const activeChips: Array<{ kind: ChipKind; label: string }> = useMemo(() => {
     const chips: Array<{ kind: ChipKind; label: string }> = [];
     if (filters.q) chips.push({ kind: "q", label: `Ara: ${filters.q}` });
@@ -181,6 +183,10 @@ export function HistoryView({
     if (filters.notlu) chips.push({ kind: "notlu", label: "Notlu" });
     if (filters.duzenlenmis) chips.push({ kind: "duzenlenmis", label: "Düzenlenmiş" });
     if (filters.favorite) chips.push({ kind: "favorite", label: "Favori" });
+    if (filters.readState) {
+      const labels = { unread: "Okunacak", reading: "Okuyorum", done: "Bitti" } as const;
+      chips.push({ kind: "durum", label: labels[filters.readState] });
+    }
     return chips;
   }, [filters, facets.folders]);
 
@@ -203,6 +209,7 @@ export function HistoryView({
         case "notlu": patchFilters({ notlu: false }); break;
         case "duzenlenmis": patchFilters({ duzenlenmis: false }); break;
         case "favorite": patchFilters({ favorite: false }); break;
+        case "durum": patchFilters({ readState: undefined }); break;
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -244,6 +251,21 @@ export function HistoryView({
         {facets.agents.map((agent) => (
           <option key={agent} value={agent}>{agent}</option>
         ))}
+      </select>
+      <select
+        aria-label="Okuma durumu filtresi"
+        value={filters.readState ?? ""}
+        onChange={(event) =>
+          patchFilters({
+            readState: (["unread", "reading", "done"] as const).find((state) => state === event.target.value),
+          })
+        }
+        className={selectClass}
+      >
+        <option value="">Tüm durumlar</option>
+        <option value="unread">Okunacak</option>
+        <option value="reading">Okuyorum</option>
+        <option value="done">Bitti</option>
       </select>
       <label className="flex min-h-[40px] items-center gap-1.5 text-xs text-stone-600 dark:text-stone-400">
         <input type="checkbox" checked={Boolean(filters.notlu)} onChange={(event) => patchFilters({ notlu: event.target.checked })} className="accent-stone-700" />

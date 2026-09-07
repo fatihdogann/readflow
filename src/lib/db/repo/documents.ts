@@ -16,8 +16,17 @@ export interface DocumentRow {
   folder_id: number | null;
   note: string;
   note_updated_at: string | null;
+  read_state: ReadState;
+  read_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export const READ_STATES = ["unread", "reading", "done"] as const;
+export type ReadState = (typeof READ_STATES)[number];
+
+export function isReadState(value: unknown): value is ReadState {
+  return typeof value === "string" && (READ_STATES as readonly string[]).includes(value);
 }
 
 /** Liste/arama sonuçları için hafif projeksiyon: tam metin/HTML taşımaz. */
@@ -35,6 +44,7 @@ export interface DocumentListItem {
   preview: string;
   has_note: 0 | 1;
   has_edit: 0 | 1;
+  read_state: ReadState;
   /** Aramada hangi alan eşleşti (LIKE fallback'te doldurulur, FTS'te de etiketlenir). */
   matched?: string[];
 }
@@ -58,6 +68,7 @@ export interface DocumentFilters {
   folderId?: number | "none";
   tag?: string;
   favorite?: boolean;
+  readState?: ReadState;
   notlu?: boolean;
   duzenlenmis?: boolean;
   agent?: string;
@@ -67,7 +78,7 @@ export interface DocumentFilters {
 
 const LIST_COLUMNS = `
   d.id, d.title, d.source_type, d.source_domain, d.author, d.published_at,
-  d.favorite, d.folder_id, d.created_at, d.updated_at,
+  d.favorite, d.folder_id, d.created_at, d.updated_at, d.read_state,
   substr(d.original_text, 1, 180) AS preview,
   CASE WHEN d.note != '' THEN 1 ELSE 0 END AS has_note,
   CASE WHEN e.id IS NULL THEN 0 ELSE 1 END AS has_edit
@@ -137,6 +148,10 @@ function buildWhere(filters: DocumentFilters, ftsQuery: string | null): {
     }
   }
   if (filters.favorite) where.push(`d.favorite = 1`);
+  if (filters.readState) {
+    where.push(`d.read_state = ?`);
+    params.push(filters.readState);
+  }
   if (filters.domain) {
     where.push(`d.source_domain = ?`);
     params.push(filters.domain);
@@ -312,6 +327,16 @@ export function listDomains(db: SqliteDb): string[] {
     )
     .all() as Array<{ domain: string }>;
   return rows.map((r) => r.domain);
+}
+
+/** Okuma durumu; "done" işaretlenince tamamlanma zamanı da yazılır. */
+export function setReadState(db: SqliteDb, id: number, state: ReadState): void {
+  db.prepare(`UPDATE documents SET read_state = ?, read_at = ?, updated_at = ? WHERE id = ?`).run(
+    state,
+    state === "done" ? nowIso() : null,
+    nowIso(),
+    id,
+  );
 }
 
 export function setFavorite(db: SqliteDb, id: number, favorite: boolean): void {

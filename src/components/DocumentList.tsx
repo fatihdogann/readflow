@@ -49,6 +49,16 @@ export function DocumentList({
                 <span>{doc.source_domain ?? "metin"}</span>
                 <span aria-hidden>·</span>
                 <span>{dateOf(doc.created_at)}</span>
+                {doc.read_state === "reading" ? (
+                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                    Okuyorum
+                  </span>
+                ) : null}
+                {doc.read_state === "done" ? (
+                  <span className="rounded bg-stone-200/80 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 dark:bg-stone-700/70 dark:text-stone-400">
+                    Bitti
+                  </span>
+                ) : null}
                 {doc.has_edit ? (
                   <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800 dark:bg-sky-900/50 dark:text-sky-300">
                     Düzenlenmiş

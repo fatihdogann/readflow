@@ -440,6 +440,19 @@ const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    id: 16,
+    name: "document-read-state",
+    up: (db) => {
+      runAll(db, [
+        // Okuma akışı: okunacak / okunuyor / bitti. Varsayılan "unread".
+        `ALTER TABLE documents ADD COLUMN read_state TEXT NOT NULL DEFAULT 'unread'
+           CHECK (read_state IN ('unread','reading','done'))`,
+        `ALTER TABLE documents ADD COLUMN read_at TEXT`,
+        `CREATE INDEX idx_documents_read_state ON documents (read_state, updated_at DESC)`,
+      ]);
+    },
+  },
 ];
 
 /**

@@ -22,6 +22,8 @@ const payload: ExportPayload = {
     folder_id: null,
     note: "",
     note_updated_at: null,
+  read_state: "unread" as const,
+  read_at: null,
     created_at: "2026-09-06T10:00:00.000Z",
     updated_at: "2026-09-06T10:00:00.000Z",
   },

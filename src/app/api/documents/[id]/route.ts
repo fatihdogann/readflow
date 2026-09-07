@@ -1,7 +1,16 @@
 import { z } from "zod";
 import { apiErrorResponse, readJsonBody } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
-import { restoreDocument, setFavorite, setFolder, setTitle, softDeleteDocument, updateNote } from "@/lib/db/repo/documents";
+import {
+  READ_STATES,
+  restoreDocument,
+  setFavorite,
+  setFolder,
+  setReadState,
+  setTitle,
+  softDeleteDocument,
+  updateNote,
+} from "@/lib/db/repo/documents";
 import { getDocumentDetail } from "@/lib/documents/service";
 import { InputError } from "@/lib/types";
 
@@ -34,6 +43,7 @@ const patchSchema = z.object({
   folderId: z.number().int().positive().nullable().optional(),
   title: z.string().min(1).max(300).optional(),
   note: z.string().max(20_000).optional(),
+  readState: z.enum(READ_STATES).optional(),
 });
 
 export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
@@ -45,6 +55,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     if (body.folderId !== undefined) setFolder(db, id, body.folderId);
     if (body.title !== undefined) setTitle(db, id, body.title.trim());
     if (body.note !== undefined) updateNote(db, id, body.note);
+    if (body.readState !== undefined) setReadState(db, id, body.readState);
     const detail = getDocumentDetail(db, id);
     if (!detail) return Response.json({ error: "Doküman bulunamadı" }, { status: 404 });
     return Response.json(detail);

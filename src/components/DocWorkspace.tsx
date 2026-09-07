@@ -14,6 +14,8 @@ import { NotesPanel } from "./doc/NotesPanel";
 import { ChatPanel } from "./doc/ChatPanel";
 import { RightRail, type RailTab } from "./doc/RightRail";
 import { AnnotationList, useAnnotations } from "./doc/Highlights";
+import { ReadingProgress } from "./doc/ReadingProgress";
+import { Toast } from "./doc/Toast";
 import { notifyFoldersChanged } from "@/lib/client/events";
 
 /** Silme sonrası "Geri al" penceresi; dolunca arşive yönlendirilir. */
@@ -68,6 +70,23 @@ export function DocWorkspace({
       current.length === ids.length && current.every((id, index) => id === ids[index]) ? current : ids,
     );
   }, []);
+
+  const dismissNotice = useCallback((): void => setNotice(null), []);
+
+  /** Okunmamış belge kaydırılmaya başlanınca "okuyorum" olur. */
+  const markReading = useCallback((): void => {
+    if (detail.document.read_state !== "unread") return;
+    void fetch(`/api/documents/${detail.document.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ readState: "reading" }),
+    })
+      .then((response) => (response.ok ? (response.json() as Promise<DocumentDetail>) : null))
+      .then((next) => {
+        if (next) setDetail(next);
+      })
+      .catch(() => undefined);
+  }, [detail.document.id, detail.document.read_state, setDetail]);
 
   const askWithQuote = useCallback((quote: string): void => {
     setPendingQuote(quote);
@@ -143,6 +162,12 @@ export function DocWorkspace({
           </p>
         ) : null}
 
+        <ReadingProgress
+          key={detail.document.id}
+          documentId={detail.document.id}
+          onStarted={markReading}
+        />
+
         <DocHeader
           detail={detail}
           folders={folders}
@@ -161,14 +186,8 @@ export function DocWorkspace({
             setDetail({ ...detail, jobs });
             void refresh();
           }}
-          onNotice={setNotice}
+          onNotice={(message) => setNotice(message || null)}
         />
-
-        {notice ? (
-          <p role="status" aria-live="polite" className="no-print text-xs text-amber-700 dark:text-amber-400">
-            {notice}
-          </p>
-        ) : null}
 
         <ContentTabs
           detail={detail}
@@ -176,7 +195,7 @@ export function DocWorkspace({
           onTabChange={setTab}
           summaryLevel={selection.summaryLevel}
           onSummaryLevelChange={(level: SummaryLevel) => setSelection((prev) => ({ ...prev, summaryLevel: level }))}
-          onNotice={setNotice}
+          onNotice={(message) => setNotice(message || null)}
           onEditChange={(edit) => setDetail({ ...detail, edit })}
           onAskWithQuote={askWithQuote}
           annotations={annotationStore}
@@ -184,6 +203,8 @@ export function DocWorkspace({
           onLinkedChange={handleLinkedChange}
         />
       </div>
+
+      <Toast message={notice} onDismiss={dismissNotice} />
 
       {rail ? (
         <RightRail

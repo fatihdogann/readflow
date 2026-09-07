@@ -32,6 +32,7 @@ export async function GET(request: Request): Promise<Response> {
       agent: get("agent"),
       folderId,
       favorite: get("favorite") === "1",
+      readState: (["unread", "reading", "done"] as const).find((state) => state === get("durum")),
       notlu: get("notlu") === "1",
       duzenlenmis: get("duzenlenmis") === "1",
     };

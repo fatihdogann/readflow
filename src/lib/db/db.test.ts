@@ -10,6 +10,7 @@ import {
   softDeleteDocument,
   restoreDocument,
   countDocuments,
+  setReadState,
 } from "./repo/documents";
 import { createFolder } from "./repo/folders";
 import { setDocumentTags, listDocumentTags } from "./repo/tags";
@@ -91,6 +92,33 @@ describe("migrations", () => {
       expect(getDocument(handle.db, doc.id)?.title).toBe("Silinecek");
       expect(listDocuments(handle.db).some((item) => item.id === doc.id)).toBe(true);
       expect(restoreDocument(handle.db, doc.id)).toBe(false);
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("okuma durumu: varsayılan unread, done işaretlenince zaman damgası yazılır", () => {
+    const handle = createTestDb();
+    try {
+      const doc = insertDocument(handle.db, {
+        title: "Okuma akışı",
+        sourceType: "text",
+        originalText: "durum testi",
+      });
+      expect(getDocument(handle.db, doc.id)?.read_state).toBe("unread");
+
+      setReadState(handle.db, doc.id, "reading");
+      expect(getDocument(handle.db, doc.id)?.read_state).toBe("reading");
+      expect(getDocument(handle.db, doc.id)?.read_at).toBeNull();
+      expect(listDocuments(handle.db, { readState: "reading" }).map((d) => d.id)).toEqual([doc.id]);
+      expect(listDocuments(handle.db, { readState: "done" })).toHaveLength(0);
+
+      setReadState(handle.db, doc.id, "done");
+      expect(getDocument(handle.db, doc.id)?.read_at).not.toBeNull();
+
+      // Geri alınınca zaman damgası temizlenir
+      setReadState(handle.db, doc.id, "unread");
+      expect(getDocument(handle.db, doc.id)?.read_at).toBeNull();
     } finally {
       handle.cleanup();
     }

@@ -8,10 +8,11 @@ export const dynamic = "force-dynamic";
 
 export default function HomePage() {
   const db = getDb();
+  const reading = listDocuments(db, { readState: "reading", limit: 4 });
   const docs = listDocuments(db, { limit: 6 });
   const outputsByDoc = listOutputSummariesForDocuments(
     db,
-    docs.map((doc) => doc.id),
+    [...reading, ...docs].map((doc) => doc.id),
   ) as Map<number, OutputBadge[]>;
 
   return (
@@ -25,6 +26,15 @@ export default function HomePage() {
         </p>
         <NewDocumentForm />
       </section>
+
+      {reading.length > 0 ? (
+        <section>
+          <h2 className="mb-3 px-1 text-sm font-semibold tracking-tight text-stone-700 dark:text-stone-300">
+            Okumaya devam et
+          </h2>
+          <DocumentList docs={reading} outputsByDoc={outputsByDoc} />
+        </section>
+      ) : null}
 
       <section>
         <h2 className="mb-3 px-1 text-sm font-semibold tracking-tight text-stone-700 dark:text-stone-300">

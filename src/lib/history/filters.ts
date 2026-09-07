@@ -5,6 +5,7 @@ export interface HistoryViewFilters {
   tag?: string;
   agent?: string;
   favorite?: boolean;
+  readState?: "unread" | "reading" | "done";
   notlu?: boolean;
   duzenlenmis?: boolean;
   offset?: number;
@@ -32,5 +33,6 @@ export function parseHistoryFilters(
     notlu: get("notlu") === "1",
     duzenlenmis: get("duzenlenmis") === "1",
     favorite: get("favorite") === "1",
+    readState: (["unread", "reading", "done"] as const).find((state) => state === get("durum")),
   };
 }

@@ -154,14 +154,15 @@ Altyapı var, UI bağlamıyor.
 
 ---
 
-## Faz 4 — Okuma akışı
+## Faz 4 — Okuma akışı ✅ TAMAMLANDI
 
 - **Okuma durumu**: `documents.read_state` (`unread` / `reading` / `done`) — yeni migration,
   liste kartından ve başlıktan tek tıkla.
 - **İlerleme + kaldığın yer**: scroll yüzdesi `localStorage`'a (`readflow:pos:<id>`),
   üstte ince ilerleme çubuğu. Sunucuya yazmaya gerek yok.
 - **Ana sayfa**: "Okumaya devam et" (reading) + "Son eklenenler".
-- **Liste kartı hızlı aksiyon**: favori + sil, belgeyi açmadan.
+- ~~**Liste kartı hızlı aksiyon**~~: ertelendi — silme için kartın kendi geri alma
+  yüzeyi gerekiyor, tek başına favori butonu yeterince değer taşımıyor.
 - **Toast**: satır içi `notice` metni kaydırınca kayboluyor; tek küçük toast bileşeni.
 
 ~~Okuma süresi tahmini~~ — istenmedi, çıkarıldı.
@@ -246,8 +247,8 @@ Faz 0.5 ✅ (doküman temizliği)
 Faz 1  ✅ (tek sağ raf)
 Faz 2  ✅ (vurgu motoru + mobil)
 Faz 3  ✅ (not + alıntı + AI)
-Faz 4  (okuma akışı)  ← sıradaki
-Faz 5  (PDF/Word/her format + 403 zinciri + bookmarklet)
+Faz 4  ✅ (okuma akışı)
+Faz 5  (PDF/Word/her format + 403 zinciri + bookmarklet)  ← sıradaki
 Faz 6  (vurgu arşivi)
 ```
 
