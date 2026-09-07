@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SqliteDb } from "../db/connection";
 import { getDocument } from "../db/repo/documents";
 import { getMeta, setMeta } from "../db/repo/meta";
-import { getProfile, setValidationResult } from "../db/repo/agentProfiles";
+import { getProfile, listProfiles, setValidationResult } from "../db/repo/agentProfiles";
 import {
   claimNextJob,
   completeJob,
@@ -80,6 +80,33 @@ function parseImages(raw: string): string[] {
   }
 }
 
+/** Birincil adapter başarısız olursa sırayla denenecek yedek profiller (jcode → codex → claude). */
+const FALLBACK_ORDER = ["jcode", "codex", "claude"] as const;
+
+function buildFallbackAdapters(db: SqliteDb, aiConfig: AiConfigSnapshot | null): AgentAdapter[] {
+  const enabled = listProfiles(db).filter((profile) => profile.enabled === 1);
+  const primaryCli = aiConfig?.cli;
+  const ordered: typeof enabled = [];
+  for (const cli of FALLBACK_ORDER) {
+    const match = enabled.find((profile) => profile.cli === cli);
+    if (match && match.cli !== primaryCli) ordered.push(match);
+  }
+  for (const profile of enabled) {
+    if (!ordered.some((candidate) => candidate.id === profile.id)) ordered.push(profile);
+  }
+  return ordered
+    .filter((profile) => profile.cli !== primaryCli)
+    .map((profile) =>
+      createProfileAdapter({
+        cli: profile.cli,
+        model: profile.model,
+        provider: profile.provider,
+        transport: profile.transport,
+        timeout_ms: profile.timeout_ms,
+      }),
+    );
+}
+
 /** Tek job'ı uçtan uca işletir: snapshot'tan prompt üret -> adapter çalıştır -> çıktı kaydet. */
 export async function processJob(
   db: SqliteDb,
@@ -106,8 +133,28 @@ export async function processJob(
     typeof snapshotTimeout === "number" && Number.isFinite(snapshotTimeout) && snapshotTimeout >= 1_000
       ? Math.min(snapshotTimeout, 30 * 60 * 1_000)
       : agentTimeoutMs();
-  const result = await adapter.run({ prompt, timeoutMs });
-  completeWithProvenance(db, job, workerId, aiConfig, adapter.name, result.text, result.meta);
+
+  // Birincil adapter başarısız olursa yedek profiller sırayla denenir
+  // (jcode → codex → claude sırası); hepsi başarısızsa son hata fırlatılır.
+  const fallbackAdapters = buildFallbackAdapters(db, aiConfig);
+  const attempts: Array<{ adapter: AgentAdapter; label: string }> = [
+    { adapter, label: adapter.name },
+    ...fallbackAdapters.map((fallback) => ({ adapter: fallback, label: fallback.name })),
+  ];
+
+  let lastError: unknown = null;
+  for (const attempt of attempts) {
+    try {
+      const result = await attempt.adapter.run({ prompt, timeoutMs });
+      completeWithProvenance(db, job, workerId, aiConfig, attempt.label, result.text, result.meta);
+      return;
+    } catch (runError) {
+      lastError = runError;
+      // Kullanıcı iptal ettiyse denemeleri durdur
+      if (isCancelRequested(db, job.id)) throw runError;
+    }
+  }
+  throw lastError ?? new Error("Tüm adapter denemeleri başarısız");
 }
 
 function completeWithProvenance(
