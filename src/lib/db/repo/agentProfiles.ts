@@ -9,6 +9,10 @@ export interface AgentProfileRow {
   cli: SupportedCli;
   model: string | null;
   provider: string | null;
+  /** Reasoning effort; CLI desteklemiyorsa saklanır ama argv'ye girmez. */
+  effort: string | null;
+  /** Failover sırası — küçük değer önce denenir. */
+  priority: number;
   transport: "stdin" | "argv";
   timeout_ms: number;
   enabled: 0 | 1;
@@ -26,14 +30,17 @@ export interface ProfileInput {
   cli: SupportedCli;
   model?: string | null;
   provider?: string | null;
+  effort?: string | null;
+  priority?: number;
   transport?: "stdin" | "argv";
   timeoutMs?: number;
 }
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 
+/** Failover sırasıyla döner: önce priority, eşitse id. */
 export function listProfiles(db: SqliteDb): AgentProfileRow[] {
-  return db.prepare(`SELECT * FROM agent_profiles ORDER BY id`).all() as AgentProfileRow[];
+  return db.prepare(`SELECT * FROM agent_profiles ORDER BY priority, id`).all() as AgentProfileRow[];
 }
 
 export function getProfile(db: SqliteDb, id: number): AgentProfileRow | null {
@@ -48,14 +55,16 @@ export function createProfile(db: SqliteDb, input: ProfileInput, capabilitiesJso
   const result = db
     .prepare(
       `INSERT INTO agent_profiles
-         (name, cli, model, provider, transport, timeout_ms, capabilities, config_revision, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+         (name, cli, model, provider, effort, priority, transport, timeout_ms, capabilities, config_revision, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
     )
     .run(
       input.name.trim(),
       input.cli,
       input.model ?? null,
       input.provider ?? null,
+      input.effort ?? null,
+      input.priority ?? nextPriority(db),
       input.transport ?? "stdin",
       input.timeoutMs && input.timeoutMs >= 5_000 ? input.timeoutMs : DEFAULT_TIMEOUT_MS,
       capabilitiesJson,
@@ -65,10 +74,18 @@ export function createProfile(db: SqliteDb, input: ProfileInput, capabilitiesJso
   return getProfile(db, Number(result.lastInsertRowid))!;
 }
 
+/** Yeni profil zincirin sonuna eklenir. */
+function nextPriority(db: SqliteDb): number {
+  const row = db.prepare(`SELECT COALESCE(MAX(priority), 0) AS p FROM agent_profiles`).get() as { p: number };
+  return row.p + 1;
+}
+
 export interface ProfilePatch {
   name?: string;
   model?: string | null;
   provider?: string | null;
+  effort?: string | null;
+  priority?: number;
   transport?: "stdin" | "argv";
   timeoutMs?: number;
   enabled?: boolean;
@@ -82,7 +99,7 @@ export function updateProfile(db: SqliteDb, id: number, patch: ProfilePatch): Ag
   const ts = nowIso();
   db.prepare(
     `UPDATE agent_profiles SET
-       name = ?, model = ?, provider = ?, transport = ?, timeout_ms = ?, enabled = ?,
+       name = ?, model = ?, provider = ?, effort = ?, priority = ?, transport = ?, timeout_ms = ?, enabled = ?,
        capabilities = COALESCE(?, capabilities),
        config_revision = config_revision + 1, updated_at = ?
      WHERE id = ?`,
@@ -90,6 +107,8 @@ export function updateProfile(db: SqliteDb, id: number, patch: ProfilePatch): Ag
     patch.name?.trim() ?? current.name,
     patch.model !== undefined ? patch.model : current.model,
     patch.provider !== undefined ? patch.provider : current.provider,
+    patch.effort !== undefined ? patch.effort : current.effort,
+    patch.priority !== undefined ? patch.priority : current.priority,
     patch.transport ?? current.transport,
     patch.timeoutMs && patch.timeoutMs >= 5_000 ? patch.timeoutMs : current.timeout_ms,
     patch.enabled === undefined ? current.enabled : patch.enabled ? 1 : 0,

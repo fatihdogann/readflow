@@ -13,6 +13,8 @@ import {
   type AiConfigSnapshot,
 } from "@/lib/db/repo/jobs";
 import { getDocument } from "@/lib/db/repo/documents";
+import { listProfiles } from "@/lib/db/repo/agentProfiles";
+import { orderedFallbackConfigs } from "@/lib/agent/profiles";
 import { buildPromptForSnapshot } from "@/lib/ai/instructions";
 import { readHeartbeat, writeHeartbeat, HEARTBEAT_KEY } from "@/lib/jobs/worker";
 import { buildChatPromptForJob } from "@/lib/jobs/chat-context";
@@ -94,7 +96,7 @@ export async function POST(request: Request): Promise<Response> {
         try {
           const parsed = JSON.parse(validateRaw) as { profileId: number };
           const profileRow = db
-            .prepare(`SELECT id, cli, model, provider, transport, timeout_ms FROM agent_profiles WHERE id = ?`)
+            .prepare(`SELECT id, cli, model, provider, effort, transport, timeout_ms FROM agent_profiles WHERE id = ?`)
             .get(parsed.profileId) as Record<string, unknown> | undefined;
           if (profileRow) {
             validateRequest = { profileId: parsed.profileId, config: profileRow };
@@ -160,6 +162,9 @@ export async function POST(request: Request): Promise<Response> {
           summaryLevel: job.summary_level,
         },
         aiConfig,
+        // Birincil yapılandırma hata verirse Mac worker bu sırayla yedekleri dener.
+        // Profil tablosu sunucuda, kurulu CLI'lar Mac'te: sıra burada, argv orada üretilir.
+        fallbacks: orderedFallbackConfigs(listProfiles(db), aiConfig?.cli),
         prompt,
       });
     }

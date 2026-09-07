@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiErrorResponse, readJsonBody } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
-import { deleteDocument, setFavorite, setFolder, setTitle, updateNote } from "@/lib/db/repo/documents";
+import { restoreDocument, setFavorite, setFolder, setTitle, softDeleteDocument, updateNote } from "@/lib/db/repo/documents";
 import { getDocumentDetail } from "@/lib/documents/service";
 import { InputError } from "@/lib/types";
 
@@ -53,11 +53,26 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   }
 }
 
+/** Silme geri alınabilir: satır çöpe taşınır, aynı yola POST ile geri alınır. */
 export async function DELETE(_request: Request, context: RouteContext): Promise<Response> {
   try {
     const id = await parseId(context);
-    deleteDocument(getDb(), id);
-    return Response.json({ ok: true });
+    const removed = softDeleteDocument(getDb(), id);
+    if (!removed) return Response.json({ error: "Doküman bulunamadı" }, { status: 404 });
+    return Response.json({ ok: true, undoable: true });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
+}
+
+/** Silmeyi geri al. */
+export async function POST(_request: Request, context: RouteContext): Promise<Response> {
+  try {
+    const id = await parseId(context);
+    const restored = restoreDocument(getDb(), id);
+    if (!restored) return Response.json({ error: "Geri alınacak silme bulunamadı" }, { status: 404 });
+    const detail = getDocumentDetail(getDb(), id);
+    return Response.json({ ok: true, detail });
   } catch (error) {
     return apiErrorResponse(error);
   }

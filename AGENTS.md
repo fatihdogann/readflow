@@ -49,15 +49,19 @@ scripts/             migrate, mock-agent.mjs
 ## İçerik türleri ve değişmezlik
 
 - `documents.original_text` / `original_html` ilk kayıttan sonra **asla değişmez**.
+- Silme geri alınabilir: `documents.deleted_at` doldurulur (`softDeleteDocument`), tüm listeler/arama/sayaçlar bunu süzer. Kalıcı `deleteDocument` yalnızca çöpü temizlemek içindir.
 - Kullanıcı sürümü `document_edits` tablosunda (revision + optimistic concurrency; uyumsuz revision → 409). AI çıktıları `document_outputs` + `document_output_revisions`. Elle düzenleme asla sahte AI job'ı olarak modellenmez.
 - Notlar (`documents.note`) varsayılan AI'a gönderilmez; yalnızca iş bazında açıkça dahil edilirse snapshot'a girer ve prompt'a "ek bağlam" bloğu olarak eklenir.
 
 ## AI profilleri
 
-- `agent_profiles` tablosu: görünen ad, cli (claude/codex/jcode), model/provider, transport (stdin/argv), timeout, enabled, `config_revision`, doğrulama bilgileri. Varsayılan profil `meta.default_agent_profile_id`.
+- `agent_profiles` tablosu: görünen ad, cli (claude/codex/jcode), model/provider, `effort`, `priority` (failover sırası), transport (stdin/argv), timeout, enabled, `config_revision`, doğrulama bilgileri. Varsayılan profil `meta.default_agent_profile_id`.
 - Yetenek çıkarımı `src/lib/agent/capabilities.ts`: CLI'ların gerçek `--help` çıktısından regex doğrulaması — **bayrak uydurma**; doğrulanmayan bayrak argv'ya eklenmez. argv üretimi yalnızca `buildCommandForProfile` üzerinden (serbest executable UI'dan kabul edilmez; custom komut yalnız env).
 - Worker, işin snapshot'ındaki profil alanlarından adapter kurar; profil sonradan değişse/silinse eski iş kendi yapılandırmasıyla çalışır. meta/provenance alanları güvenli: raw komut, token, env değeri loglanmaz (`provenanceFor`).
-- Profil mutasyonları ve doğrulama çağrıları `assertLocalRequest` ile localhost'a kısıtlıdır; doğrulama örnek metin kullanır, kullanıcı belgesi göndermez.
+- Profil mutasyonları ve doğrulama çağrıları `assertMutationAllowed` ile korunur: oturum yapılandırılmışsa (Coolify) geçerli oturum cookie'si yeterli, yapılandırılmamışsa (yerel geliştirme) yalnızca localhost. Doğrulama örnek metin kullanır, kullanıcı belgesi göndermez.
+- Yetenekler **Mac worker'ın raporundan** okunur (`effectiveCapabilities`): Coolify container'ında CLI kurulu olmadığı için sunucu tespiti boş döner. Profil oluşturma/güncelleme bu fonksiyondan geçmeli.
+- Failover: birincil profil hata verirse `orderedFallbackConfigs` sırası (profil `priority` kolonu) denenir. Sıra sunucuda üretilir, argv Mac'te; hem `src/lib/jobs/worker.ts` hem `src/worker/remote.ts` aynı sırayı kullanır.
+- Reasoning effort yalnızca `--help` ile doğrulanmış yoldan geçer: `claude --effort`, `codex -c model_reasoning_effort="…"`. jcode'da effort bayrağı yoktur — değer saklanır, argv'ye girmez.
 
 ## Ortam değişkenleri
 
@@ -75,10 +79,12 @@ scripts/             migrate, mock-agent.mjs
 
 `pnpm dev:all` · `pnpm dev:web` · `pnpm dev:worker` · `pnpm dev:mcp` · `pnpm db:migrate` · `pnpm build` · `pnpm start` · `pnpm test` · `pnpm typecheck` · `pnpm lint`
 
+Uzak kurulum (uygulama Coolify'da, AI Mac'te): `pnpm worker:install` (launchd servisi, açılışta başlar) · `pnpm worker:status` · `pnpm worker:logs` · `pnpm worker:uninstall`. İkon seti logo değişince: `pnpm icons`.
+
 Testler vitest; test'ler geçici dizinde kendi SQLite'ını kurar (`src/lib/db/testDb.ts`), ağa bağlanmaz (URL extractor için `src/lib/extraction/__fixtures__/` fixture'ları var). Yeni özellik → önce core'a test.
 
 ## Agent entegrasyonu notları
 
 - Adapter seçimi: `READFLOW_AGENT_MODE` (auto/command/mock/none) → `READFLOW_AGENT_CMD` → bilinen CLI preset'leri (`claude -p`, `codex exec -`, `jcode run`+argv; her preset kendi `--help` imzası doğrulanırsa kullanılır). CLI bayrakları **tahmin edilmez**.
 - MCP yolu: `pnpm dev:mcp` stdio konuşur; tool'lar job queue'ya ve dokümanlara adapter düzeyinde erişir (`src/mcp/server.ts`). MCP'ye yeni tool eklerken iş mantığını `src/lib/db/repo`'da tut.
-- `src/lib/extraction/fetchArticle.ts` SSRF kontrolleri içerir (private host/protocol/redirect/size sınırları) — gevşetme.
+- `src/lib/extraction/fetchArticle.ts` SSRF kontrolleri içerir: protokol/hostname allowlist **artı** her istek öncesi `dns.lookup` ile gerçek IP doğrulaması (rebinding'e karşı), redirect ve boyut sınırları — gevşetme.

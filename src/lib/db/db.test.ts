@@ -2,10 +2,20 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import { openDatabase } from "./connection";
 import { createTestDb } from "./testDb";
-import { insertDocument, getDocument, listDocuments } from "./repo/documents";
+import {
+  insertDocument,
+  getDocument,
+  listDocuments,
+  searchDocuments,
+  softDeleteDocument,
+  restoreDocument,
+  countDocuments,
+} from "./repo/documents";
 import { createFolder } from "./repo/folders";
 import { setDocumentTags, listDocumentTags } from "./repo/tags";
 import { upsertOutput } from "./repo/outputs";
+import { listProfiles, getDefaultProfileId, updateProfile } from "./repo/agentProfiles";
+import { orderedFallbackConfigs } from "../agent/profiles";
 
 describe("migrations", () => {
   it("şemayı kurar ve ikinci açılışta migration tekrar çalışmaz", () => {
@@ -23,6 +33,64 @@ describe("migrations", () => {
       const row = db2.prepare(`SELECT COUNT(*) AS c FROM documents`).get() as { c: number };
       expect(row.c).toBe(0);
       db2.close();
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("varsayılan failover zinciri jcode → codex → claude sırasıyla kurulur", () => {
+    const handle = createTestDb();
+    try {
+      const profiles = listProfiles(handle.db);
+      expect(profiles.map((profile) => profile.cli)).toEqual(["jcode", "codex", "claude"]);
+      expect(profiles[0].model).toBe("glm-5.3-flash");
+      expect(profiles[1].model).toBe("gpt-5.6-terra");
+      expect(profiles[2].model).toBe("opus-5");
+      // jcode effort bayrağı yok: değer saklanmaz
+      expect(profiles[0].effort).toBeNull();
+      expect(profiles[1].effort).toBe("medium");
+      expect(profiles[2].effort).toBe("medium");
+      // Zincirin başı varsayılan profil olur
+      expect(getDefaultProfileId(handle.db)).toBe(profiles[0].id);
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("yedek zinciri birincil CLI'ı atlar ve priority sırasını korur", () => {
+    const handle = createTestDb();
+    try {
+      const profiles = listProfiles(handle.db);
+      const fallbacks = orderedFallbackConfigs(profiles, "jcode");
+      expect(fallbacks.map((config) => config.cli)).toEqual(["codex", "claude"]);
+      // Devre dışı profil zincire girmez
+      updateProfile(handle.db, profiles[1].id, { enabled: false });
+      expect(orderedFallbackConfigs(listProfiles(handle.db), "jcode").map((c) => c.cli)).toEqual(["claude"]);
+    } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("soft delete: doküman listeden düşer, geri alınca geri gelir", () => {
+    const handle = createTestDb();
+    try {
+      const doc = insertDocument(handle.db, {
+        title: "Silinecek",
+        sourceType: "text",
+        originalText: "geri alınabilir silme testi",
+      });
+      expect(softDeleteDocument(handle.db, doc.id)).toBe(true);
+      expect(getDocument(handle.db, doc.id)).toBeNull();
+      expect(listDocuments(handle.db).some((item) => item.id === doc.id)).toBe(false);
+      expect(searchDocuments(handle.db, { q: "geri alınabilir" }).some((hit) => hit.id === doc.id)).toBe(false);
+      expect(countDocuments(handle.db)).toBe(0);
+      // Aynı silme iki kez uygulanmaz
+      expect(softDeleteDocument(handle.db, doc.id)).toBe(false);
+
+      expect(restoreDocument(handle.db, doc.id)).toBe(true);
+      expect(getDocument(handle.db, doc.id)?.title).toBe("Silinecek");
+      expect(listDocuments(handle.db).some((item) => item.id === doc.id)).toBe(true);
+      expect(restoreDocument(handle.db, doc.id)).toBe(false);
     } finally {
       handle.cleanup();
     }

@@ -16,6 +16,8 @@ export interface AiConfigSnapshot {
   cli?: string;
   model?: string | null;
   provider?: string | null;
+  /** Reasoning effort (low/medium/high/xhigh/max) — CLI desteklemiyorsa argv'ye girmez. */
+  effort?: string | null;
   transport?: "stdin" | "argv";
   timeout_ms?: number;
   config_revision?: number;

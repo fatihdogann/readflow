@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FolderRow } from "@/lib/db/repo/folders";
 import type { DocumentDetail } from "@/lib/documents/service";
 import { mutateJson } from "@/lib/client/api";
@@ -18,6 +16,7 @@ export function DocHeader({
   notesOpen,
   onChatToggle,
   chatOpen,
+  onDeleted,
 }: {
   detail: DocumentDetail;
   folders: FolderRow[];
@@ -26,11 +25,32 @@ export function DocHeader({
   notesOpen: boolean;
   onChatToggle: () => void;
   chatOpen: boolean;
+  onDeleted: () => void;
 }) {
-  const router = useRouter();
   const doc = detail.document;
   const [error, setError] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
+  const moreRef = useRef<HTMLDetailsElement>(null);
+
+  // Native <details> dışa tıklamada ve Esc'te kendiliğinden kapanmaz.
+  useEffect(() => {
+    const close = () => moreRef.current?.removeAttribute("open");
+    const onPointerDown = (event: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) close();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !moreRef.current?.hasAttribute("open")) return;
+      event.preventDefault();
+      close();
+      moreRef.current.querySelector("summary")?.focus();
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   async function patch(body: Record<string, unknown>): Promise<boolean> {
     setError(null);
@@ -57,15 +77,17 @@ export function DocHeader({
     }
   }
 
+  /**
+   * Silme geri alınabilir olduğu için onay penceresi sorulmaz: doküman çöpe
+   * taşınır, sayfa "Geri al" kartına döner.
+   */
   async function remove(): Promise<void> {
-    if (!window.confirm("Bu doküman ve tüm çıktıları silinsin mi?")) return;
     setError(null);
     try {
       await mutateJson(`/api/documents/${doc.id}`, "DELETE");
       notifyFoldersChanged();
-      router.push("/history");
+      onDeleted();
     } catch (mutationError) {
-      // Silme başarılı olmadan yönlendirme yapılmaz.
       setError(mutationError instanceof Error ? mutationError.message : "Silinemedi");
     }
   }
@@ -115,7 +137,7 @@ export function DocHeader({
           >
             <ChatIcon size={16} /> AI&apos;a sor
           </button>
-          <details className="group relative">
+          <details ref={moreRef} className="group relative">
             <summary className="flex h-10 cursor-pointer list-none items-center rounded-lg px-3 text-sm text-stone-500 marker:hidden hover:bg-stone-200/70 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100">
               Diğer
             </summary>
@@ -127,6 +149,9 @@ export function DocHeader({
               >
                 Dokümanı sil
               </button>
+              <p className="px-3 pb-1 pt-0.5 text-[11px] text-stone-500 dark:text-stone-400">
+                Geri alınabilir
+              </p>
             </div>
           </details>
         </div>
@@ -205,12 +230,6 @@ export function DocHeader({
             className="w-28 rounded-full border border-dashed border-stone-300 bg-transparent px-2.5 py-1 text-xs outline-none placeholder:text-stone-500 focus:border-stone-500 dark:border-stone-700 dark:placeholder:text-stone-400"
           />
         </form>
-        <Link
-          href="/settings"
-          className="ml-auto rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800"
-        >
-          AI ayarları
-        </Link>
       </div>
 
       {error ? (

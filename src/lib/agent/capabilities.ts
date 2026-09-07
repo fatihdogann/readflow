@@ -16,6 +16,10 @@ export interface CliCapabilities {
   providerFlag: boolean;
   /** salt-okunur sandbox bayrağı doğrulandı mı (codex) */
   sandboxReadonlyFlag: boolean;
+  /** `--effort <level>` bayrağı doğrulandı mı (claude) */
+  effortFlag: boolean;
+  /** `-c key=value` config override bayrağı doğrulandı mı (codex: reasoning effort buradan) */
+  configOverrideFlag: boolean;
   /** Prompt mutlaka konumsal argüman olarak mı verilmeli (jcode: <MESSAGE>) */
   argvRequired: boolean;
   /** `--json` makine-okur sonuç bayrağı doğrulandı mı (jcode) */
@@ -63,6 +67,8 @@ export function discoverCapabilities(cli: SupportedCli, runner: HelpRunner = def
     modelFlag: false,
     providerFlag: false,
     sandboxReadonlyFlag: false,
+    effortFlag: false,
+    configOverrideFlag: false,
     argvRequired: false,
     jsonFlag: false,
     modelOptions: null,
@@ -83,10 +89,14 @@ export function discoverCapabilities(cli: SupportedCli, runner: HelpRunner = def
   if (cli === "claude") {
     caps.nonInteractive = /--print\b/.test(help.output) && /non-interactive/i.test(help.output);
     caps.modelFlag = /(^|\s)--model\b/.test(help.output);
+    // "--effort <level>  Effort level for the current session (low, medium, high, xhigh, max)"
+    caps.effortFlag = /(^|\s)--effort\b/.test(help.output);
   } else if (cli === "codex") {
     caps.nonInteractive = /\bexec\b/.test(help.output) && /non-interactive/i.test(help.output);
     caps.modelFlag = /(^|\s)-m,|--model\b/.test(combined);
     caps.sandboxReadonlyFlag = /--sandbox\b/.test(combined) && /read-only/.test(combined);
+    // codex'te ayrı bir --effort bayrağı yok; reasoning effort config override ile verilir.
+    caps.configOverrideFlag = /(^|\s)-c, --config\b/.test(combined);
   } else if (cli === "jcode") {
     caps.nonInteractive = /Run a single message and exit/i.test(help.output);
     caps.modelFlag = /(^|\s)--model\b/.test(combined);
@@ -101,6 +111,9 @@ export function discoverCapabilities(cli: SupportedCli, runner: HelpRunner = def
   }
   if (runHelp?.ok && /<MESSAGE>/.test(runHelp.output)) {
     caps.notes.push("jcode run mesajı argüman olarak ister");
+  }
+  if (caps.found && !caps.effortFlag && !caps.configOverrideFlag) {
+    caps.notes.push("reasoning effort bayrağı yok — profildeki effort değeri yok sayılır");
   }
 
   // Doğrulanabilir model kataloğu: yalnızca CLI'ın kendi listeleme komutu varsa.

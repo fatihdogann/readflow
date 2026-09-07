@@ -1,3 +1,5 @@
+import dns from "node:dns/promises";
+import net from "node:net";
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import { formatAuthorByline } from "../text/author";
@@ -9,8 +11,16 @@ const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT_CHARS = 2_000_000;
 const MAX_HTML_CHARS = 3_000_000;
 const MAX_REDIRECTS = 4;
+// Bot korumaları bilinmeyen UA token'ına (eski "Readflow/0.1") 403 basıyordu.
+// Tarayıcının kendi imzası kullanılır; kimlik gizleme değil, engellenmemek için.
 const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Readflow/0.1 Safari/537.36";
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+const REQUEST_HEADERS: Record<string, string> = {
+  "user-agent": USER_AGENT,
+  accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "accept-language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+  "upgrade-insecure-requests": "1",
+};
 
 export interface ArticleExtraction {
   title: string;
@@ -63,6 +73,66 @@ export function assertPublicHttpUrl(raw: string): URL {
   return url;
 }
 
+/** Özel/yerel ağ adresi mi (IPv4 + IPv6 + IPv4-mapped IPv6). */
+export function isPrivateIp(address: string): boolean {
+  const ip = address.toLowerCase();
+  if (ip.startsWith("::ffff:")) return isPrivateIp(ip.slice(7));
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split(".").map(Number);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) || // CGNAT
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      a >= 224 // multicast + reserved
+    );
+  }
+  if (net.isIPv6(ip)) {
+    return (
+      ip === "::" ||
+      ip === "::1" ||
+      ip.startsWith("fc") || // unique local
+      ip.startsWith("fd") ||
+      ip.startsWith("fe8") || // link local
+      ip.startsWith("fe9") ||
+      ip.startsWith("fea") ||
+      ip.startsWith("feb") ||
+      ip.startsWith("ff") // multicast
+    );
+  }
+  return false;
+}
+
+/**
+ * Hostname'i çözer ve dönen TÜM adreslerin genel ağda olduğunu doğrular.
+ * Yalnızca hostname string'ine bakmak DNS rebinding'i durdurmaz: saldırgan
+ * kendi alan adını 127.0.0.1'e yönlendirebilir.
+ *
+ * ponytail: çözümleme ile fetch arasında TOCTOU penceresi kalır (Node fetch
+ * bağlanacağı IP'yi dışarı vermiyor). Kapatmak için özel bir agent/lookup
+ * gerekir — trafik artarsa oraya geçilir.
+ */
+async function assertResolvesToPublicIp(url: URL): Promise<void> {
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (net.isIP(host)) {
+    if (isPrivateIp(host)) throw new InputError("Yerel ve ağ içi adresler desteklenmez");
+    return;
+  }
+  let records: Array<{ address: string }>;
+  try {
+    records = await dns.lookup(host, { all: true, verbatim: true });
+  } catch {
+    throw new InputError("Alan adı çözümlenemedi");
+  }
+  if (records.length === 0) throw new InputError("Alan adı çözümlenemedi");
+  if (records.some((record) => isPrivateIp(record.address))) {
+    throw new InputError("Yerel ve ağ içi adresler desteklenmez");
+  }
+}
+
 async function readBodyCapped(response: Response): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) {
@@ -94,6 +164,8 @@ export async function fetchArticle(rawUrl: string): Promise<ArticleExtraction> {
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
     assertPublicHttpUrl(url.href);
+    // Hostname allowlist'i yetmez: gerçekte hangi IP'ye gittiğini de doğrula.
+    await assertResolvesToPublicIp(url);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     let response: Response;
@@ -101,10 +173,8 @@ export async function fetchArticle(rawUrl: string): Promise<ArticleExtraction> {
       response = await fetch(url.href, {
         redirect: "manual",
         signal: controller.signal,
-        headers: {
-          "user-agent": USER_AGENT,
-          accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
-        },
+        // Referer yalnızca kendi origin'i: bazı siteler doğrudan girişi bot sayıyor.
+        headers: { ...REQUEST_HEADERS, referer: url.origin + "/" },
       });
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -122,7 +192,7 @@ export async function fetchArticle(rawUrl: string): Promise<ArticleExtraction> {
       continue;
     }
     if (!response.ok) {
-      throw new InputError(`Sayfa indirilemedi (HTTP ${response.status})`);
+      throw new InputError(describeHttpFailure(response.status));
     }
     const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
     if (contentType.includes("text/plain")) {
@@ -146,6 +216,17 @@ export async function fetchArticle(rawUrl: string): Promise<ArticleExtraction> {
     return extractFromHtml(html, url.href);
   }
   throw new InputError("Çok fazla yönlendirme");
+}
+
+/** HTTP hatasını kullanıcının ne yapacağını anlayacağı şekilde açıklar. */
+function describeHttpFailure(status: number): string {
+  if (status === 401 || status === 403) {
+    return `Site isteği reddetti (HTTP ${status}) — bot koruması veya oturum gerekiyor. Sayfayı kopyalayıp metin olarak yapıştırabilirsin.`;
+  }
+  if (status === 404 || status === 410) return `Sayfa bulunamadı (HTTP ${status})`;
+  if (status === 429) return "Site çok fazla istek gördü (HTTP 429) — biraz sonra tekrar dene";
+  if (status >= 500) return `Sitenin sunucusu hata verdi (HTTP ${status})`;
+  return `Sayfa indirilemedi (HTTP ${status})`;
 }
 
 function firstLine(text: string, max = 120): string {

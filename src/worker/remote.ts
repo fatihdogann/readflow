@@ -96,7 +96,7 @@ async function main(): Promise<void> {
 
       // Sunucudan gelen profil doğrulama isteği: kendi CLI'ıyla test et, sonucu bildir
       const validateRequest = heartbeat.validateRequest as
-        | { profileId: number; config: { cli: "claude" | "codex" | "jcode"; model: string | null; provider: string | null; transport: "stdin" | "argv"; timeout_ms: number } }
+        | { profileId: number; config: { cli: "claude" | "codex" | "jcode"; model: string | null; provider: string | null; effort: string | null; transport: "stdin" | "argv"; timeout_ms: number } }
         | undefined;
       if (validateRequest && !currentJobId) {
         const adapter = createProfileAdapter(validateRequest.config);
@@ -128,43 +128,74 @@ async function main(): Promise<void> {
 
       const prompt = String(claim.prompt ?? "");
       const aiConfig = (claim.aiConfig ?? null) as AiConfigSnapshot | null;
+      const fallbackConfigs = Array.isArray(claim.fallbacks)
+        ? (claim.fallbacks as AiConfigSnapshot[])
+        : [];
       currentJobId = job.id;
-      currentAdapter =
+
+      const primary =
         aiConfig?.kind === "profile" && aiConfig.cli
           ? adapterForJobConfig(aiConfig).adapter
           : resolution.adapter;
-
-      if (!currentAdapter) {
+      if (!primary) {
         console.warn(`[remote] job #${job.id} için adapter kurulamadı`);
         await call("fail", { jobId: job.id, error: "Adapter kurulamadı" });
         currentJobId = null;
         continue;
       }
 
+      // Birincil yapılandırma + sunucudan gelen yedek zinciri (priority sırasında).
+      const attempts: Array<{ adapter: AgentAdapter; timeoutMs: number }> = [
+        { adapter: primary, timeoutMs: aiConfig?.timeout_ms ?? agentTimeoutMs() },
+        ...fallbackConfigs
+          .filter((config) => config.cli)
+          .map((config) => ({
+            adapter: createProfileAdapter({
+              cli: config.cli as "claude" | "codex" | "jcode",
+              model: config.model ?? null,
+              provider: config.provider ?? null,
+              effort: config.effort ?? null,
+              transport: config.transport,
+              timeout_ms: config.timeout_ms,
+            }),
+            timeoutMs: config.timeout_ms ?? agentTimeoutMs(),
+          })),
+      ];
+
       console.log(`[remote] job #${job.id} (${job.operation}) işleniyor…`);
-      const timeout = aiConfig?.timeout_ms ?? agentTimeoutMs();
-      try {
-        const result = await currentAdapter.run({ prompt, timeoutMs: timeout });
-        await call("complete", {
-          jobId: job.id,
-          content: result.text,
-          agentName: currentAdapter.name,
-        });
-        console.log(`[remote] job #${job.id} tamamlandı`);
-      } catch (runError) {
-        const message = runError instanceof Error ? runError.message : String(runError);
-        const cancelHeartbeat = await call("heartbeat", { currentJobId: job.id });
-        if (cancelHeartbeat.cancelRequested === true) {
-          await call("cancel-ack", { jobId: job.id });
-          console.log(`[remote] job #${job.id} iptal edildi`);
-        } else {
-          await call("fail", { jobId: job.id, error: message });
-          console.error(`[remote] job #${job.id} başarısız: ${message}`);
+      let lastError = "Bilinmeyen hata";
+      let done = false;
+      for (const attempt of attempts) {
+        currentAdapter = attempt.adapter;
+        try {
+          const result = await attempt.adapter.run({ prompt, timeoutMs: attempt.timeoutMs });
+          await call("complete", {
+            jobId: job.id,
+            content: result.text,
+            agentName: attempt.adapter.name,
+          });
+          console.log(`[remote] job #${job.id} tamamlandı (${attempt.adapter.name})`);
+          done = true;
+          break;
+        } catch (runError) {
+          lastError = runError instanceof Error ? runError.message : String(runError);
+          // Kullanıcı iptal ettiyse zinciri sürdürme.
+          const cancelHeartbeat = await call("heartbeat", { currentJobId: job.id });
+          if (cancelHeartbeat.cancelRequested === true) {
+            await call("cancel-ack", { jobId: job.id });
+            console.log(`[remote] job #${job.id} iptal edildi`);
+            done = true;
+            break;
+          }
+          console.warn(`[remote] ${attempt.adapter.name} başarısız: ${lastError}`);
         }
-      } finally {
-        currentJobId = null;
-        currentAdapter = null;
       }
+      if (!done) {
+        await call("fail", { jobId: job.id, error: lastError });
+        console.error(`[remote] job #${job.id} tüm denemelerde başarısız: ${lastError}`);
+      }
+      currentJobId = null;
+      currentAdapter = null;
     } catch (loopError) {
       console.error(`[remote] ${loopError instanceof Error ? loopError.message : loopError}`);
       await sleep(5_000);

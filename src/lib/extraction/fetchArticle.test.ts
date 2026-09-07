@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { assertPublicHttpUrl, extractFromHtml, extractImageUrls } from "./fetchArticle";
+import { assertPublicHttpUrl, extractFromHtml, extractImageUrls, isPrivateIp } from "./fetchArticle";
 import { textToSafeHtml } from "./sanitize";
 import { InputError } from "../types";
 
@@ -82,5 +82,19 @@ describe("extractImageUrls", () => {
     expect(extractImageUrls(null)).toEqual([]);
     // Görsel adresi olmayan relatif src düşer
     expect(extractImageUrls('<img src="/relatif.png">')).toEqual([]);
+  });
+});
+
+describe("isPrivateIp (DNS rebinding koruması)", () => {
+  it("özel ve yerel adresleri yakalar", () => {
+    for (const ip of ["127.0.0.1", "10.1.2.3", "192.168.1.1", "172.16.0.1", "169.254.1.1", "100.64.0.1", "0.0.0.0", "::1", "fd00::1", "fe80::1", "::ffff:127.0.0.1"]) {
+      expect(isPrivateIp(ip)).toBe(true);
+    }
+  });
+
+  it("genel adresleri geçirir", () => {
+    for (const ip of ["1.1.1.1", "8.8.8.8", "172.32.0.1", "93.184.216.34", "2606:4700::1111"]) {
+      expect(isPrivateIp(ip)).toBe(false);
+    }
   });
 });

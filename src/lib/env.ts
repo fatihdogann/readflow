@@ -5,12 +5,17 @@ import path from "node:path";
  * Worker/MCP/migration gibi Next süreci dışında başlayan girişler için
  * .env / .env.local yükleyici. Dosya adları sabittir; mevcut process.env
  * değerleri asla üzerine yazılmaz (ortam değişkeni önceliği korunur).
+ *
+ * `READFLOW_ENV_FILE` verilirse (launchd ile kurulan worker servisi bunu
+ * kullanır) o dosya da okunur: makineye özgü ayarlar repo dışında durur.
  */
 export function loadLocalEnv(startDir = process.cwd()): void {
   const root = path.resolve(startDir);
+  const extra = process.env.READFLOW_ENV_FILE?.trim();
   const candidates = [
     path.resolve(root, ".env"),
     path.resolve(root, ".env.local"),
+    ...(extra ? [path.resolve(extra)] : []),
   ];
   for (const target of candidates) {
     let content: string;

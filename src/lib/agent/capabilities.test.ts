@@ -11,11 +11,13 @@ import {
 const claudeHelp = `
   -p, --print             Print response without interactive mode (non-interactive output)
   --model <model>         Model to use
+  --effort <level>        Effort level for the current session (low, medium, high, xhigh, max)
 `;
 const codexHelp = `
   exec              Run Codex non-interactively [aliases: e]
 `;
 const codexExecHelp = `
+  -c, --config <key=value>  Override a configuration value
   -m, --model <MODEL>       Model to use
   --sandbox <SANDBOX>       read-only|workspace-write|danger-full-access
   Read the prompt from standard input when '-'
@@ -61,11 +63,14 @@ describe("capability discovery (yardım çıktısından doğrulama)", () => {
     expect(caps.version).toBe("test-1.0.0");
   });
 
-  it("codex: exec + model + sandbox doğrulanır", () => {
+  it("codex: exec + model + sandbox + config override doğrulanır", () => {
     const caps = discoverCapabilities("codex", runnerFor(codexHelp, codexExecHelp));
     expect(caps.nonInteractive).toBe(true);
     expect(caps.modelFlag).toBe(true);
     expect(caps.sandboxReadonlyFlag).toBe(true);
+    expect(caps.configOverrideFlag).toBe(true);
+    // codex'te ayrı --effort bayrağı yok
+    expect(caps.effortFlag).toBe(false);
   });
 
   it("jcode: run + provider doğrulanır, <MESSAGE> argv zorunluluğu ve model kataloğu alınır", () => {
@@ -76,6 +81,17 @@ describe("capability discovery (yardım çıktısından doğrulama)", () => {
     expect(caps.argvRequired).toBe(true);
     expect(caps.modelOptions).toContain("glm-5.3-flash");
     expect(resolveTransport(caps, "stdin")).toBe("argv");
+  });
+
+  it("claude: --effort doğrulanır", () => {
+    const caps = discoverCapabilities("claude", runnerFor(claudeHelp));
+    expect(caps.effortFlag).toBe(true);
+  });
+
+  it("jcode: effort bayrağı yok — uydurulmaz", () => {
+    const caps = discoverCapabilities("jcode", runnerFor(jcodeHelp, undefined, jcodeRunHelp));
+    expect(caps.effortFlag).toBe(false);
+    expect(caps.configOverrideFlag).toBe(false);
   });
 
   it("jcode run help yoksa argv zorunluluğu uydurulmaz", () => {
@@ -107,6 +123,38 @@ describe("profil komut üretimi (shellsiz argv kaynağı)", () => {
       discoverCapabilities("jcode", runnerFor(jcodeHelp)),
     );
     expect(jcode).toBe("jcode run --provider claude --model m");
+  });
+
+  it("effort yalnızca doğrulanmış bayrakla taşınır", () => {
+    const claudeCaps = discoverCapabilities("claude", runnerFor(claudeHelp));
+    expect(buildCommandForProfile({ cli: "claude", model: "opus-5", effort: "medium" }, claudeCaps)).toBe(
+      "claude -p --model opus-5 --effort medium",
+    );
+
+    // codex: --effort yok, config override ile TOML string olarak verilir
+    const codexCaps = discoverCapabilities("codex", runnerFor(codexHelp, codexExecHelp));
+    expect(buildArgvForProfile({ cli: "codex", model: "gpt-5.6-terra", effort: "medium" }, codexCaps)).toEqual([
+      "codex",
+      "exec",
+      "--sandbox",
+      "read-only",
+      "-m",
+      "gpt-5.6-terra",
+      "-c",
+      'model_reasoning_effort="medium"',
+      "-",
+    ]);
+
+    // jcode: effort bayrağı yok — değer sessizce düşer
+    const jcodeCaps = discoverCapabilities("jcode", runnerFor(jcodeHelp, undefined, jcodeRunHelp));
+    expect(buildCommandForProfile({ cli: "jcode", model: "glm-5.3-flash", effort: "max" }, jcodeCaps)).toBe(
+      "jcode run --json --model glm-5.3-flash",
+    );
+  });
+
+  it("geçersiz effort değeri argv'ya girmez", () => {
+    const caps = discoverCapabilities("claude", runnerFor(claudeHelp));
+    expect(buildCommandForProfile({ cli: "claude", effort: "turbo" }, caps)).toBe("claude -p");
   });
 
   it("doğrulanmamış bayrak varsa sessizce düşürür (uydurma yok)", () => {

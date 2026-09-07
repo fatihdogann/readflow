@@ -26,7 +26,7 @@ export function createFolder(db: SqliteDb, name: string): FolderRow {
 
 function countForFolder(db: SqliteDb, folderId: number): number {
   const row = db
-    .prepare(`SELECT COUNT(*) AS c FROM documents WHERE folder_id = ?`)
+    .prepare(`SELECT COUNT(*) AS c FROM documents WHERE folder_id = ? AND deleted_at IS NULL`)
     .get(folderId) as { c: number };
   return row.c;
 }
@@ -35,7 +35,7 @@ export function listFolders(db: SqliteDb): FolderRow[] {
   return db
     .prepare(
       `SELECT f.id, f.name, f.created_at, COUNT(d.id) AS document_count
-       FROM folders f LEFT JOIN documents d ON d.folder_id = f.id
+       FROM folders f LEFT JOIN documents d ON d.folder_id = f.id AND d.deleted_at IS NULL
        GROUP BY f.id ORDER BY f.name COLLATE NOCASE`,
     )
     .all() as FolderRow[];

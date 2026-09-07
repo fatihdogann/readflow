@@ -18,7 +18,19 @@
    - `READFLOW_DATA_DIR=/data` (Dockerfile'da varsayılan; Coolify volume'u `/data`'ya bağla)
 3. Domain + HTTPS: Coolify domain ekleyin; **Basic Auth** açın (ilk güvenlik katmanı).
 4. Health check: `GET /api/worker` → `{"ok":true,"enrollmentConfigured":...}`.
-5. Mac worker (launchd veya terminal):
+5. Mac worker — **kalıcı kurulum (önerilen)**: elle komut çalıştırmaya gerek yok.
+   ```bash
+   pnpm worker:install
+   ```
+   İlk çalıştırma `~/.readflow/worker.env` şablonunu oluşturur; `READFLOW_SERVER_URL`
+   ve `READFLOW_WORKER_TOKEN` doldurulup komut tekrarlanır. Sonrası launchd servisi:
+   Mac açılışında başlar, çökerse/ağ dönünce geri gelir.
+   ```bash
+   pnpm worker:status     # servis durumu
+   pnpm worker:logs       # canlı log (~/.readflow/logs/worker.log)
+   pnpm worker:uninstall  # servisi kaldır
+   ```
+   Tek seferlik/ön plan çalıştırma hâlâ mümkün:
    ```
    READFLOW_SERVER_URL=https://<domain> \
    READFLOW_WORKER_TOKEN=<WORKER_ENROLLMENT_SECRET ile aynı> \
@@ -28,6 +40,8 @@
    - `READFLOW_AGENT_CMD` ile Mac tarafında zorlama yapılabilir; yapılırsa Ayarlar
      "Environment tarafından yönetiliyor" gösterir (sunucu env'si değil, worker env'si).
    - Yerel test: sunucu + worker aynı makinedeyken `READFLOW_WORKER_ALLOW_PRIVATE=1`.
+   - **Failover:** birincil profil hata verirse worker, sunucudan gelen yedek zinciri
+     (Ayarlar'daki profil sırası) sırayla dener; iptal edilirse zincir durur.
 6. Kuyruk davranışı: Mac kapalıyken işler `pending` bekler (UI: "Agent bağlı değil");
    worker bağlanınca claim + lease devralır. Uygulama güncellemesi (redeploy) worker'ı
    etkilemez; worker yalnızca HTTP konuşur.

@@ -103,8 +103,11 @@ export function insertDocument(db: SqliteDb, input: InsertDocumentInput): Docume
   return getDocument(db, Number(result.lastInsertRowid))!;
 }
 
+/** Silinmiş (çöpteki) doküman döndürmez — geri alınana kadar yok sayılır. */
 export function getDocument(db: SqliteDb, id: number): DocumentRow | null {
-  const row = db.prepare(`SELECT * FROM documents WHERE id = ?`).get(id) as DocumentRow | undefined;
+  const row = db
+    .prepare(`SELECT * FROM documents WHERE id = ? AND deleted_at IS NULL`)
+    .get(id) as DocumentRow | undefined;
   return row ?? null;
 }
 
@@ -117,7 +120,8 @@ function buildWhere(filters: DocumentFilters, ftsQuery: string | null): {
   joins: string[];
   params: Array<string | number>;
 } {
-  const where: string[] = [];
+  // Soft delete: çöpteki dokümanlar hiçbir listede görünmez.
+  const where: string[] = ["d.deleted_at IS NULL"];
   const joins: string[] = [];
   const params: Array<string | number> = [];
 
@@ -265,7 +269,8 @@ export function searchDocuments(db: SqliteDb, filters: DocumentFilters): SearchH
     .join(",");
   const fieldRows = db
     .prepare(
-      `SELECT id, title, original_text, note FROM documents WHERE id IN (${placeholders})`,
+      // Çöpteki dokümanlar arama sonucuna girmez (tek süzgeç: tüm kaynaklar buradan geçer).
+      `SELECT id, title, original_text, note FROM documents WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
     )
     .all(...ids) as Array<{ id: number; title: string; original_text: string; note: string }>;
 
@@ -303,7 +308,7 @@ export function listDomains(db: SqliteDb): string[] {
   const rows = db
     .prepare(
       `SELECT DISTINCT source_domain AS domain FROM documents
-       WHERE source_domain IS NOT NULL ORDER BY domain`,
+       WHERE source_domain IS NOT NULL AND deleted_at IS NULL ORDER BY domain`,
     )
     .all() as Array<{ domain: string }>;
   return rows.map((r) => r.domain);
@@ -331,11 +336,27 @@ export function updateNote(db: SqliteDb, id: number, note: string): void {
   );
 }
 
+/** Çöpe taşır (geri alınabilir). Kalıcı silme yok — veri kaybı riski taşımaz. */
+export function softDeleteDocument(db: SqliteDb, id: number): boolean {
+  const result = db
+    .prepare(`UPDATE documents SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`)
+    .run(nowIso(), nowIso(), id);
+  return result.changes > 0;
+}
+
+export function restoreDocument(db: SqliteDb, id: number): boolean {
+  const result = db
+    .prepare(`UPDATE documents SET deleted_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NOT NULL`)
+    .run(nowIso(), id);
+  return result.changes > 0;
+}
+
+/** Kalıcı silme — yalnızca çöpten temizlemek için. */
 export function deleteDocument(db: SqliteDb, id: number): void {
   db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
 }
 
 export function countDocuments(db: SqliteDb): number {
-  const row = db.prepare(`SELECT COUNT(*) AS c FROM documents`).get() as { c: number };
+  const row = db.prepare(`SELECT COUNT(*) AS c FROM documents WHERE deleted_at IS NULL`).get() as { c: number };
   return row.c;
 }

@@ -413,7 +413,70 @@ const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    id: 14,
+    name: "profile-priority-and-effort",
+    up: (db) => {
+      runAll(db, [
+        // Failover sırası artık CLI adına değil bu kolona bakar.
+        `ALTER TABLE agent_profiles ADD COLUMN priority INTEGER NOT NULL DEFAULT 100`,
+        // Reasoning effort: claude --effort, codex -c model_reasoning_effort.
+        // Desteklemeyen CLI'da (jcode) değer saklanır ama argv'ye girmez.
+        `ALTER TABLE agent_profiles ADD COLUMN effort TEXT`,
+        `UPDATE agent_profiles SET priority = CASE cli
+           WHEN 'jcode' THEN 1 WHEN 'codex' THEN 2 WHEN 'claude' THEN 3 ELSE 100 END`,
+      ]);
+      seedDefaultProfiles(db);
+    },
+  },
+  {
+    id: 15,
+    name: "document-soft-delete",
+    up: (db) => {
+      runAll(db, [
+        // Silme geri alınabilir olsun: satır durur, listelerden düşer.
+        `ALTER TABLE documents ADD COLUMN deleted_at TEXT`,
+        `CREATE INDEX idx_documents_deleted ON documents (deleted_at)`,
+      ]);
+    },
+  },
 ];
+
+/**
+ * Varsayılan failover zinciri: jcode → codex → claude. Yalnızca o CLI için hiç
+ * profil yoksa eklenir; kullanıcının mevcut profilleri korunur. CLI kurulu
+ * olmasa da satır açılır — argv Mac worker'da kendi --help'iyle üretilir.
+ */
+function seedDefaultProfiles(db: SqliteDb): void {
+  const seeds = [
+    { name: "jcode · glm-5.3-flash", cli: "jcode", model: "glm-5.3-flash", transport: "argv", effort: null, priority: 1 },
+    { name: "codex · gpt-5.6-terra", cli: "codex", model: "gpt-5.6-terra", transport: "stdin", effort: "medium", priority: 2 },
+    { name: "claude · opus-5", cli: "claude", model: "opus-5", transport: "stdin", effort: "medium", priority: 3 },
+  ];
+  const ts = new Date().toISOString();
+  const exists = db.prepare(`SELECT 1 FROM agent_profiles WHERE cli = ? LIMIT 1`);
+  const insert = db.prepare(
+    `INSERT INTO agent_profiles
+       (name, cli, model, provider, transport, timeout_ms, effort, priority, config_revision, created_at, updated_at)
+     VALUES (?, ?, ?, NULL, ?, 120000, ?, ?, 1, ?, ?)`,
+  );
+  for (const seed of seeds) {
+    if (exists.get(seed.cli)) continue;
+    insert.run(seed.name, seed.cli, seed.model, seed.transport, seed.effort, seed.priority, ts, ts);
+  }
+  // Varsayılan profil yoksa zincirin başını varsayılan yap.
+  const current = db.prepare(`SELECT value FROM meta WHERE key = 'default_agent_profile_id'`).get() as
+    | { value: string }
+    | undefined;
+  if (!current) {
+    const first = db
+      .prepare(`SELECT id FROM agent_profiles WHERE enabled = 1 ORDER BY priority, id LIMIT 1`)
+      .get() as { id: number } | undefined;
+    if (first) {
+      db.prepare(`INSERT INTO meta (key, value) VALUES ('default_agent_profile_id', ?)`).run(String(first.id));
+    }
+  }
+}
 
 function runAll(db: SqliteDb, statements: string[]): void {
   for (const statement of statements) {

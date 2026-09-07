@@ -18,7 +18,14 @@ import {
 } from "../db/repo/jobs";
 import { buildPromptForSnapshot } from "../ai/instructions";
 import { buildChatPromptForJob } from "./chat-context";
-import { adapterForJobConfig, provenanceFor, createProfileAdapter, runProfileValidation } from "../agent/profiles";
+import {
+  adapterForJobConfig,
+  provenanceFor,
+  createProfileAdapter,
+  orderedFallbackConfigs,
+  runProfileValidation,
+} from "../agent/profiles";
+import type { SupportedCli } from "../agent/capabilities";
 import { agentTimeoutMs, resolveAdapter, type AgentAdapter, type AgentRuntimeInfo } from "../agent";
 import { safeParseConfig } from "./create";
 
@@ -80,31 +87,21 @@ function parseImages(raw: string): string[] {
   }
 }
 
-/** Birincil adapter başarısız olursa sırayla denenecek yedek profiller (jcode → codex → claude). */
-const FALLBACK_ORDER = ["jcode", "codex", "claude"] as const;
-
+/**
+ * Birincil adapter başarısız olursa sırayla denenecek yedek profiller.
+ * Sıra artık sabit CLI listesi değil, profillerin `priority` kolonu.
+ */
 function buildFallbackAdapters(db: SqliteDb, aiConfig: AiConfigSnapshot | null): AgentAdapter[] {
-  const enabled = listProfiles(db).filter((profile) => profile.enabled === 1);
-  const primaryCli = aiConfig?.cli;
-  const ordered: typeof enabled = [];
-  for (const cli of FALLBACK_ORDER) {
-    const match = enabled.find((profile) => profile.cli === cli);
-    if (match && match.cli !== primaryCli) ordered.push(match);
-  }
-  for (const profile of enabled) {
-    if (!ordered.some((candidate) => candidate.id === profile.id)) ordered.push(profile);
-  }
-  return ordered
-    .filter((profile) => profile.cli !== primaryCli)
-    .map((profile) =>
-      createProfileAdapter({
-        cli: profile.cli,
-        model: profile.model,
-        provider: profile.provider,
-        transport: profile.transport,
-        timeout_ms: profile.timeout_ms,
-      }),
-    );
+  return orderedFallbackConfigs(listProfiles(db), aiConfig?.cli).map((config) =>
+    createProfileAdapter({
+      cli: config.cli as SupportedCli,
+      model: config.model ?? null,
+      provider: config.provider ?? null,
+      effort: config.effort ?? null,
+      transport: config.transport,
+      timeout_ms: config.timeout_ms,
+    }),
+  );
 }
 
 /** Tek job'ı uçtan uca işletir: snapshot'tan prompt üret -> adapter çalıştır -> çıktı kaydet. */

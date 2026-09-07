@@ -30,11 +30,42 @@ export function getEnvironmentLock(): EnvironmentLock {
   return { locked: false, reason: null, description: "Otomatik / profil seçimi aktif" };
 }
 
+/** Reasoning effort için kabul edilen değerler (claude --help'te doğrulanan liste). */
+export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
+export type EffortLevel = (typeof EFFORT_LEVELS)[number];
+
+export function isEffortLevel(value: unknown): value is EffortLevel {
+  return typeof value === "string" && (EFFORT_LEVELS as readonly string[]).includes(value);
+}
+
+/**
+ * Yetenek kaynağı: Mac worker'ın raporladığı `--help` çıkarımı önceliklidir.
+ * Coolify container'ında CLI kurulu olmadığı için sunucu tespiti boş döner ve
+ * doğrulanmış bayraklar yanlışlıkla düşer — profil oluşturma/güncelleme bu
+ * fonksiyondan geçmeli.
+ */
+export function effectiveCapabilities(
+  workerCapabilitiesJson: string | null,
+  cli: SupportedCli,
+): CliCapabilities {
+  if (workerCapabilitiesJson) {
+    try {
+      const all = JSON.parse(workerCapabilitiesJson) as CliCapabilities[];
+      const match = all.find((candidate) => candidate.cli === cli);
+      if (match) return match;
+    } catch {
+      /* bozuk kayıt: sunucu tespitine düş */
+    }
+  }
+  return getCachedCapabilities(cli);
+}
+
 /** Profil → doğrulanmış preset argv (shellsiz spawn). Bayrak yalnızca help'te doğrulanmışsa eklenir. */
 export function buildCommandForProfile(input: {
   cli: SupportedCli;
   model?: string | null;
   provider?: string | null;
+  effort?: string | null;
 }, caps: CliCapabilities): string {
   return buildArgvForProfile(input, caps).join(" ");
 }
@@ -48,20 +79,28 @@ export function buildArgvForProfile(input: {
   cli: SupportedCli;
   model?: string | null;
   provider?: string | null;
+  effort?: string | null;
 }, caps: CliCapabilities): string[] {
+  // Effort yalnızca doğrulanmış değerlerden biriyse taşınır; uydurma seviye geçmez.
+  const effort = isEffortLevel(input.effort) ? input.effort : null;
+
   if (input.cli === "claude") {
     const argv = ["claude", "-p"];
     if (input.model && caps.modelFlag) argv.push("--model", input.model.trim().slice(0, 160));
+    if (effort && caps.effortFlag) argv.push("--effort", effort);
     return argv;
   }
   if (input.cli === "codex") {
     const argv = ["codex", "exec"];
     if (caps.sandboxReadonlyFlag) argv.push("--sandbox", "read-only");
     if (input.model && caps.modelFlag) argv.push("-m", input.model.trim().slice(0, 160));
+    // codex'te --effort yok; değer TOML string olarak config override ile verilir.
+    if (effort && caps.configOverrideFlag) argv.push("-c", `model_reasoning_effort="${effort}"`);
     argv.push("-");
     return argv;
   }
   // jcode: mesaj konumsal argüman olarak zorunlu (transport argv).
+  // jcode run'da effort bayrağı yok — profildeki değer bilinçli olarak yok sayılır.
   const argv = ["jcode", "run"];
   if (caps.jsonFlag) argv.push("--json");
   if (input.provider && caps.providerFlag) argv.push("--provider", input.provider.trim().slice(0, 120));
@@ -120,6 +159,7 @@ export function createProfileAdapter(config: {
   cli: SupportedCli;
   model?: string | null;
   provider?: string | null;
+  effort?: string | null;
   transport?: "stdin" | "argv";
   timeout_ms?: number;
 }): AgentAdapter {
@@ -176,10 +216,28 @@ export function profileToSnapshot(profile: AgentProfileRow): AiConfigSnapshot {
     cli: profile.cli,
     model: profile.model,
     provider: profile.provider,
+    effort: profile.effort,
     transport: profile.transport,
     timeout_ms: profile.timeout_ms,
     config_revision: profile.config_revision,
   };
+}
+
+/**
+ * Birincil deneme başarısız olursa sırayla denenecek yedek profil yapılandırmaları.
+ * Sıra `priority` kolonundan gelir (listProfiles zaten ona göre sıralar); birincil
+ * ile aynı CLI atlanır — aynı CLI ikinci kez denemek aynı hatayı verir.
+ *
+ * Saf fonksiyon: hem yerel worker (DB'den okur) hem `/api/worker` claim yanıtı
+ * (remote worker'a gönderir) aynı sırayı üretir.
+ */
+export function orderedFallbackConfigs(
+  profiles: AgentProfileRow[],
+  primaryCli: string | undefined,
+): AiConfigSnapshot[] {
+  return profiles
+    .filter((profile) => profile.enabled === 1 && profile.cli !== primaryCli)
+    .map((profile) => profileToSnapshot(profile));
 }
 
 /** İş snapshot'ına göre adapter seçimi: profil sabitlenmişse o, değilse ortam/otomatik. */
@@ -191,6 +249,7 @@ export function adapterForJobConfig(
       cli: aiConfig.cli as SupportedCli,
       model: aiConfig.model ?? null,
       provider: aiConfig.provider ?? null,
+      effort: aiConfig.effort ?? null,
       transport: aiConfig.transport === "argv" ? "argv" : "stdin",
       timeout_ms: aiConfig.timeout_ms,
     });

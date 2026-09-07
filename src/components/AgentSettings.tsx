@@ -12,6 +12,8 @@ interface CliCapabilities {
   modelFlag: boolean;
   providerFlag: boolean;
   sandboxReadonlyFlag: boolean;
+  effortFlag: boolean;
+  configOverrideFlag: boolean;
   argvRequired: boolean;
   modelOptions: string[] | null;
   notes: string[];
@@ -23,6 +25,8 @@ interface Profile {
   cli: string;
   model: string | null;
   provider: string | null;
+  effort: string | null;
+  priority: number;
   transport: "stdin" | "argv";
   timeout_ms: number;
   enabled: 0 | 1;
@@ -37,6 +41,13 @@ interface ProfilesResponse {
   candidates: CliCapabilities[];
   profiles: Profile[];
   defaultProfileId: number | null;
+}
+
+const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
+
+/** CLI reasoning effort'u argv'ye taşıyabiliyor mu (help ile doğrulanmış bayrak). */
+function supportsEffort(caps: CliCapabilities | undefined): boolean {
+  return Boolean(caps?.effortFlag || caps?.configOverrideFlag);
 }
 
 const labelClass = "flex flex-col gap-1 text-xs text-stone-600 dark:text-stone-400";
@@ -54,6 +65,7 @@ export function AgentSettings() {
     cli: "claude",
     model: "",
     provider: "",
+    effort: "",
     transport: "stdin",
     timeoutMs: "120000",
   });
@@ -89,6 +101,7 @@ export function AgentSettings() {
         cli: form.cli,
         model: form.model.trim() || null,
         provider: form.provider.trim() || null,
+        effort: form.effort || null,
         transport: form.cli === "jcode" ? "argv" : form.transport,
         timeoutMs: Number(form.timeoutMs) || undefined,
       });
@@ -108,6 +121,32 @@ export function AgentSettings() {
       setNotice(profileId ? "Varsayılan profil güncellendi (yeniden başlatma gerekmez)." : "Varsayılan profil kaldırıldı.");
     } catch (defaultError) {
       setError(defaultError instanceof Error ? defaultError.message : "Kaydedilemedi");
+    }
+  }
+
+  /** Zincirdeki komşu profille yer değiştirir (küçük priority önce denenir). */
+  async function move(profile: Profile, direction: -1 | 1): Promise<void> {
+    const ordered = dataRef.current?.profiles ?? [];
+    const index = ordered.findIndex((candidate) => candidate.id === profile.id);
+    const neighbour = ordered[index + direction];
+    if (!neighbour) return;
+    setError(null);
+    try {
+      await mutateJson(`/api/agent/profiles/${profile.id}`, "PATCH", { priority: neighbour.priority });
+      await mutateJson(`/api/agent/profiles/${neighbour.id}`, "PATCH", { priority: profile.priority });
+      await load();
+    } catch (moveError) {
+      setError(moveError instanceof Error ? moveError.message : "Sıra değiştirilemedi");
+    }
+  }
+
+  async function setEffort(profile: Profile, effort: string): Promise<void> {
+    setError(null);
+    try {
+      await mutateJson(`/api/agent/profiles/${profile.id}`, "PATCH", { effort: effort || null });
+      await load();
+    } catch (effortError) {
+      setError(effortError instanceof Error ? effortError.message : "Effort kaydedilemedi");
     }
   }
 
@@ -222,6 +261,8 @@ export function AgentSettings() {
                 {candidate.modelFlag ? <span className="text-stone-500 dark:text-stone-400">--model ✓</span> : null}
                 {candidate.providerFlag ? <span className="text-stone-500 dark:text-stone-400">--provider ✓</span> : null}
                 {candidate.sandboxReadonlyFlag ? <span className="text-stone-500 dark:text-stone-400">read-only sandbox ✓</span> : null}
+                {candidate.effortFlag ? <span className="text-stone-500 dark:text-stone-400">--effort ✓</span> : null}
+                {candidate.configOverrideFlag ? <span className="text-stone-500 dark:text-stone-400">-c config ✓</span> : null}
                 {candidate.argvRequired ? <span className="text-stone-500 dark:text-stone-400">prompt=argv (zorunlu)</span> : null}
                 {candidate.modelOptions ? (
                   <span className="text-stone-500 dark:text-stone-400">model kataloğu: {candidate.modelOptions.length} model</span>
@@ -239,19 +280,35 @@ export function AgentSettings() {
         <h2 id="profiles" className="mb-2 text-sm font-semibold">
           Profiller
         </h2>
+        <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
+          Sıra failover zinciridir: üstteki başarısız olursa bir alttaki denenir.
+          Oklarla sırayı değiştirebilirsin.
+        </p>
         {data.profiles.length === 0 ? (
           <p className="text-xs text-stone-500 dark:text-stone-400">Henüz profil yok — aşağıdan oluştur.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {data.profiles.map((profile) => (
+            {data.profiles.map((profile, index) => (
               <li key={profile.id} className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white/70 p-4 shadow-[0_12px_34px_rgba(28,25,23,0.045)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[11px] font-semibold tabular-nums text-stone-700 dark:bg-stone-700 dark:text-stone-200" title="Failover sırası">
+                    {index + 1}
+                  </span>
                   <span className="text-sm font-semibold">{profile.name}</span>
                   <span className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-700 dark:bg-stone-800 dark:text-stone-300">
                     {profile.cli}
                   </span>
                   {profile.model ? <span className="text-stone-500 dark:text-stone-400">model: {profile.model}</span> : null}
                   {profile.provider ? <span className="text-stone-500 dark:text-stone-400">provider: {profile.provider}</span> : null}
+                  {profile.effort ? (
+                    supportsEffort(data.candidates.find((candidate) => candidate.cli === profile.cli)) ? (
+                      <span className="text-stone-500 dark:text-stone-400">effort: {profile.effort}</span>
+                    ) : (
+                      <span className="text-amber-700 dark:text-amber-400" title="Bu CLI'ın help çıktısında effort bayrağı yok — değer argv'ye eklenmez">
+                        effort: {profile.effort} (bu CLI desteklemiyor)
+                      </span>
+                    )
+                  ) : null}
                   <span className="text-stone-500 dark:text-stone-400">transport: {profile.transport}</span>
                   <span className="text-stone-500 dark:text-stone-400">rev: {profile.config_revision}</span>
                   {data.defaultProfileId === profile.id ? (
@@ -273,7 +330,45 @@ export function AgentSettings() {
                     Bu varsayılan profil henüz doğrulanmadı. İlk işten önce bağlantıyı doğrulaman önerilir.
                   </p>
                 ) : null}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-0.5" role="group" aria-label="Failover sırası">
+                    <button
+                      type="button"
+                      onClick={() => void move(profile, -1)}
+                      disabled={index === 0}
+                      aria-label={`${profile.name} profilini yukarı taşı`}
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-stone-300 text-xs hover:bg-stone-100 disabled:opacity-30 dark:border-stone-700 dark:hover:bg-stone-800"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void move(profile, 1)}
+                      disabled={index === data.profiles.length - 1}
+                      aria-label={`${profile.name} profilini aşağı taşı`}
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-stone-300 text-xs hover:bg-stone-100 disabled:opacity-30 dark:border-stone-700 dark:hover:bg-stone-800"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                  {supportsEffort(data.candidates.find((candidate) => candidate.cli === profile.cli)) ? (
+                    <label className="flex items-center gap-1 text-xs text-stone-600 dark:text-stone-400">
+                      effort
+                      <select
+                        value={profile.effort ?? ""}
+                        onChange={(event) => void setEffort(profile, event.target.value)}
+                        aria-label={`${profile.name} reasoning effort`}
+                        className="min-h-[36px] rounded-md border border-stone-300 bg-white px-2 text-xs dark:border-stone-700 dark:bg-stone-900"
+                      >
+                        <option value="">varsayılan</option>
+                        {EFFORT_LEVELS.map((level) => (
+                          <option key={level} value={level}>
+                            {level}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => void validate(profile)}
@@ -399,6 +494,23 @@ export function AgentSettings() {
                 placeholder="ör. claude"
                 className={inputClass}
               />
+            </label>
+          ) : null}
+          {supportsEffort(data.candidates.find((candidate) => candidate.cli === form.cli)) ? (
+            <label className={labelClass}>
+              Reasoning effort
+              <select
+                value={form.effort}
+                onChange={(event) => setForm((prev) => ({ ...prev, effort: event.target.value }))}
+                className={inputClass}
+              >
+                <option value="">varsayılan</option>
+                {EFFORT_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
             </label>
           ) : null}
           <label className={labelClass}>

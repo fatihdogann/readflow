@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { MobileNav, Sidebar } from "@/components/Sidebar";
@@ -6,6 +6,18 @@ import { MobileNav, Sidebar } from "@/components/Sidebar";
 export const metadata: Metadata = {
   title: "Readflow",
   description: "Local-first kişisel okuma ve metin işleme alanı",
+  applicationName: "Readflow",
+  // Ana ekrana eklenince tam ekran açılsın, başlık "Readflow" görünsün.
+  appleWebApp: { capable: true, title: "Readflow", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf9f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#171512" },
+  ],
+  // Ana ekran uygulamasında çentik altı alan da boyansın.
+  viewportFit: "cover",
 };
 
 const themeInit = `

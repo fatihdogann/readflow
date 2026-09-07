@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { FolderRow } from "@/lib/db/repo/folders";
 import type { JobRow } from "@/lib/db/repo/jobs";
 import type { DocumentDetail } from "@/lib/documents/service";
@@ -11,6 +12,10 @@ import { AiActions, type AiSelection } from "./doc/AiActions";
 import { ContentTabs } from "./doc/ContentTabs";
 import { NotesPanel } from "./doc/NotesPanel";
 import { ChatPanel } from "./doc/ChatPanel";
+import { notifyFoldersChanged } from "@/lib/client/events";
+
+/** Silme sonrası "Geri al" penceresi; dolunca arşive yönlendirilir. */
+const UNDO_WINDOW_MS = 12_000;
 
 export function DocWorkspace({
   initial,
@@ -31,6 +36,16 @@ export function DocWorkspace({
   const [notesOpen, setNotesOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [pendingQuote, setPendingQuote] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState(false);
+  const [undoError, setUndoError] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Silindikten sonra geri alma penceresi: süre dolunca arşive dön.
+  useEffect(() => {
+    if (!deleted) return;
+    const timer = setTimeout(() => router.push("/history"), UNDO_WINDOW_MS);
+    return () => clearTimeout(timer);
+  }, [deleted, router]);
 
   function toggleNotes(): void {
     setNotesOpen((value) => !value);
@@ -39,6 +54,53 @@ export function DocWorkspace({
   function toggleChat(): void {
     setChatOpen((value) => !value);
     setNotesOpen(false);
+  }
+
+  async function undoDelete(): Promise<void> {
+    setUndoError(null);
+    try {
+      const response = await fetch(`/api/documents/${detail.document.id}`, { method: "POST" });
+      if (!response.ok) throw new Error("Geri alınamadı");
+      notifyFoldersChanged();
+      setDeleted(false);
+    } catch {
+      setUndoError("Geri alınamadı — arşivden tekrar dene");
+    }
+  }
+
+  if (deleted) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border border-stone-200 bg-white/70 px-6 py-12 text-center dark:border-stone-800 dark:bg-stone-900/35">
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          <strong className="text-stone-900 dark:text-stone-100">{detail.document.title}</strong> silindi.
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void undoDelete()}
+            autoFocus
+            className="min-h-[40px] rounded-lg bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
+          >
+            Geri al
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/history")}
+            className="min-h-[40px] rounded-lg border border-stone-300 px-4 text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
+          >
+            Arşive dön
+          </button>
+        </div>
+        {undoError ? (
+          <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+            {undoError}
+          </p>
+        ) : null}
+        <p className="text-[11px] text-stone-500 dark:text-stone-400">
+          Bu pencere kapanınca arşive dönersin; doküman çöpte kalır.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -54,7 +116,7 @@ export function DocWorkspace({
           </p>
         ) : null}
 
-        <DocHeader detail={detail} folders={folders} onChange={setDetail} onNotesToggle={toggleNotes} notesOpen={notesOpen} onChatToggle={toggleChat} chatOpen={chatOpen} />
+        <DocHeader detail={detail} folders={folders} onChange={setDetail} onNotesToggle={toggleNotes} notesOpen={notesOpen} onChatToggle={toggleChat} chatOpen={chatOpen} onDeleted={() => setDeleted(true)} />
 
         <AiActions
           detail={detail}

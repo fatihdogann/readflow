@@ -101,7 +101,7 @@ Tool'lar: `readflow_list_pending_jobs`, `readflow_get_job`, `readflow_claim_job`
 
 ## Dışa aktarma
 
-Her çıktı için **Dışa Aktar** menüsü: Panoya Kopyala, TXT, Markdown, PDF (tarayıcı yazdırma → PDF olarak kaydet; tamamen yerel), DOCX (yerelde üretilir). Notion ve Telegram için `.env.local` içine `READFLOW_NOTION_TOKEN`, `READFLOW_NOTION_DATABASE_ID`, `READFLOW_TELEGRAM_BOT_TOKEN`, `READFLOW_TELEGRAM_CHAT_ID` girilmeden butonlar uygulamanın geri kalanını bozmadan "kurulmadı" der.
+Her çıktı için **Dışa Aktar** menüsü: Panoya Kopyala, TXT, Markdown, PDF (sunucuda `pdf-lib` ile gerçek `.pdf` üretilir — Türkçe karakterler için gömülü DejaVu fontu), Yazdır (tarayıcı yazdırma diyaloğu), DOCX (yerelde üretilir). Notion ve Telegram için `.env.local` içine `READFLOW_NOTION_TOKEN`, `READFLOW_NOTION_DATABASE_ID`, `READFLOW_TELEGRAM_BOT_TOKEN`, `READFLOW_TELEGRAM_CHAT_ID` girilmeden butonlar uygulamanın geri kalanını bozmadan "kurulmadı" der.
 
 ## Gizlilik
 
@@ -115,7 +115,7 @@ Tüm veri (dokümanlar, çıktılar, job geçmişi) yalnızca `~/.readflow/` iç
 - **better-sqlite3 kurulmuyor**: `pnpm rebuild better-sqlite3` — Node sürümün için prebuilt binary yoksa Xcode CLT gerekir.
 - **Port 3000 dolu**: `pnpm dev:web -- -p 3001`. Eski Next süreçleri `pkill -f next-server` ile bulunur (Next 16 süreç adını yeniden adlandırır).
 - **Node 26'da "ExperimentalWarning: localStorage"**: `docx` paketinin Node 26 uyumluluk shim'i modül yüklenirken global `localStorage`'a dokunur; zararsızdır ve docx güncellemesiyle kaybolur. Readflow'un kendi kodu Node tarafında localStorage'a erişmez.
-- **URL eklenemiyor (HTTP 403 vb.)**: bazı siteler bot engeli uygular; sayfayı kopyalayıp metin olarak yapıştır.
+- **URL eklenemiyor (HTTP 403/401)**: site bot koruması uyguluyor veya oturum istiyor. Hata mesajı sebebi söyler; şimdilik sayfayı kopyalayıp metin olarak yapıştır.
 
 ## Mimari
 
@@ -126,6 +126,7 @@ Readflow bağımsız süreçler halinde çalışır; hepsi aynı SQLite dosyası
 | Web uygulaması | `pnpm dev:web` | Next.js 16 (App Router): UI, REST API, URL extraction, export servisleri |
 | Worker | `pnpm dev:worker` | `pending` job'ları atomik claim eder, agent CLI'ı çalıştırır, çıktıyı yazar |
 | MCP sunucusu | `pnpm dev:mcp` | Coding agent'lara stdio üzerinden job/doküman tool'ları sunar |
+| Remote worker | `pnpm worker:install` | Uygulama sunucuda (Coolify), AI Mac'te: worker `/api/worker` ucuna outbound HTTPS ile bağlanır, prompt'u alır, CLI'ı çalıştırır, sonucu yazar. launchd servisi olarak açılışta başlar |
 | Agent CLI | senin makinen | AI işini gerçekleştiren `claude` / `codex` / `jcode` / özel script |
 
 ```
@@ -143,21 +144,27 @@ Tarayıcı ──▶ Web (Next.js) ──▶ documents + pending jobs
 
 | Tablo | İçerik |
 |---|---|
-| `documents` | Kaynak içerik: başlık, `source_type` (url/text), source_url/domain, yazar, yayın tarihi, `original_text`, sanitize edilmiş `original_html`, favorite, folder, kişisel `note` (+ `note_updated_at`) |
+| `documents` | Kaynak içerik: başlık, `source_type` (url/text), source_url/domain, yazar, yayın tarihi, `original_text`, sanitize edilmiş `original_html`, favorite, folder, kişisel `note` (+ `note_updated_at`), `deleted_at` (geri alınabilir silme) |
 | `document_outputs` | AI çıktıları: `readability` veya `summary`; özette `summary_level` (short/normal/detailed). `UNIQUE(document, operation, level)` — aynı işlem yeniden çalıştırılırsa **upsert** olur, orijinal içerik asla overwrite edilmez |
 | `jobs` | Kuyruk: status (`pending → processing → completed/failed`), attempts, error, zaman damgaları |
 | `folders`, `tags`, `document_tags` | Arşiv organizasyonu (many-to-many etiketler, FK `ON DELETE CASCADE/SET NULL`) |
-| `documents_fts` | FTS5 sanal tablosu (external content) + INSERT/UPDATE/DELETE trigger'ları ile senkron tam metin arama; SQLite derlemesinde FTS5 yoksa LIKE fallback |
+| `document_edits` | Kullanıcının kendi sürümü: içerik + `revision` (optimistic concurrency; uyumsuz revision → 409). Orijinal asla değişmez |
+| `document_output_revisions` | Her AI çıktısının **değişmez** sürüm geçmişi (agent adı, provenance, job id) |
+| `document_annotations` | Vurgular: alıntı + önek/sonek bağlamı, renk, nota bağlı not. Metnin içine yazılmaz |
+| `chat_conversations`, `chat_messages` | Belge bazlı "AI'a sor" sohbeti; her mesaj kendi snapshot'ı (kaynak, alıntı, AI yapılandırması) ile saklanır |
+| `agent_profiles` | AI profilleri: cli, model, provider, reasoning effort, transport, timeout, `priority` (failover sırası), doğrulama bilgileri |
+| `documents_fts`, `document_edits_fts`, `document_outputs_fts` | FTS5 sanal tabloları (external content) + trigger'larla senkron tam metin arama; SQLite derlemesinde FTS5 yoksa LIKE fallback |
 
 Şema sürümü `meta` tablosunda tutulur; migration'lar `src/lib/db/migrations.ts` içinde transaction ile uygulanır (ORM yok — typed repo katmanı + prepared statement'lar).
 
 ### Job yaşam döngüsü (pending job protokolü)
 
-1. UI `POST /api/jobs` der → `pending` satırı (aynı iş aktifse idempotent: yeni satır açılmaz).
-2. Worker `claimNextJob` ile `BEGIN IMMEDIATE` transaction içinde claim eder: `pending → processing`, attempts+1. İki worker aynı anda çalışsa bile çift dağıtım olmaz.
+1. UI `POST /api/jobs` der → `pending` satırı. **Kaynak metin, dahil edilen notlar ve AI yapılandırması job satırına snapshot olarak yazılır**; sonraki düzenlemeler bekleyen işi etkilemez, retry aynı snapshot'la çalışır. Aynı iş aktifse idempotent: yeni satır açılmaz.
+2. Worker `claimNextJob` ile `BEGIN IMMEDIATE` transaction içinde claim eder: `pending → processing`, attempts+1, **owner + lease** atanır. İki worker (veya MCP tüketicisi) aynı anda çalışsa bile çift dağıtım olmaz; uzun işlerde lease ayrı interval'de yenilenir.
 3. Prompt `src/lib/ai/instructions` altındaki talimatlardan üretilir (80k karakter üstü kaynakta kısaltma notuyla), `AgentAdapter.run` çağrılır: prompt **stdin**'e yazılır, sonuç **stdout**'tan okunur, timeout'ta süreç SIGKILL'lenir.
-4. Başarıda `completeJob` tek transaction'da çıktıyı upsert eder ve job'ı `completed` yapar; hatada job `failed` olur, hata mesajı UI'da görünür ve "Yeniden dene" ile tekrar kuyruğa alınabilir (attempts < 5).
-5. Worker açılışta takılı kalmış `processing` job'ları geri `pending` yapar; her döngüde kalp atışını `meta`'ya yazar. `/api/agent/status` bu kalp atışından sidebar rozetini besler: *Agent hazır / Agent bağlı değil / İş işleniyor / Worker kapalı*.
+4. Başarıda `completeJob` sahipliği doğrular, tek transaction'da çıktıyı upsert eder, **değişmez bir `document_output_revisions` satırı** ekler ve job'ı `completed` yapar. Sahiplik değiştiyse geç gelen sonuç reddedilir — eski sahip yeni denemeyi ezmez. Hatada job `failed` olur, "Yeniden dene" ile tekrar kuyruğa alınabilir (attempts < 5).
+5. Worker açılışta toplu `processing → pending` çevirmez; yalnızca **lease süresi dolmuş** işler kurtarılır (`recoverExpiredLeases`), böylece hâlâ çalışan bir worker'ın işi elinden alınmaz. Her döngüde kalp atışı `meta`'ya yazılır; `/api/agent/status` bundan sidebar rozetini besler: *Agent hazır / Agent bağlı değil / İş işleniyor / Worker kapalı*.
+6. Birincil profil hata verirse **failover zinciri** devreye girer: Ayarlar'daki profil sırasına göre (varsayılan jcode → codex → claude) sıradaki profil denenir. Kullanıcı işi iptal ederse zincir durur.
 
 ### Katman sorumlulukları
 
