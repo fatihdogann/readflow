@@ -147,6 +147,7 @@ export function ContentTabs({
   onSummaryLevelChange,
   onNotice,
   onEditChange,
+  onAskWithQuote,
 }: {
   detail: DocumentDetail;
   tab: TabKey;
@@ -155,12 +156,14 @@ export function ContentTabs({
   onSummaryLevelChange: (level: SummaryLevel) => void;
   onNotice: (message: string) => void;
   onEditChange: (edit: DocumentDetail["edit"]) => void;
+  onAskWithQuote: (quote: string) => void;
 }) {
   const doc = detail.document;
   const [editing, setEditing] = useState(false);
   const [compare, setCompare] = useState(false);
   const [aiRevision, setAiRevision] = useState<{ id: number; content: string } | null>(null);
   const [summaryRevision, setSummaryRevision] = useState<{ id: number; content: string } | null>(null);
+  const [focusNoteId, setFocusNoteId] = useState<number | null>(null);
   const { annotations, create: createAnnotation, update: updateAnnotation, remove: removeAnnotation } = useAnnotations(doc.id);
 
   const originalAnnotations = annotations.filter((item) => item.content_kind === "original");
@@ -176,6 +179,16 @@ export function ContentTabs({
       element.classList.add("hl-flash");
       setTimeout(() => element.classList.remove("hl-flash"), 1600);
     }
+  };
+
+  const focusNote = (annotationId: number): void => {
+    setFocusNoteId(annotationId);
+    setTimeout(() => {
+      document
+        .querySelector<HTMLTextAreaElement>(`textarea[data-ann-id="${annotationId}"]`)
+        ?.focus();
+      document.getElementById("annotations-heading")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
   };
 
   const readabilityOutput = useMemo(
@@ -458,6 +471,7 @@ export function ContentTabs({
         </h2>
         <AnnotationList
           annotations={annotations}
+          focusNoteId={focusNoteId}
           onUpdate={(id, patch) => updateAnnotation(id, patch)}
           onRemove={(id) => removeAnnotation(id)}
           onGoTo={goToAnnotation}
@@ -470,10 +484,9 @@ export function ContentTabs({
           contentKind="original"
           contentRevision={0}
           fullTextResolver={() => doc.original_text}
-          onCreate={async (input) => {
-            const result = await createAnnotation(input);
-            return result;
-          }}
+          onCreate={async (input) => createAnnotation(input)}
+          onNoteCreated={(annotationId) => focusNote(annotationId)}
+          onAskWithQuote={onAskWithQuote}
         />
       ) : null}
     </div>

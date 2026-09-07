@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { PDFDocument } from "pdf-lib";
 import { buildDocxBuffer } from "./docx";
+import { buildPdf } from "./pdf";
 import { buildMarkdown, buildTxt, slugify } from "./format";
 import { NotionExporter } from "./notion";
 import { TelegramExporter } from "./telegram";
@@ -74,6 +76,19 @@ describe("docx", () => {
     const buffer = await buildDocxBuffer(payload);
     expect(buffer.length).toBeGreaterThan(1000);
     expect(buffer.subarray(0, 2).toString("latin1")).toBe("PK");
+  });
+});
+
+describe("pdf", () => {
+  it("gerçek PDF üretir, açılır, Türkçe başlık ve sayfa içerir", async () => {
+    const bytes = await buildPdf(
+      { ...payload, output: null, editedContent: "## Türkçe Bölüm\n\n- ğüvenli madde: %12 → %20\n\n```\nkod\n```" },
+      "Düzenlenmiş",
+    );
+    expect(Buffer.from(bytes.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
+    const loaded = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    expect(loaded.getPageCount()).toBeGreaterThanOrEqual(1);
+    expect(loaded.getTitle()).toBe("Örnek Yazı");
   });
 });
 

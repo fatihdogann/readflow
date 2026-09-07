@@ -81,6 +81,11 @@ export function DocWorkspace({
           onSummaryLevelChange={(level: SummaryLevel) => setSelection((prev) => ({ ...prev, summaryLevel: level }))}
           onNotice={setNotice}
           onEditChange={(edit) => setDetail({ ...detail, edit })}
+          onAskWithQuote={(quote) => {
+            setPendingQuote(quote);
+            setChatOpen(true);
+            setNotesOpen(false);
+          }}
         />
       </div>
 

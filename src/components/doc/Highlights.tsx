@@ -40,7 +40,7 @@ export function useAnnotations(documentId: number) {
       selection: SelectionPoint;
       fullText: string;
       color: AnnotationColor;
-    }): Promise<{ ok: boolean; message: string }> => {
+    }): Promise<{ ok: boolean; message: string; annotationId?: number }> => {
       const { quote, prefix, suffix } = buildQuoteContext(
         input.fullText,
         input.selection.start,
@@ -61,7 +61,7 @@ export function useAnnotations(documentId: number) {
           },
         );
         setAnnotations((prev) => [...prev, body.annotation]);
-        return { ok: true, message: "Vurgu eklendi." };
+        return { ok: true, message: "Vurgu eklendi.", annotationId: body.annotation.id };
       } catch (error) {
         return { ok: false, message: error instanceof Error ? error.message : "Vurgu eklenemedi" };
       }
@@ -274,6 +274,8 @@ export function SelectionToolbar({
   contentRevision,
   fullTextResolver,
   onCreate,
+  onNoteCreated,
+  onAskWithQuote,
 }: {
   containerSelector: string;
   contentKind: "original" | "edited";
@@ -285,7 +287,9 @@ export function SelectionToolbar({
     selection: SelectionPoint;
     fullText: string;
     color: AnnotationColor;
-  }) => Promise<{ ok: boolean; message: string }>;
+  }) => Promise<{ ok: boolean; message: string; annotationId?: number }>;
+  onNoteCreated: (annotationId: number) => void;
+  onAskWithQuote: (quote: string) => void;
 }) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [selection, setSelection] = useState<SelectionPoint | null>(null);
@@ -356,6 +360,25 @@ export function SelectionToolbar({
     });
   };
 
+  const addNote = () => {
+    void onCreate({
+      contentKind,
+      contentRevision,
+      selection,
+      fullText: fullTextResolver(),
+      color: "yellow",
+    }).then((result) => {
+      if (result.ok && result.annotationId) {
+        window.getSelection()?.removeAllRanges();
+        setPosition(null);
+        setSelection(null);
+        onNoteCreated(result.annotationId);
+      } else {
+        setFeedback(result.message);
+      }
+    });
+  };
+
   return (
     <div
       role="toolbar"
@@ -379,6 +402,30 @@ export function SelectionToolbar({
           onClick={() => addHighlight(option.color)}
         />
       ))}
+      <span className="mx-0.5 h-5 w-px bg-stone-200 dark:bg-stone-700" aria-hidden />
+      <button
+        type="button"
+        title="Seçime vurgu ekleyip not yaz"
+        aria-label="Not ekle"
+        className="h-9 rounded px-2 text-xs font-medium text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+        onClick={addNote}
+      >
+        Not ekle
+      </button>
+      <button
+        type="button"
+        title="Seçili bölümü sohbette sor"
+        aria-label="AI'a sor"
+        className="h-9 rounded px-2 text-xs font-medium text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+        onClick={() => {
+          onAskWithQuote(fullTextResolver().slice(selection.start, selection.end));
+          window.getSelection()?.removeAllRanges();
+          setPosition(null);
+          setSelection(null);
+        }}
+      >
+        AI&apos;a sor
+      </button>
       {feedback ? <span className="px-1 text-[11px] text-red-600 dark:text-red-400">{feedback}</span> : null}
     </div>
   );
@@ -387,16 +434,30 @@ export function SelectionToolbar({
 /** Vurgu notlarının panel listesi ( popover yerine satır içi düzenleme). */
 export function AnnotationList({
   annotations,
+  focusNoteId,
   onUpdate,
   onRemove,
   onGoTo,
 }: {
   annotations: AnnotationRow[];
+  focusNoteId: number | null;
   onUpdate: (id: number, patch: { note?: string; color?: AnnotationColor }) => Promise<boolean>;
   onRemove: (id: number) => Promise<boolean>;
   onGoTo: (id: number) => void;
 }) {
   const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const lastFocused = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (focusNoteId === null || focusNoteId === lastFocused.current) return;
+    lastFocused.current = focusNoteId;
+    const timer = setTimeout(() => {
+      document
+        .querySelector<HTMLTextAreaElement>(`textarea[data-ann-id="${focusNoteId}"]`)
+        ?.focus();
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [focusNoteId]);
 
   if (annotations.length === 0) {
     return (
@@ -438,6 +499,7 @@ export function AnnotationList({
                   const draft = drafts[annotation.id] ?? annotation.note;
                   if (draft !== annotation.note) void onUpdate(annotation.id, { note: draft });
                 }}
+                data-ann-id={annotation.id}
                 placeholder="Bu alıntıya not ekle…"
                 rows={2}
                 aria-label="Alıntı notu"
