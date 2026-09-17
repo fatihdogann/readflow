@@ -75,6 +75,7 @@
         <div class="card"><h3>Highlights and notes</h3><p>Three colors, notes, every highlight on one page, copy as Markdown.</p></div>
         <div class="card"><h3>AI via your local agent</h3><p>Short, normal or detailed summaries and readability rewrites, with an immutable history for every output.</p></div>
         <div class="card"><h3>Four separate versions</h3><p>The original never changes; your edit, the AI rewrite and the summary are stored separately.</p></div>
+        <div class="card"><h3>Reads offline</h3><p>The last 60 pages you opened stay in the browser: readable on a plane, on the metro, or while the Mac sleeps.</p></div>
         <div class="card"><h3>Export</h3><p>Markdown, TXT, DOCX, PDF; optional Notion and Telegram.</p></div>
       </div>
     </section>
@@ -98,6 +99,13 @@
           <figcaption>Highlights: quotes and notes across all documents.</figcaption>
         </figure>
       </div>
+      <figure class="shot mt">
+        <picture>
+          <source srcset="/assets/settings-dark.jpg" media="(prefers-color-scheme: dark)">
+          <img src="/assets/settings-light.jpg" width="2560" height="1600" loading="lazy" alt="Settings screen: send from browser, backup and migration, active AI profile">
+        </picture>
+        <figcaption>Settings: bookmarklet and phone shortcut, backup download, the agent in use.</figcaption>
+      </figure>
       <div class="two mobile mt">
         <p class="note">The same archive on your phone. Remote access works only from approved devices, over Tailscale.</p>
         <figure class="shot">
@@ -154,6 +162,7 @@
         </ul>
         <ul class="checks">
           <li>SSRF protection with a DNS lookup before every fetch.</li>
+          <li>Nonce-based CSP, framing denied, login attempts rate-limited.</li>
           <li>Agent commands run without a shell; CLI flags are verified against <code>--help</code> output.</li>
           <li>Data directory is <code>0700</code>, database <code>0600</code>; user data never enters Git.</li>
         </ul>

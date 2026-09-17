@@ -30,6 +30,13 @@ export function getOrCreateIngestToken(): string {
   return token;
 }
 
+/** Token'ı iptal edip yenisini üretir: eski bookmarklet ve Kestirme çalışmaz olur. */
+export function rotateIngestToken(): string {
+  const token = randomBytes(24).toString("base64url");
+  setMeta(getDb(), TOKEN_KEY, token);
+  return token;
+}
+
 function authorized(request: Request): boolean {
   const expected = getMeta(getDb(), TOKEN_KEY);
   if (!expected) return false; // token üretilmemişse uç kapalı

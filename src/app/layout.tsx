@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import Script from "next/script";
 import "./globals.css";
 import { MobileNav, Sidebar } from "@/components/Sidebar";
@@ -30,12 +31,14 @@ try {
 } catch (e) {}
 `;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // CSP nonce proxy.ts'te üretilir; satır içi tema script'i bununla çalışır.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="tr" suppressHydrationWarning>
       <body className="min-h-screen bg-[#faf9f7] text-stone-900 antialiased dark:bg-[#171512] dark:text-stone-200">
         {/* Tema başlangıcı: hydrate öncesi çalışır, parlaklık sıçramasını önler */}
-        <Script id="theme-init" strategy="beforeInteractive">{themeInit}</Script>
+        <Script id="theme-init" strategy="beforeInteractive" nonce={nonce}>{themeInit}</Script>
         <ServiceWorker />
         <a
           href="#main-content"

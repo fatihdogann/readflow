@@ -102,6 +102,11 @@ pnpm app:install
 
 Geri yükleme mevcut veritabanını önce `backups/pre-restore-*.sqlite` olarak yedekler, sonra tablo sayılarının eşleştiğini doğrular.
 
+## Token sızarsa
+
+Bookmarklet bağlantısı veya iPhone Kestirmesi başkasının eline geçtiyse: Ayarlar → *Tarayıcıdan gönder* →
+**Token'ı yenile**. Eski bağlantı ve kestirme anında çalışmaz olur; ikisini de yeniden kurman gerekir.
+
 ## Bakım komutları
 
 | Komut | Ne yapar |

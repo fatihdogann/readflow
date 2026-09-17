@@ -25,8 +25,44 @@ function isPublic(pathname: string): boolean {
  * istek oturum cookie'siyle yetkilendirilmek zorundadır — cookie HttpOnly +
  * SameSite=Lax olduğundan tarayıcılar arası CSRF yüzeyi kapalıdır.
  */
+/**
+ * İçerik güvenlik politikası. Script tarafı sıkı: her istekte üretilen nonce +
+ * `strict-dynamic`, yani sayfaya sızan bir script çalışamaz. Stil tarafında
+ * `unsafe-inline` var çünkü birkaç bileşen satır içi `style` kullanıyor
+ * (okuma ilerlemesi, vurgu konumlandırma). `upgrade-insecure-requests` yok:
+ * uygulama http://127.0.0.1 üzerinden de açılıyor.
+ */
+function cspFor(nonce: string): string {
+  const dev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+}
+
 export default async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (!isAuthConfigured()) return NextResponse.next();
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const csp = cspFor(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  /** CSP her yanıta eklenir; nonce yalnız sayfa render'ına geçer. */
+  const withCsp = (response: NextResponse): NextResponse => {
+    response.headers.set("Content-Security-Policy", csp);
+    return response;
+  };
+  const pass = (): NextResponse => withCsp(NextResponse.next({ request: { headers: requestHeaders } }));
+
+  if (!isAuthConfigured()) return pass();
 
   const { pathname } = request.nextUrl;
 
@@ -36,21 +72,21 @@ export default async function proxy(request: NextRequest): Promise<NextResponse>
     if (origin) {
       const originHost = new URL(origin).host;
       if (originHost !== request.headers.get("host")) {
-        return NextResponse.json({ error: "Origin uyuşmuyor" }, { status: 403 });
+        return withCsp(NextResponse.json({ error: "Origin uyuşmuyor" }, { status: 403 }));
       }
     }
   }
 
-  if (isPublic(pathname)) return NextResponse.next();
+  if (isPublic(pathname)) return pass();
 
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
-  if (token && (await verifySessionToken(token))) return NextResponse.next();
+  if (token && (await verifySessionToken(token))) return pass();
 
   if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "Oturum gerekli" }, { status: 401 });
+    return withCsp(NextResponse.json({ error: "Oturum gerekli" }, { status: 401 }));
   }
   const loginUrl = new URL("/login", request.url);
-  return NextResponse.redirect(loginUrl);
+  return withCsp(NextResponse.redirect(loginUrl));
 }
 
 export const config = {

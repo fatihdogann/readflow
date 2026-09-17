@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { assertMutationAllowed } from "@/lib/api/local";
 import { apiErrorResponse } from "@/lib/api/http";
-import { getOrCreateIngestToken } from "../ingest/route";
+import { getOrCreateIngestToken, rotateIngestToken } from "../ingest/route";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,17 @@ export const dynamic = "force-dynamic";
  * token'ıyla eriştiği, oturum sınırının dışındaki uç. Token'ı döndüren bu uç
  * ise oturum ister.
  */
+/** Token'ı yeniler; eski bookmarklet/Kestirme geçersiz olur. Oturum gerektirir. */
+export async function POST(request: Request): Promise<Response> {
+  try {
+    await assertMutationAllowed(request);
+    rotateIngestToken();
+    return Response.json({ ok: true });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
+}
+
 export async function GET(request: Request): Promise<Response> {
   try {
     await assertMutationAllowed(request);

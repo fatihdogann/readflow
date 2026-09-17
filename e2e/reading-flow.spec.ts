@@ -93,3 +93,25 @@ test("çevrimdışıyken daha önce açılan belge önbellekten okunur", async (
     await context.setOffline(false);
   }
 });
+
+test("güvenlik başlıkları uygulanır ve CSP sayfayı bozmaz", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Başlıklar projeden bağımsız");
+
+  const violations: string[] = [];
+  page.on("console", (message) => {
+    if (/Content Security Policy|Refused to/i.test(message.text())) violations.push(message.text());
+  });
+
+  const response = await page.goto("/");
+  const headers = response?.headers() ?? {};
+  expect(headers["content-security-policy"]).toMatch(/script-src [^;]*'nonce-/);
+  expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+  expect(headers["x-frame-options"]).toBe("DENY");
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+  expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+
+  // Tema script'i (nonce'lu satır içi) çalıştıysa sınıf bilgisi uygulanmıştır.
+  await expect(page.getByRole("heading", { name: "Okumak istediğin şeyi buraya bırak." })).toBeVisible();
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 15_000 });
+  expect(violations).toEqual([]);
+});

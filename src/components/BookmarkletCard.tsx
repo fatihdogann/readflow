@@ -13,6 +13,7 @@ export function BookmarkletCard() {
   const [href, setHref] = useState<string | null>(null);
   const [shortcut, setShortcut] = useState<{ ingestUrl: string; token: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [confirmRotate, setConfirmRotate] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +33,22 @@ export function BookmarkletCard() {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
+
+  /** Token'ı iptal eder; eski bookmarklet ve Kestirme çalışmaz olur. */
+  async function rotate(): Promise<void> {
+    setConfirmRotate(false);
+    const response = await fetch("/api/bookmarklet", { method: "POST" });
+    if (!response.ok) {
+      setError("Token yenilenemedi");
+      return;
+    }
+    const fresh = await fetch("/api/bookmarklet", { cache: "no-store" });
+    const body = (await fresh.json()) as { href: string; ingestUrl: string; token: string };
+    setHref(body.href);
+    setShortcut({ ingestUrl: body.ingestUrl, token: body.token });
+    setCopied(null);
+    setError(null);
+  }
 
   async function copy(label: string, value: string): Promise<void> {
     try {
@@ -120,12 +137,39 @@ export function BookmarkletCard() {
         </details>
       ) : null}
 
-      <p className="mt-3 border-t border-stone-200 pt-2 text-[11px] text-stone-500 dark:border-stone-800 dark:text-stone-400">
-        Bağlantı bir erişim token&apos;ı taşır — yalnızca &quot;doküman ekle&quot; yetkisi verir.
-        Paylaşma; yer imini silmek yetkiyi kaldırmaz, gerekiyorsa sunucudaki
-        <code className="mx-1 rounded bg-stone-200/70 px-1 dark:bg-stone-800">ingest_token</code>
-        kaydını temizle.
-      </p>
+      <div className="mt-3 border-t border-stone-200 pt-2 text-[11px] text-stone-500 dark:border-stone-800 dark:text-stone-400">
+        <p>
+          Bağlantı bir erişim token&apos;ı taşır — yalnızca &quot;doküman ekle&quot; yetkisi verir.
+          Paylaşma; yer imini silmek yetkiyi kaldırmaz. Token sızdıysa yenile: eski bookmarklet ve
+          telefon kestirmesi çalışmaz olur, ikisini de yeniden kurman gerekir.
+        </p>
+        {confirmRotate ? (
+          <span className="mt-2 inline-flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void rotate()}
+              className="min-h-8 rounded-lg bg-red-600 px-3 text-white hover:bg-red-700"
+            >
+              Evet, yenile
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmRotate(false)}
+              className="min-h-8 rounded-lg px-3 hover:bg-stone-200/60 dark:hover:bg-stone-800"
+            >
+              Vazgeç
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmRotate(true)}
+            className="mt-2 min-h-8 rounded-lg border border-stone-300 px-3 dark:border-stone-700"
+          >
+            Token&apos;ı yenile
+          </button>
+        )}
+      </div>
     </section>
   );
 }

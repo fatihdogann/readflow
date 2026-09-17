@@ -75,6 +75,7 @@
         <div class="card"><h3>Vurgular ve notlar</h3><p>Üç renk, not ekleme, tüm vurgular tek sayfada, Markdown olarak kopyalama.</p></div>
         <div class="card"><h3>Yerel agent ile AI</h3><p>Kısa/Normal/Detaylı özet ve okunabilirlik düzenlemesi; her çıktının değişmez sürüm geçmişi.</p></div>
         <div class="card"><h3>Dört ayrı içerik</h3><p>Orijinal asla değişmez; senin düzenlemen, AI düzenlemesi ve özet ayrı tutulur.</p></div>
+        <div class="card"><h3>Çevrimdışı okunur</h3><p>Açtığın son 60 sayfa tarayıcıda saklanır: uçakta, metroda ya da Mac uykudayken de okunur.</p></div>
         <div class="card"><h3>Dışa aktarma</h3><p>Markdown, TXT, DOCX, PDF; isteğe bağlı Notion ve Telegram.</p></div>
       </div>
     </section>
@@ -98,6 +99,13 @@
           <figcaption>Vurgular: tüm belgelerdeki alıntılar ve notlar.</figcaption>
         </figure>
       </div>
+      <figure class="shot mt">
+        <picture>
+          <source srcset="/assets/settings-dark.jpg" media="(prefers-color-scheme: dark)">
+          <img src="/assets/settings-light.jpg" width="2560" height="1600" loading="lazy" alt="Ayarlar ekranı: tarayıcıdan gönderme, yedek ve taşıma, çalışan AI profili">
+        </picture>
+        <figcaption>Ayarlar: bookmarklet ve telefon kestirmesi, yedek indirme, çalışan agent.</figcaption>
+      </figure>
       <div class="two mobile mt">
         <p class="note">Telefonda da aynı arşiv. Uzaktan erişim yalnızca izinli cihazlardan, Tailscale üzerinden yapılır.</p>
         <figure class="shot">
@@ -154,6 +162,7 @@
         </ul>
         <ul class="checks">
           <li>URL indirmede her istekte DNS çözümlemesi ile SSRF koruması.</li>
+          <li>Nonce tabanlı CSP, çerçevelemeye kapalı; giriş denemeleri sınırlı.</li>
           <li>Agent komutları shell olmadan çalışır; CLI bayrakları <code>--help</code> çıktısıyla doğrulanır.</li>
           <li>Veri dizini <code>0700</code>, veritabanı <code>0600</code> izinli; kullanıcı verisi Git'e girmez.</li>
         </ul>

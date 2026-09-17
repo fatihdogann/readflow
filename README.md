@@ -230,6 +230,9 @@ Katmanlar tek yönlü bağımlılıkla ayrışır: UI → servisler → repo'lar
 ### Güvenlik duruşu
 
 - Remote LLM API'si yok; ağa çıkan tek yerler URL fetch'i ve opsiyonel Notion/Telegram entegrasyonlarıdır.
+- Her istekte nonce üretilen CSP (`proxy.ts`) + sabit başlıklar (`next.config.ts`): çerçeveleme kapalı, dış script çalışmaz, arama motorlarına kapalı.
+- Giriş denemesi sınırı: istemci başına 10 dakikada 8 hatalı denemeden sonra 429.
+- Bookmarklet/Kestirme token'ı Ayarlar'dan yenilenebilir; eski bağlantılar anında geçersiz olur.
 - `CommandAgentAdapter` shell çalıştırmaz: komut quote-duyarlı tokenizer ile parçalanıp doğrudan `spawn(program, args)` verilir; prompt hiçbir zaman argv'ya gömülü değil (stdin).
 - AI çıktıları `react-markdown` ile render edilir (ham HTML çalıştırılmaz); URL'den gelen HTML zaten kayıt sırasında sanitize edildi.
 - Credential'lar (Notion/Telegram) veritabanına yazılmaz, yalnızca environment'tan okunur.
@@ -239,6 +242,7 @@ Günlük kullanım: [docs/KULLANIM.md](docs/KULLANIM.md) · Kurulum: [docs/INSTA
 ## Sınırlar
 
 - Tek kullanıcılıdır; hesap, çoklu kullanıcı veya cloud sync yoktur.
+- Çevrimdışı okuma son 60 sayfayla sınırlıdır; API istekleri önbelleğe alınmaz, yani arama ve AI işleri bağlantı ister.
 - OCR yalnızca sistemde `tesseract` ve `pdftoppm` kuruluysa çalışır; el yazısı için uygun değildir.
 - Servis kurulumu (`app:install`) yalnızca macOS içindir; Linux/Windows'ta `pnpm app:start` elle çalıştırılır.
 
