@@ -94,7 +94,15 @@ READFLOW_AGENT_CMD="codex exec -"       # worker repo kökünde çalışır (git
 READFLOW_AGENT_CMD="jcode run"          # jcode mesajı argüman ister: READFLOW_AGENT_PROMPT_VIA=argv
 READFLOW_AGENT_MODE=none                # AI'yı tamamen kapat; işler pending kalır
 READFLOW_AGENT_TIMEOUT_MS=120000
+
+# OCR (taranmış PDF) — sistem tesseract + pdftoppm varsa otomatik
+READFLOW_OCR=off                # tamamen kapat
+READFLOW_OCR_LANG=tur+eng       # kurulu tesseract dilleri
+READFLOW_OCR_MAX_PAGES=50       # bir PDF'ten okunacak en fazla sayfa
 ```
+
+> Çok sayfalı taramalarda web isteği uzun sürer; 50 sayfanın üstündeki belgeleri
+> `pnpm import:files <dosya>` ile ekle (HTTP zaman aşımı yoktur).
 
 Kendi script'in de olur — sözleşme basit: stdin → prompt, stdout → Markdown çıktı. Denemek için: `READFLOW_AGENT_CMD="node scripts/mock-agent.mjs"`.
 
@@ -224,7 +232,7 @@ Katmanlar tek yönlü bağımlılıkla ayrışır: UI → servisler → repo'lar
 - AI çıktıları `react-markdown` ile render edilir (ham HTML çalıştırılmaz); URL'den gelen HTML zaten kayıt sırasında sanitize edildi.
 - Credential'lar (Notion/Telegram) veritabanına yazılmaz, yalnızca environment'tan okunur.
 
-Ayrıntı ve "projeyi çalıştır" protokolü için [AGENTS.md](AGENTS.md). Güvenlik bildirimi: [SECURITY.md](SECURITY.md).
+Günlük kullanım: [docs/KULLANIM.md](docs/KULLANIM.md) · Kurulum: [docs/INSTALL.md](docs/INSTALL.md) · Ayrıntı ve "projeyi çalıştır" protokolü: [AGENTS.md](AGENTS.md). Güvenlik bildirimi: [SECURITY.md](SECURITY.md).
 
 ## Sınırlar
 

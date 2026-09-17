@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { detectKind, extractFromBuffer } from "./fromBuffer";
-import { ocrAvailable } from "./ocr";
+import { ocrAvailable, ocrMaxPages } from "./ocr";
 import { InputError } from "../types";
 
 const fixture = (name: string): Buffer =>
@@ -71,6 +71,15 @@ describe("taranmış PDF (OCR)", () => {
     const result = await extractFromBuffer(scanned(), { fileName: "scanned.pdf" });
     expect(result.originalText).toMatch(/Readflow PDF/i);
     expect(result.domain).toBe("pdf-ocr");
+  });
+
+  it("sayfa sınırı env ile değişir, geçersiz değerde varsayılana döner", () => {
+    expect(ocrMaxPages()).toBe(50);
+    vi.stubEnv("READFLOW_OCR_MAX_PAGES", "300");
+    expect(ocrMaxPages()).toBe(300);
+    vi.stubEnv("READFLOW_OCR_MAX_PAGES", "sıfır");
+    expect(ocrMaxPages()).toBe(50);
+    vi.unstubAllEnvs();
   });
 
   it("OCR araçları yoksa kurulum ipucuyla reddeder", async () => {

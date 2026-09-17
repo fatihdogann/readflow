@@ -6,9 +6,15 @@ import { promisify } from "node:util";
 
 const run = promisify(execFile);
 
-/** Uzun taramalar tek istekte sonsuza kadar sürmesin. */
-const MAX_PAGES = 50;
+/** Uzun taramalar tek istekte sonsuza kadar sürmesin; READFLOW_OCR_MAX_PAGES ile değişir. */
+const DEFAULT_MAX_PAGES = 50;
 const PAGE_TIMEOUT_MS = 120_000;
+
+export function ocrMaxPages(): number {
+  const raw = Number(process.env.READFLOW_OCR_MAX_PAGES);
+  if (!Number.isFinite(raw) || raw < 1) return DEFAULT_MAX_PAGES;
+  return Math.floor(raw);
+}
 
 /**
  * Yerel OCR: poppler (`pdftoppm`) sayfaları görsele çevirir, `tesseract` okur.
@@ -35,14 +41,16 @@ export const OCR_INSTALL_HINT =
   "OCR için tesseract ve poppler gerekli (macOS: brew install tesseract tesseract-lang poppler; " +
   "Debian/Ubuntu: apt install tesseract-ocr tesseract-ocr-tur poppler-utils).";
 
-/** PDF'in ilk MAX_PAGES sayfasını OCR'lar; sayfalar boş satırla ayrılır. */
+/** PDF'in ilk `ocrMaxPages()` sayfasını OCR'lar; sayfalar boş satırla ayrılır. */
 export async function ocrPdf(buffer: Buffer): Promise<string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "readflow-ocr-"));
   try {
     const input = path.join(dir, "input.pdf");
     fs.writeFileSync(input, buffer);
-    await run("pdftoppm", ["-r", "200", "-png", "-l", String(MAX_PAGES), input, path.join(dir, "page")], {
-      timeout: PAGE_TIMEOUT_MS,
+    const maxPages = ocrMaxPages();
+    // Dönüştürme tüm sayfaları tek seferde yapar: süre sayfa sayısıyla ölçeklenir.
+    await run("pdftoppm", ["-r", "200", "-png", "-l", String(maxPages), input, path.join(dir, "page")], {
+      timeout: 60_000 + maxPages * 4_000,
     });
     const pages = fs
       .readdirSync(dir)
