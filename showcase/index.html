@@ -27,6 +27,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/", "description": "Bağlantı, metin ve PDF'leri arşivleyen, vurgulayan ve kendi coding-agent CLI'ınla özetleyen local-first okuma uygulaması.", "inLanguage": "tr", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og.jpg"}</script>
 </head>
 <body>
 <div class="wrap">
@@ -35,18 +36,19 @@
     <nav class="top" aria-label="Sayfa">
       <a href="#ozellikler">Özellikler</a>
       <a href="#mimari">Mimari</a>
+      <a href="https://github.com/fatihdogann/readflow">GitHub</a>
       <a href="/en/" hreflang="en" lang="en">English</a>
     </nav>
   </header>
 
   <main>
     <div class="hero">
-      <p class="eyebrow">Local-first · kişisel proje</p>
+      <p class="eyebrow">Local-first · açık kaynak · MIT</p>
       <h1>Okuduğunu <mark>tut</mark>, sadece biriktirme.</h1>
       <p class="lead">Readflow; bağlantıları, metinleri ve PDF'leri temiz bir okuma görünümüne çevirir, vurgularını saklar ve özetleri kendi bilgisayarındaki coding-agent CLI ile üretir. API anahtarı yok, hesap yok.</p>
       <div class="actions">
         <a class="btn primary" href="#kurulum">Kurulumu gör</a>
-        <span class="btn" aria-disabled="true">Kaynak kod yakında</span>
+        <a class="btn" href="https://github.com/fatihdogann/readflow">GitHub’da kaynak kod</a>
       </div>
       <figure class="shot">
         <picture>
@@ -166,10 +168,10 @@
     </section>
 
     <section id="kurulum" aria-labelledby="kurulum-baslik">
-      <h2 id="kurulum-baslik">Kurulum önizlemesi</h2>
-      <p class="sub">Kaynak kod henüz yayında değil. Açıldığında kurulum şöyle olacak:</p>
+      <h2 id="kurulum-baslik">Kurulum</h2>
+      <p class="sub">macOS için kısa yol aşağıda. Linux/Windows ve servis kurulumu: <a href="https://github.com/fatihdogann/readflow/blob/main/docs/INSTALL.md">docs/INSTALL.md</a>.</p>
       <pre><code><span class="c"># Node 22+ ve pnpm gerekli</span>
-git clone &lt;repo&gt; readflow &amp;&amp; cd readflow
+git clone https://github.com/fatihdogann/readflow.git &amp;&amp; cd readflow
 pnpm install
 pnpm build
 <span class="c"># claude / codex / jcode CLI'ında oturum açık olmalı</span>
@@ -179,7 +181,7 @@ pnpm app:start      <span class="c"># http://127.0.0.1:3000</span></code></pre>
 
   <footer>
     <span>Readflow · MIT lisansı · Mehmet Fatih Doğan</span>
-    <a href="https://mehmetfatihdogan.com.tr">Portföy</a>
+    <span><a href="https://github.com/fatihdogann/readflow">GitHub</a> · <a href="https://mehmetfatihdogan.com.tr">Portföy</a></span>
   </footer>
 </div>
 </body>

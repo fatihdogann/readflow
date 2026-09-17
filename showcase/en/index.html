@@ -27,6 +27,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/en/", "description": "A local-first reading app that archives links, text and PDFs, keeps highlights, and summarizes with your own coding-agent CLI.", "inLanguage": "en", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og.jpg"}</script>
 </head>
 <body>
 <div class="wrap">
@@ -35,18 +36,19 @@
     <nav class="top" aria-label="Page">
       <a href="#features">Features</a>
       <a href="#architecture">Architecture</a>
+      <a href="https://github.com/fatihdogann/readflow">GitHub</a>
       <a href="/" hreflang="tr" lang="tr">Türkçe</a>
     </nav>
   </header>
 
   <main>
     <div class="hero">
-      <p class="eyebrow">Local-first · personal project</p>
+      <p class="eyebrow">Local-first · open source · MIT</p>
       <h1>Keep what you <mark>read</mark>, don’t just save it.</h1>
       <p class="lead">Readflow turns links, text and PDFs into a clean reading view, keeps your highlights, and writes summaries with the coding-agent CLI on your own computer. No API keys, no accounts.</p>
       <div class="actions">
         <a class="btn primary" href="#setup">See setup</a>
-        <span class="btn" aria-disabled="true">Source code coming soon</span>
+        <a class="btn" href="https://github.com/fatihdogann/readflow">Source on GitHub</a>
       </div>
       <figure class="shot">
         <picture>
@@ -166,10 +168,10 @@
     </section>
 
     <section id="setup" aria-labelledby="setup-title">
-      <h2 id="setup-title">Setup preview</h2>
-      <p class="sub">The source code isn’t public yet. Once it is, setup will look like this:</p>
+      <h2 id="setup-title">Setup</h2>
+      <p class="sub">The short path for macOS is below. Linux, Windows and service setup: <a href="https://github.com/fatihdogann/readflow/blob/main/docs/INSTALL.md">docs/INSTALL.md</a> (Turkish).</p>
       <pre><code><span class="c"># Requires Node 22+ and pnpm</span>
-git clone &lt;repo&gt; readflow &amp;&amp; cd readflow
+git clone https://github.com/fatihdogann/readflow.git &amp;&amp; cd readflow
 pnpm install
 pnpm build
 <span class="c"># Sign in to your claude / codex / jcode CLI first</span>
@@ -179,7 +181,7 @@ pnpm app:start      <span class="c"># http://127.0.0.1:3000</span></code></pre>
 
   <footer>
     <span>Readflow · MIT license · Mehmet Fatih Doğan</span>
-    <a href="https://mehmetfatihdogan.com.tr">Portfolio</a>
+    <span><a href="https://github.com/fatihdogann/readflow">GitHub</a> · <a href="https://mehmetfatihdogan.com.tr">Portfolio</a></span>
   </footer>
 </div>
 </body>
