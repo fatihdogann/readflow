@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import { openDatabase } from "./connection";
 import { createTestDb } from "./testDb";
@@ -68,6 +68,17 @@ describe("migrations", () => {
       updateProfile(handle.db, profiles[1].id, { enabled: false });
       expect(orderedFallbackConfigs(listProfiles(handle.db), "jcode").map((c) => c.cli)).toEqual(["claude"]);
     } finally {
+      handle.cleanup();
+    }
+  });
+
+  it("ortam kilidi varken failover zinciri boştur (env komutu başka CLI'a kaçmaz)", () => {
+    const handle = createTestDb();
+    vi.stubEnv("READFLOW_AGENT_CMD", "node scripts/mock-agent.mjs");
+    try {
+      expect(orderedFallbackConfigs(listProfiles(handle.db), undefined)).toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
       handle.cleanup();
     }
   });

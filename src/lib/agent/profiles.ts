@@ -235,6 +235,8 @@ export function orderedFallbackConfigs(
   profiles: AgentProfileRow[],
   primaryCli: string | undefined,
 ): AiConfigSnapshot[] {
+  // Env kilidi (READFLOW_AGENT_MODE/CMD) profillerin önündedir; failover da onu aşamaz.
+  if (getEnvironmentLock().locked) return [];
   return profiles
     .filter((profile) => profile.enabled === 1 && profile.cli !== primaryCli)
     .map((profile) => profileToSnapshot(profile));
