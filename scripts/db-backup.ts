@@ -1,18 +1,12 @@
-import fs from "node:fs";
-import path from "node:path";
 import { loadLocalEnv } from "../src/lib/env";
-import { ensurePrivateDir, openDatabase, resolveDataDir } from "../src/lib/db/connection";
+import { openDatabase, resolveDataDir } from "../src/lib/db/connection";
+import { createBackup, inspectArchive } from "../src/lib/db/backup";
 
-// WAL ile tutarlı yedek: VACUUM INTO çalışan bağlantıda güvenlidir,
-// sqlite dosyasını kopyalamak WAL içeriğini kaçırabilir.
+// WAL ile tutarlı tam arşiv (VACUUM INTO); dosya kopyalamak WAL içeriğini kaçırabilir.
 loadLocalEnv();
 const db = openDatabase();
-const dataDir = resolveDataDir();
-const backupDir = path.join(dataDir, "backups");
-ensurePrivateDir(backupDir);
-const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-const target = path.join(backupDir, `readflow-${stamp}.sqlite`);
-db.prepare("VACUUM INTO ?").run(target);
-if (process.platform !== "win32") fs.chmodSync(target, 0o600);
-console.log(`Yedek alındı: ${target}`);
+const target = createBackup(db, resolveDataDir());
 db.close();
+const report = inspectArchive(target);
+console.log(`Yedek alındı: ${target}`);
+console.log(`Şema ${report.schemaVersion} ·`, report.counts);

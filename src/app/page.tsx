@@ -6,7 +6,16 @@ import { NewDocumentForm } from "@/components/NewDocumentForm";
 
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+
+function firstParam(value: string | string[] | undefined): string {
+  return (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
+}
+
+export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  // Paylaşım hedefi: bağlantı varsa o, yoksa paylaşılan metin (Android URL'yi çoğu zaman text'e koyar).
+  const shared = firstParam(params.url) || firstParam(params.text);
   const db = getDb();
   const reading = listDocuments(db, { readState: "reading", limit: 4 });
   const docs = listDocuments(db, { limit: 6 });
@@ -24,7 +33,7 @@ export default function HomePage() {
           metin bırak. Sonra <strong>Okunabilirliği Artır</strong> veya <strong>Özetle</strong>{" "}
           ile yerel agent&apos;ını iş yaptır.
         </p>
-        <NewDocumentForm />
+        <NewDocumentForm initialValue={shared} />
       </section>
 
       {reading.length > 0 ? (

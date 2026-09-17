@@ -4,6 +4,7 @@ import { apiErrorResponse } from "@/lib/api/http";
 import { getDb } from "@/lib/db/connection";
 import { getMeta, setMeta } from "@/lib/db/repo/meta";
 import { createDocumentFromInput } from "@/lib/documents/service";
+import { looksLikeUrl } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ const TOKEN_KEY = "ingest_token";
 const MAX_HTML_CHARS = 5_000_000;
 
 /**
- * Bookmarklet giriş noktası.
+ * Bookmarklet ve telefon paylaşım menüsü (iOS Kestirmeler) giriş noktası.
  *
  * Tarayıcı sekmesindeki HTML'i alır; sunucu sayfayı indirmez. Bot koruması,
  * paywall ve JS ile üretilen sayfalar kullanıcının kendi oturumundan geçer.
@@ -51,11 +52,18 @@ export function OPTIONS(): Response {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
-const schema = z.object({
-  html: z.string().min(1).max(MAX_HTML_CHARS),
-  sourceUrl: z.string().max(2000).optional(),
-  title: z.string().max(300).optional(),
-});
+// html: bookmarklet (sunucu siteye gitmez). url/text: iOS Kestirmeler / paylaşım menüsü.
+const schema = z
+  .object({
+    html: z.string().max(MAX_HTML_CHARS).optional(),
+    url: z.string().max(2000).optional(),
+    text: z.string().max(MAX_HTML_CHARS).optional(),
+    sourceUrl: z.string().max(2000).optional(),
+    title: z.string().max(300).optional(),
+  })
+  .refine((body) => Boolean(body.html?.trim() || body.url?.trim() || body.text?.trim()), {
+    message: "html, url veya text gerekli",
+  });
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -63,7 +71,10 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: "Yetkisiz" }, { status: 401, headers: CORS_HEADERS });
     }
     const body = schema.parse(await request.json());
-    const document = await createDocumentFromInput(getDb(), body);
+    // Paylaşım menüsü bağlantıyı düz metin olarak da verebilir.
+    const text = body.text?.trim();
+    const input = text && !body.url && !body.html && looksLikeUrl(text) ? { ...body, url: text, text: undefined } : body;
+    const document = await createDocumentFromInput(getDb(), input);
     return Response.json(
       { id: document.id, title: document.title },
       { status: 201, headers: CORS_HEADERS },

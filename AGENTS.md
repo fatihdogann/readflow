@@ -79,7 +79,7 @@ scripts/             migrate, mock-agent.mjs
 
 ## Komutlar
 
-`pnpm dev:all` · `pnpm dev:web` · `pnpm dev:worker` · `pnpm dev:mcp` · `pnpm db:migrate` · `pnpm build` · `pnpm start` · `pnpm test` · `pnpm typecheck` · `pnpm lint`
+`pnpm dev:all` · `pnpm dev:web` · `pnpm dev:worker` · `pnpm dev:mcp` · `pnpm db:migrate` · `pnpm db:backup` · `pnpm db:restore <dosya> [--check]` · `pnpm build` · `pnpm start` · `pnpm test` · `pnpm typecheck` · `pnpm lint`
 
 Mac production (web 127.0.0.1 + yerel worker, uzak erişim Tailscale Serve): `pnpm app:start` · `pnpm app:install` (launchd, env `~/.readflow/app.env`) · `pnpm app:status` · `pnpm app:logs` · `pnpm app:uninstall`. İkon seti logo değişince: `pnpm icons`.
 
@@ -90,5 +90,5 @@ Testler vitest; test'ler geçici dizinde kendi SQLite'ını kurar (`src/lib/db/t
 - Adapter seçimi: `READFLOW_AGENT_MODE` (auto/command/mock/none) → `READFLOW_AGENT_CMD` → bilinen CLI preset'leri (`claude -p`, `codex exec -`, `jcode run`+argv; her preset kendi `--help` imzası doğrulanırsa kullanılır). CLI bayrakları **tahmin edilmez**.
 - MCP yolu: `pnpm dev:mcp` stdio konuşur; tool'lar job queue'ya ve dokümanlara adapter düzeyinde erişir (`src/mcp/server.ts`). MCP'ye yeni tool eklerken iş mantığını `src/lib/db/repo`'da tut.
 - Doküman girişi dört yoldan olur: URL (sunucu indirir), düz metin, dosya yükleme (multipart; PDF/DOCX/metin) ve `html` alanı (bookmarklet veya elle yapıştırma — sunucu siteye istek atmaz). Hepsi `createDocumentFromInput` üzerinden geçer.
-- `/api/ingest` bookmarklet ucudur: oturum cookie'si yerine `meta.ingest_token` taşıyıcı token'ı kullanır (cross-origin POST'ta SameSite=Lax cookie gitmez) ve `proxy.ts` oturum sınırının dışındadır. Token'ı döndüren `/api/bookmarklet` ise oturum ister — bilinçli olarak `/api/ingest` altında değildir.
+- `/api/ingest` bookmarklet ve iOS Kestirmeler ucudur (`html` | `url` | `text`; bağlantı gibi görünen `text` URL yoluna gider): oturum cookie'si yerine `meta.ingest_token` taşıyıcı token'ı kullanır (cross-origin POST'ta SameSite=Lax cookie gitmez) ve `proxy.ts` oturum sınırının dışındadır. Token'ı döndüren `/api/bookmarklet` ise oturum ister — bilinçli olarak `/api/ingest` altında değildir.
 - `src/lib/extraction/fetchArticle.ts` SSRF kontrolleri içerir: protokol/hostname allowlist **artı** her istek öncesi `dns.lookup` ile gerçek IP doğrulaması (rebinding'e karşı), redirect ve boyut sınırları — gevşetme.

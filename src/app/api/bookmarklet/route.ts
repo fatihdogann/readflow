@@ -35,6 +35,9 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({
       href: `javascript:${encodeURIComponent(minified)}`,
       origin,
+      // iOS Kestirmeler için: aynı token, aynı uç.
+      ingestUrl: `${origin}/api/ingest`,
+      token,
     });
   } catch (error) {
     return apiErrorResponse(error);

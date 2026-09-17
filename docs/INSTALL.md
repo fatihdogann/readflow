@@ -101,6 +101,15 @@ Kapatmak için: `tailscale serve reset`.
 Bookmarklet'i Tailscale adresinden açtığın Ayarlar sayfasından yeniden kur; eski
 adresle oluşturulan bağlantı çalışmaz.
 
+### Telefondan paylaşma
+
+- **iPhone:** Ayarlar → *Tarayıcıdan gönder* → **iPhone paylaşım menüsü (Kestirmeler)**
+  adımlarıyla bir Kestirme kur. Safari'de Paylaş → *Readflow'a gönder* bağlantıyı
+  (veya seçili metni) doğrudan arşive ekler. Tailscale açık olmalı.
+- **Android:** Tailscale adresini Chrome'da açıp *Ana ekrana ekle* ile uygulamayı kur.
+  Paylaş menüsünde Readflow çıkar; paylaşılan bağlantı ana sayfadaki forma dolar,
+  **Kaydet** ile eklenir.
+
 ## 7. Güncelleme
 
 ```bash
@@ -115,12 +124,24 @@ pnpm app:install     # servisi yeniden başlatır
 
 ## 8. Yedekleme ve geri yükleme
 
+Yedek almak için Ayarlar → **Yedeği indir** ya da:
+
 ```bash
 pnpm db:backup       # ~/.readflow/backups/readflow-<tarih>.sqlite
 ```
 
-Geri yükleme: `pnpm app:uninstall` → yedeği `~/.readflow/readflow.sqlite` olarak kopyala,
-yanındaki `-wal` ve `-shm` dosyalarını sil → `pnpm app:install`.
+Geri yükleme (başka bir bilgisayara taşıma dahil):
+
+```bash
+pnpm app:uninstall                              # uygulama ve worker kapalı olmalı
+pnpm db:restore ~/Downloads/readflow-….sqlite --check   # yalnızca doğrula
+pnpm db:restore ~/Downloads/readflow-….sqlite           # geri yükle
+pnpm app:install
+```
+
+`db:restore` arşivin bütünlüğünü ve şema sürümünü denetler, mevcut veritabanını
+`backups/pre-restore-*.sqlite` olarak yedekler, dosyayı yerine koyar ve tablo sayılarının
+eşleştiğini doğrular. Ayarlar ekranı son yedek 7 günden eskiyse uyarır.
 
 Yedekleri Mac dışına da (harici disk, şifreli bulut) kopyala; tek kopya yedek değildir.
 

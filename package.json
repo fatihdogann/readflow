@@ -15,6 +15,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "icons": "node scripts/build-icons.mjs",
     "db:backup": "tsx scripts/db-backup.ts",
+    "db:restore": "tsx scripts/db-restore.ts",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",

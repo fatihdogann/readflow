@@ -537,6 +537,9 @@ export function backupBeforeUpgrade(db: SqliteDb, currentVersion: number, dataDi
   }
 }
 
+/** Bu uygulama sürümünün bildiği en yeni şema. */
+export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].id;
+
 export function runMigrations(db: SqliteDb, dataDir?: string): void {
   const current = getSchemaVersion(db);
   const pending = MIGRATIONS.filter((migration) => migration.id > current);

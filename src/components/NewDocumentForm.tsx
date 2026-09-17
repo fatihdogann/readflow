@@ -7,9 +7,9 @@ import { looksLikeUrl } from "@/lib/types";
 
 const ACCEPTED = ".pdf,.docx,.md,.markdown,.txt,.csv";
 
-export function NewDocumentForm() {
+export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }) {
   const router = useRouter();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // URL engellendiğinde açılan kaçış yolu: sayfanın kaynağını elle yapıştır.

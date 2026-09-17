@@ -11,6 +11,12 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     background_color: "#faf9f7",
     theme_color: "#faf9f7",
+    // Android paylaşım menüsü: ana sayfa formu önceden doldurur, kaydı kullanıcı onaylar.
+    share_target: {
+      action: "/",
+      method: "GET",
+      params: { title: "title", text: "text", url: "url" },
+    },
     // iOS manifest'teki SVG ikonu kullanmaz; ana ekran için PNG şart.
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

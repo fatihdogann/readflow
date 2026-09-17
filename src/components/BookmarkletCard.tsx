@@ -11,6 +11,8 @@ import { useEffect, useState } from "react";
  */
 export function BookmarkletCard() {
   const [href, setHref] = useState<string | null>(null);
+  const [shortcut, setShortcut] = useState<{ ingestUrl: string; token: string } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,13 +23,24 @@ export function BookmarkletCard() {
           setError("Bookmarklet oluşturulamadı (oturum gerekli olabilir)");
           return;
         }
-        setHref(((await response.json()) as { href: string }).href);
+        const body = (await response.json()) as { href: string; ingestUrl: string; token: string };
+        setHref(body.href);
+        setShortcut({ ingestUrl: body.ingestUrl, token: body.token });
       } catch {
         setError("Sunucuya ulaşılamadı");
       }
     }, 0);
     return () => clearTimeout(timer);
   }, []);
+
+  async function copy(label: string, value: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(label);
+    } catch {
+      setCopied(null);
+    }
+  }
 
   return (
     <section
@@ -63,6 +76,49 @@ export function BookmarkletCard() {
       ) : (
         <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">{error ?? "Hazırlanıyor…"}</p>
       )}
+
+      {shortcut ? (
+        <details className="mt-3 rounded-xl border border-stone-200 p-3 text-xs dark:border-stone-800">
+          <summary className="cursor-pointer font-medium">iPhone paylaşım menüsü (Kestirmeler)</summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 leading-relaxed text-stone-600 dark:text-stone-400">
+            <li>Kestirmeler → <strong>+</strong> → adı &quot;Readflow&apos;a gönder&quot;.</li>
+            <li>
+              Ayrıntılar (ⓘ) → <strong>Paylaşma Sayfasında Göster</strong> açık; girdi türleri: URL&apos;ler ve
+              Metin.
+            </li>
+            <li>
+              Eylem: <strong>URL&apos;nin İçeriğini Al</strong> → URL: aşağıdaki adres, Yöntem: POST.
+            </li>
+            <li>
+              Başlıklar: <code>Authorization</code> = <code>Bearer</code> + boşluk + token.
+            </li>
+            <li>
+              İstek Gövdesi: JSON → anahtar <code>text</code>, değer: <strong>Kestirme Girdisi</strong>.
+            </li>
+            <li>Telefonda Tailscale açıkken Safari&apos;de Paylaş → Readflow&apos;a gönder.</li>
+          </ol>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => copy("adres", shortcut.ingestUrl)}
+              className="min-h-9 rounded-lg border border-stone-300 px-3 dark:border-stone-700"
+            >
+              Adresi kopyala
+            </button>
+            <button
+              type="button"
+              onClick={() => copy("token", `Bearer ${shortcut.token}`)}
+              className="min-h-9 rounded-lg border border-stone-300 px-3 dark:border-stone-700"
+            >
+              &quot;Bearer token&quot; kopyala
+            </button>
+            <span role="status" className="self-center text-stone-500">
+              {copied ? `${copied} kopyalandı` : ""}
+            </span>
+          </div>
+          <p className="mt-2 break-all text-[11px] text-stone-500">{shortcut.ingestUrl}</p>
+        </details>
+      ) : null}
 
       <p className="mt-3 border-t border-stone-200 pt-2 text-[11px] text-stone-500 dark:border-stone-800 dark:text-stone-400">
         Bağlantı bir erişim token&apos;ı taşır — yalnızca &quot;doküman ekle&quot; yetkisi verir.

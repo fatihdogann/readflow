@@ -25,6 +25,7 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 - Bir **URL yapıştırırsın**: sayfa sunucu tarafında indirilir, Mozilla Readability ile ana makaleye ayrıştırılır (navigation, reklam, cookie banner gürültüsü atılır, HTML sanitize edilir). Site bot koruması verirse Wayback Machine kopyası denenir.
 - Bir **metin yapıştırırsın**: doğrudan arşive kaydedilir.
 - Bir **dosya bırakırsın**: PDF, Word (.docx), Markdown ve düz metin sürükle-bırak ya da "Dosya seç" ile eklenir. Taranmış (görsel) PDF'te metin yoksa net hata verir — OCR yoktur.
+- **Telefondan paylaşırsın**: iPhone'da Kestirmeler, Android'de PWA paylaşım hedefi ile bağlantı veya metin arşive gider (Ayarlar'da kurulum adımları).
 - **Bookmarklet ile gönderirsin**: yer imleri çubuğundaki "Readflow'a gönder" düğmesi, açık sekmenin HTML'ini doğrudan Readflow'a yollar. Sunucu siteye hiç istek atmadığı için bot koruması, paywall, çerez duvarı ve JavaScript ile üretilen sayfalar da eklenebilir. Ayarlar ekranından kurulur.
 - Dört içerik türü nettir: **Orijinal** (asla değişmez), **Düzenlenmiş** (kullanıcının kendi sürümü, revision kontrollü), **AI Düzenlemesi** (okunabilirlik çıktısı) ve **Özet** (Kısa/Normal/Detaylı).
 - AI işlemleri **remote LLM API'si ile değil**, kendi bilgisayarındaki coding-agent CLI üzerinden yapılır. **Hiçbir LLM API key istemez.** CLI'ın kendisi kendi oturumuyla uzak model sağlayıcısına bağlanabilir; Readflow'un verisi (dokümanlar, notlar, çıktılar) ise yalnızca `~/.readflow/` içinde saklanır — "yerel saklama" ile "AI tamamen çevrimdışı" aynı şey değildir.
@@ -116,7 +117,8 @@ Tool'lar: `readflow_list_pending_jobs`, `readflow_get_job`, `readflow_claim_job`
 ## Yerel veri ve yedekleme
 
 - Veritabanı: `~/.readflow/readflow.sqlite` (WAL modu), `READFLOW_DATA_DIR` ile değiştirilebilir
-- **Yedekleme**: `pnpm db:backup` — WAL ile tutarlı `VACUUM INTO` yedeği alır (`~/.readflow/backups/`). Şema yükseltmeleri de otomatik olarak yükseltme öncesi yedek alır. Geri yüklemek için uygulama kapalıyken yedek dosyasını `readflow.sqlite` olarak kopyala (WAL/SHM dosyalarını sil).
+- **Yedekleme**: Ayarlar → *Yedeği indir* veya `pnpm db:backup` — WAL ile tutarlı `VACUUM INTO` tam arşivi (`~/.readflow/backups/`). Son yedek 7 günü geçince Ayarlar uyarır. Şema yükseltmeleri de otomatik olarak yükseltme öncesi yedek alır.
+- **Geri yükleme / taşıma**: uygulama kapalıyken `pnpm db:restore <dosya>` (`--check` yalnızca doğrular) — bütünlük ve şema denetimi, mevcut veritabanının güvenlik yedeği, tablo sayısı karşılaştırması.
 - `.gitignore` yanlışlıkla oluşabilecek `*.sqlite*` ve veri dizinlerini repo dışında tutar
 
 ## Dışa aktarma
