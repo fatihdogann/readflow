@@ -2,7 +2,13 @@
 
 Local-first, AI destekli kişisel okuma ve metin işleme alanı. Chatbot değil; **reader + article extractor + summarizer + archive + export workspace**.
 
-<!-- TODO: Ekran görüntüleri buraya -->
+[![CI](https://github.com/fatihdogann/readflow/actions/workflows/ci.yml/badge.svg)](https://github.com/fatihdogann/readflow/actions/workflows/ci.yml) · MIT · [Tanıtım sayfası](https://readflow.mehmetfatihdogan.com.tr)
+
+![Readflow belge görünümü: okuma durumu, Metni işle paneli ve özet sekmesi](showcase/assets/doc-light.jpg)
+
+| Ana ekran | Vurgular |
+|---|---|
+| ![Ana ekran](showcase/assets/home-light.jpg) | ![Vurgular sayfası](showcase/assets/highlights-light.jpg) |
 
 ```
 Tarayıcı ──▶ Web uygulaması (localhost:3000)
@@ -29,8 +35,8 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 
 ## Gereksinimler
 
-- Node.js 20.9+ (önerilen: 22/24 LTS)
-- pnpm 9+
+- Node.js 22+ (`.nvmrc`)
+- pnpm (sürüm `packageManager` alanında; `corepack enable` yeterli)
 - AI işlemleri için: authenticated bir coding-agent CLI (`claude`, `codex`, `jcode`, …) **veya** MCP destekleyen bir agent
 - GitHub CLI (`gh`) yalnızca repo oluşturmayı otomatikleştirmek istersen
 
@@ -41,6 +47,17 @@ git clone <repo-url> readflow && cd readflow
 pnpm install
 pnpm db:migrate   # opsiyonel: ilk açılışta migration otomatik çalışır
 ```
+
+## Günlük kullanım (Mac, production)
+
+```bash
+pnpm build
+pnpm app:start     # web yalnız 127.0.0.1:3000 + yerel worker
+pnpm app:install   # aynısını launchd servisi olarak kur (ayarlar: ~/.readflow/app.env)
+tailscale serve --bg 3000   # yalnız kendi tailnet cihazlarından HTTPS erişim
+```
+
+Production'da `READFLOW_AUTH_USERNAME`, `READFLOW_AUTH_PASSWORD` (≥10) ve `READFLOW_SESSION_SECRET` (≥32) zorunludur; eksikse uygulama başlamaz. Adım adım kurulum: [docs/INSTALL.md](docs/INSTALL.md). Sağlık kontrolü: `GET /api/health`.
 
 ## Geliştirme
 
@@ -202,7 +219,17 @@ Katmanlar tek yönlü bağımlılıkla ayrışır: UI → servisler → repo'lar
 - AI çıktıları `react-markdown` ile render edilir (ham HTML çalıştırılmaz); URL'den gelen HTML zaten kayıt sırasında sanitize edildi.
 - Credential'lar (Notion/Telegram) veritabanına yazılmaz, yalnızca environment'tan okunur.
 
-Ayrıntı ve "projeyi çalıştır" protokolü için [AGENTS.md](AGENTS.md).
+Ayrıntı ve "projeyi çalıştır" protokolü için [AGENTS.md](AGENTS.md). Güvenlik bildirimi: [SECURITY.md](SECURITY.md).
+
+## Sınırlar
+
+- Tek kullanıcılıdır; hesap, çoklu kullanıcı veya cloud sync yoktur.
+- Taranmış PDF için OCR yoktur.
+- Servis kurulumu (`app:install`) yalnızca macOS içindir; Linux/Windows'ta `pnpm app:start` elle çalıştırılır.
+
+## Lisans
+
+[MIT](LICENSE)
 
 ---
 
