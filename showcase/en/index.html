@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Readflow — a local-first reading workspace</title>
+<meta name="description" content="Readflow is a local-first reading app that archives links, text and PDFs, keeps your highlights, and summarizes with the coding-agent CLI on your own computer.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141210" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://readflow.mehmetfatihdogan.com.tr/en/">
+<link rel="alternate" hreflang="tr" href="https://readflow.mehmetfatihdogan.com.tr/">
+<link rel="alternate" hreflang="en" href="https://readflow.mehmetfatihdogan.com.tr/en/">
+<link rel="alternate" hreflang="x-default" href="https://readflow.mehmetfatihdogan.com.tr/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="tr_TR">
+<meta property="og:title" content="Readflow — a local-first reading workspace">
+<meta property="og:description" content="Read, highlight, summarize with your own agent. Your data stays on your computer.">
+<meta property="og:url" content="https://readflow.mehmetfatihdogan.com.tr/en/">
+<meta property="og:image" content="https://readflow.mehmetfatihdogan.com.tr/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/en/"><img src="/favicon.svg" alt="" width="32" height="32">Readflow</a>
+    <nav class="top" aria-label="Page">
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="/" hreflang="tr" lang="tr">Türkçe</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <p class="eyebrow">Local-first · personal project</p>
+      <h1>Keep what you <mark>read</mark>, don’t just save it.</h1>
+      <p class="lead">Readflow turns links, text and PDFs into a clean reading view, keeps your highlights, and writes summaries with the coding-agent CLI on your own computer. No API keys, no accounts.</p>
+      <div class="actions">
+        <a class="btn primary" href="#setup">See setup</a>
+        <span class="btn" aria-disabled="true">Source code coming soon</span>
+      </div>
+      <figure class="shot">
+        <picture>
+          <source srcset="/assets/doc-dark.jpg" media="(prefers-color-scheme: dark)">
+          <img src="/assets/doc-light.jpg" width="2560" height="1600" alt="Readflow document view: title, reading status, processing panel and a Normal-length summary tab" fetchpriority="high">
+        </picture>
+      </figure>
+    </div>
+
+    <section aria-labelledby="problem">
+      <h2 id="problem">Problem and solution</h2>
+      <div class="two">
+        <p class="sub">Reading lists fill up, but little of what gets read is remembered. AI summary tools want your text and an API key in their cloud, and your archive stays tied to that service.</p>
+        <p class="sub">Readflow keeps the archive in a single SQLite file. Summaries and rewrites are handed to the <code>claude</code>, <code>codex</code> or <code>jcode</code> CLI you already use. Highlights and notes build up as you read and gather on one page.</p>
+      </div>
+    </section>
+
+    <section id="features" aria-labelledby="features-title">
+      <h2 id="features-title">Features</h2>
+      <p class="sub">Where a reader meets an archive. Not a chatbot.</p>
+      <div class="grid">
+        <div class="card"><h3>Content from anywhere</h3><p>URLs, plain text, PDF, Word, Markdown, and a bookmarklet for bot-protected pages.</p></div>
+        <div class="card"><h3>Clean reading</h3><p>Sanitized text with ads and navigation stripped by Readability.</p></div>
+        <div class="card"><h3>Highlights and notes</h3><p>Three colors, notes, every highlight on one page, copy as Markdown.</p></div>
+        <div class="card"><h3>AI via your local agent</h3><p>Short, normal or detailed summaries and readability rewrites, with an immutable history for every output.</p></div>
+        <div class="card"><h3>Four separate versions</h3><p>The original never changes; your edit, the AI rewrite and the summary are stored separately.</p></div>
+        <div class="card"><h3>Export</h3><p>Markdown, TXT, DOCX, PDF; optional Notion and Telegram.</p></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="screens">
+      <h2 id="screens">Screens</h2>
+      <p class="sub">Screenshots use demo data. The light or dark version follows your system theme.</p>
+      <div class="two">
+        <figure class="shot">
+          <picture>
+            <source srcset="/assets/home-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img src="/assets/home-light.jpg" width="2560" height="1600" loading="lazy" alt="Home screen: input for links or text and recently added documents">
+          </picture>
+          <figcaption>Home: paste a link, drop text or a file.</figcaption>
+        </figure>
+        <figure class="shot">
+          <picture>
+            <source srcset="/assets/highlights-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img src="/assets/highlights-light.jpg" width="2560" height="1600" loading="lazy" alt="Highlights page: quotes and notes grouped by document">
+          </picture>
+          <figcaption>Highlights: quotes and notes across all documents.</figcaption>
+        </figure>
+      </div>
+      <div class="two mobile mt">
+        <p class="note">The same archive on your phone. Remote access works only from approved devices, over Tailscale.</p>
+        <figure class="shot">
+          <picture>
+            <source srcset="/assets/mobile-doc-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img src="/assets/mobile-doc-light.jpg" width="780" height="1688" loading="lazy" alt="Mobile document view">
+          </picture>
+        </figure>
+      </div>
+    </section>
+
+    <section id="architecture" aria-labelledby="architecture-title">
+      <h2 id="architecture-title">Architecture</h2>
+      <p class="sub">The web UI never runs AI work itself: it writes a pending job to SQLite. A local worker leases the job, runs the CLI and writes the result back.</p>
+      <div class="flow">
+        <svg viewBox="0 0 900 250" role="img" aria-labelledby="flow-title">
+          <title id="flow-title">Flow from URL to summary: extraction, SQLite queue, worker and agent CLI</title>
+          <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="currentColor" opacity=".6"/></marker></defs>
+          <rect class="zone" x="170" y="20" width="720" height="210" rx="16"/>
+          <text class="small" x="186" y="44">Your Mac</text>
+          <rect class="box" x="10" y="90" width="130" height="70" rx="10"/>
+          <text x="75" y="120" text-anchor="middle">URL / text</text>
+          <text class="small" x="75" y="140" text-anchor="middle">PDF · bookmarklet</text>
+          <rect class="box local" x="200" y="90" width="140" height="70" rx="10"/>
+          <text x="270" y="120" text-anchor="middle">Extraction</text>
+          <text class="small" x="270" y="140" text-anchor="middle">Readability · SSRF</text>
+          <rect class="box local" x="380" y="90" width="140" height="70" rx="10"/>
+          <text x="450" y="120" text-anchor="middle">SQLite (WAL)</text>
+          <text class="small" x="450" y="140" text-anchor="middle">job + snapshot</text>
+          <rect class="box local" x="560" y="90" width="140" height="70" rx="10"/>
+          <text x="630" y="120" text-anchor="middle">Worker</text>
+          <text class="small" x="630" y="140" text-anchor="middle">lease · heartbeat</text>
+          <rect class="box local" x="740" y="90" width="130" height="70" rx="10"/>
+          <text x="805" y="120" text-anchor="middle">Agent CLI</text>
+          <text class="small" x="805" y="140" text-anchor="middle">stdin → stdout</text>
+          <path class="arrow" d="M140 125h58"/>
+          <path class="arrow" d="M340 125h38"/>
+          <path class="arrow" d="M520 125h38"/>
+          <path class="arrow" d="M700 125h38"/>
+          <path class="arrow" d="M805 160v40H450v-38"/>
+          <text class="small" x="630" y="195" text-anchor="middle">result + immutable revision</text>
+        </svg>
+      </div>
+      <p class="note mt">Data is stored locally. Which model does the AI work depends on your CLI: if it talks to a remote model, the processed text goes to that provider.</p>
+    </section>
+
+    <section aria-labelledby="security">
+      <h2 id="security">Security decisions</h2>
+      <div class="two">
+        <ul class="checks">
+          <li>The app listens only on <code>127.0.0.1</code>; remote access goes through Tailscale Serve.</li>
+          <li>Single-user login, signed HttpOnly session cookie, origin checks.</li>
+          <li>In production the app refuses to start without credentials.</li>
+        </ul>
+        <ul class="checks">
+          <li>SSRF protection with a DNS lookup before every fetch.</li>
+          <li>Agent commands run without a shell; CLI flags are verified against <code>--help</code> output.</li>
+          <li>Data directory is <code>0700</code>, database <code>0600</code>; user data never enters Git.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section aria-labelledby="stack">
+      <h2 id="stack">Stack</h2>
+      <ul class="tags">
+        <li>Next.js 16</li><li>React 19</li><li>TypeScript</li><li>Tailwind CSS 4</li><li>SQLite · better-sqlite3</li><li>Mozilla Readability</li><li>MCP</li><li>Vitest</li><li>Playwright</li><li>GitHub Actions</li>
+      </ul>
+    </section>
+
+    <section id="setup" aria-labelledby="setup-title">
+      <h2 id="setup-title">Setup preview</h2>
+      <p class="sub">The source code isn’t public yet. Once it is, setup will look like this:</p>
+      <pre><code><span class="c"># Requires Node 22+ and pnpm</span>
+git clone &lt;repo&gt; readflow &amp;&amp; cd readflow
+pnpm install
+pnpm build
+<span class="c"># Sign in to your claude / codex / jcode CLI first</span>
+pnpm app:start      <span class="c"># http://127.0.0.1:3000</span></code></pre>
+    </section>
+  </main>
+
+  <footer>
+    <span>Readflow · MIT license · Mehmet Fatih Doğan</span>
+    <a href="https://mehmetfatihdogan.com.tr">Portfolio</a>
+  </footer>
+</div>
+</body>
+</html>
