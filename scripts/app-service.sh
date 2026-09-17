@@ -48,6 +48,11 @@ TEMPLATE
       exit 1
     fi
   done
+  # Uygulamanın başlangıç denetimiyle aynı sınırlar: servis açılışta çökmesin.
+  if ! (set -a; . "$ENV_FILE"; [ "${#READFLOW_AUTH_PASSWORD}" -ge 10 ] && [ "${#READFLOW_SESSION_SECRET}" -ge 32 ]); then
+    echo "hata: READFLOW_AUTH_PASSWORD en az 10, READFLOW_SESSION_SECRET en az 32 karakter olmalı" >&2
+    exit 1
+  fi
   if grep -qE '^READFLOW_(SERVER_URL|WORKER_TOKEN)=' "$ENV_FILE"; then
     echo "hata: $ENV_FILE uzak worker değişkeni içeriyor; kaldır" >&2
     exit 1
