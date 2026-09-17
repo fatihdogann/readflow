@@ -10,6 +10,7 @@ import {
   failJob,
   finalizeCancel,
   isCancelRequested,
+  pruneJobSnapshots,
   recoverExpiredLeases,
   releaseJob,
   renewLease,
@@ -33,6 +34,9 @@ export const HEARTBEAT_KEY = "worker_heartbeat";
 export const HEARTBEAT_MAX_AGE_MS = 20_000;
 export const HEARTBEAT_INTERVAL_MS = 5_000;
 export const LEASE_CHECK_INTERVAL_MS = 30_000;
+/** Bitmiş işlerin metin kopyaları günde bir temizlenir (varsayılan: 90 günden eski). */
+const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const SNAPSHOT_RETENTION_DAYS = Number(process.env.READFLOW_JOB_SNAPSHOT_DAYS) || 90;
 
 export interface WorkerHeartbeat {
   ts: string;
@@ -212,6 +216,8 @@ export class ReadflowWorker {
     let resolution = this.initialResolution;
     let lastDetect = Date.now();
     let lastLeaseCheck = 0;
+    // İlk temizlik açılıştan ~1 dk sonra: Mac her gün kapansa da bir kez çalışır.
+    let lastPrune = Date.now() - PRUNE_INTERVAL_MS + 60_000;
 
     // Kalp atışı AI çağrısından bağımsız interval'de: uzun işlem "worker kapalı"
     // yanılgısına ve lease dolmasına yol açmaz.
@@ -248,6 +254,12 @@ export class ReadflowWorker {
             // Yalnızca süresi dolmuş lease'ler kurtarılır; toplu geri alma yok.
             recoverExpiredLeases(this.db);
             lastLeaseCheck = Date.now();
+          }
+
+          if (Date.now() - lastPrune > PRUNE_INTERVAL_MS) {
+            const pruned = pruneJobSnapshots(this.db, SNAPSHOT_RETENTION_DAYS);
+            if (pruned > 0) console.log(`[worker] ${pruned} eski işin metin kopyası temizlendi`);
+            lastPrune = Date.now();
           }
 
           // Bekleyen profil doğrulama isteği varsa yerelde çalıştır

@@ -181,7 +181,7 @@ Tarayıcı ──▶ Web (Next.js) ──▶ documents + pending jobs
 |---|---|
 | `documents` | Kaynak içerik: başlık, `source_type` (url/text), source_url/domain, yazar, yayın tarihi, `original_text`, sanitize edilmiş `original_html`, favorite, folder, kişisel `note` (+ `note_updated_at`), `deleted_at` (geri alınabilir silme) |
 | `document_outputs` | AI çıktıları: `readability` veya `summary`; özette `summary_level` (short/normal/detailed). `UNIQUE(document, operation, level)` — aynı işlem yeniden çalıştırılırsa **upsert** olur, orijinal içerik asla overwrite edilmez |
-| `jobs` | Kuyruk: status (`pending → processing → completed/failed`), attempts, error, zaman damgaları |
+| `jobs` | Kuyruk: status (`pending → processing → completed/failed`), attempts, error, zaman damgaları + iş anlık görüntüsü (kaynak metin, notlar, AI yapılandırması). Bitmiş işlerin metin kopyası 90 gün sonra worker tarafından boşaltılır (`READFLOW_JOB_SNAPSHOT_DAYS`), satır geçmiş için kalır |
 | `folders`, `tags`, `document_tags` | Arşiv organizasyonu (many-to-many etiketler, FK `ON DELETE CASCADE/SET NULL`) |
 | `document_edits` | Kullanıcının kendi sürümü: içerik + `revision` (optimistic concurrency; uyumsuz revision → 409). Orijinal asla değişmez |
 | `document_output_revisions` | Her AI çıktısının **değişmez** sürüm geçmişi (agent adı, provenance, job id) |

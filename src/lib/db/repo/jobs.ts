@@ -407,6 +407,28 @@ export function recoverExpiredLeases(db: SqliteDb, leaseGraceMs = 0): number {
   return result.changes;
 }
 
+/**
+ * Bitmiş işlerin metin kopyasını boşaltır (satırlar geçmiş için kalır).
+ *
+ * Her iş, oluşturulurken kaynak metni kendi satırına kopyalar (snapshot); bu
+ * kopyalar iş bittikten sonra yalnızca "aynı metinle yeniden dene" için gerekir.
+ * Belirli bir süre sonra silinmeleri veritabanının belge metninin katları kadar
+ * büyümesini engeller. Eski bir iş yine de tekrar denenirse worker snapshot'ı
+ * belgenin güncel metninden yeniden doldurur (`ensureSnapshotText`).
+ */
+export function pruneJobSnapshots(db: SqliteDb, olderThanDays = 90, now = Date.now()): number {
+  const cutoff = new Date(now - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+  const result = db
+    .prepare(
+      `UPDATE jobs SET source_text = '', notes_text = NULL
+       WHERE status IN ('completed', 'failed')
+         AND COALESCE(completed_at, created_at) < ?
+         AND (LENGTH(source_text) > 0 OR notes_text IS NOT NULL)`,
+    )
+    .run(cutoff);
+  return result.changes;
+}
+
 export function listJobsByDocument(db: SqliteDb, documentId: number, limit = 10): JobRow[] {
   return db.prepare(`SELECT * FROM jobs WHERE document_id = ? ORDER BY id DESC LIMIT ?`).all(documentId, limit) as JobRow[];
 }

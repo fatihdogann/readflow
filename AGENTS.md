@@ -47,7 +47,8 @@ scripts/             migrate, mock-agent.mjs
 2. Worker/MCP `claimNextJob`/`claimJobById` ile `BEGIN IMMEDIATE` transaction içinde **owner + lease** atar. Aynı iş iki tüketiciye dağıtılamaz.
 3. Prompt **snapshot'taki** metinden `buildPromptForSnapshot` ile üretilir; worker güncel belgeyi yeniden okumaz. Uzun işlerde heartbeat interval'i hem kalp atışını yazar hem lease'i yeniler.
 4. Başarıda `completeJob` sahipliği doğrular, `document_outputs`'u upsert eder ve **değişmez `document_output_revisions`** satırı ekler. Sahiplik değiştiyse geç gelen sonuç reddedilir. Hata → `failed` + mesaj; UI retry aynı snapshot'ı kullanır (attempts < 5).
-5. Kurtarma yalnızca `recoverExpiredLeases` ile **süresi dolmuş** işleredir; açılışta toplu `processing→pending` YOKTUR. Agent yoksa uygun olmayan iş `releaseJob` ile attempts bozmadan kuyruğa döner.
+5. Worker günde bir `pruneJobSnapshots` ile 90 günden eski bitmiş işlerin `source_text`/`notes_text` alanlarını boşaltır (satır kalır; tekrar denenirse `ensureSnapshotText` belgeden doldurur).
+6. Kurtarma yalnızca `recoverExpiredLeases` ile **süresi dolmuş** işleredir; açılışta toplu `processing→pending` YOKTUR. Agent yoksa uygun olmayan iş `releaseJob` ile attempts bozmadan kuyruğa döner.
 
 ## İçerik türleri ve değişmezlik
 

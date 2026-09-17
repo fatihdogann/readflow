@@ -17,6 +17,7 @@ import { setDocumentTags, listDocumentTags } from "./repo/tags";
 import { upsertOutput } from "./repo/outputs";
 import { listProfiles, getDefaultProfileId, updateProfile } from "./repo/agentProfiles";
 import { orderedFallbackConfigs } from "../agent/profiles";
+import { pruneJobSnapshots } from "./repo/jobs";
 
 describe("migrations", () => {
   it("şemayı kurar ve ikinci açılışta migration tekrar çalışmaz", () => {
@@ -231,6 +232,48 @@ describe("documents repo", () => {
         .all(doc.id) as Array<{ content: string }>;
       expect(rows).toHaveLength(1);
       expect(rows[0].content).toBe("v2");
+    } finally {
+      handle.cleanup();
+    }
+  });
+});
+
+describe("iş anlık görüntülerini temizleme", () => {
+  it("eski bitmiş işlerin metin kopyasını siler; kaydı ve taze/bekleyen işleri korur", () => {
+    const handle = createTestDb();
+    try {
+      const doc = insertDocument(handle.db, {
+        title: "Temizlik",
+        sourceType: "text",
+        originalText: "uzun metin ".repeat(100),
+      });
+      const insert = (status: string, completedAt: string | null, createdAt: string) =>
+        handle.db
+          .prepare(
+            `INSERT INTO jobs (document_id, operation, status, attempts, created_at, completed_at, source_kind, source_text, source_revision, notes_included, notes_text)
+             VALUES (?, 'summary', ?, 1, ?, ?, 'original', ?, 0, 1, 'not metni')`,
+          )
+          .run(doc.id, status, createdAt, completedAt, "kopyalanmış metin ".repeat(50)).lastInsertRowid as number;
+
+      const eski = insert("completed", "2020-01-01T00:00:00.000Z", "2020-01-01T00:00:00.000Z");
+      const eskiHatali = insert("failed", "2020-01-02T00:00:00.000Z", "2020-01-02T00:00:00.000Z");
+      const yeni = insert("completed", new Date().toISOString(), new Date().toISOString());
+      const bekleyen = insert("pending", null, "2020-01-01T00:00:00.000Z");
+
+      expect(pruneJobSnapshots(handle.db)).toBe(2);
+      const text = (id: number) =>
+        handle.db.prepare(`SELECT source_text, notes_text, status FROM jobs WHERE id = ?`).get(id) as {
+          source_text: string;
+          notes_text: string | null;
+          status: string;
+        };
+      expect(text(eski)).toMatchObject({ source_text: "", notes_text: null, status: "completed" });
+      expect(text(eskiHatali).source_text).toBe("");
+      expect(text(yeni).source_text.length).toBeGreaterThan(0);
+      expect(text(bekleyen).source_text.length).toBeGreaterThan(0);
+
+      // Tekrar çalıştırmak bir şey değiştirmez
+      expect(pruneJobSnapshots(handle.db)).toBe(0);
     } finally {
       handle.cleanup();
     }

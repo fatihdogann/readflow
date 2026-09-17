@@ -102,6 +102,14 @@ pnpm app:install
 
 Geri yükleme mevcut veritabanını önce `backups/pre-restore-*.sqlite` olarak yedekler, sonra tablo sayılarının eşleştiğini doğrular.
 
+## Kendiliğinden bakım
+
+Her iş, çalıştığı metnin bir kopyasını kendi kaydında saklar (bu sayede iş kuyruktayken belgeyi
+düzenlemen sonucu bozmaz). Bu kopyalar birikmesin diye worker günde bir kez **90 günden eski
+bitmiş işlerin metin kopyasını** siler; işin kendisi (tarih, CLI, sonuç) geçmişte kalır.
+Süreyi değiştirmek için `~/.readflow/app.env` dosyasına `READFLOW_JOB_SNAPSHOT_DAYS=30` yazıp
+`pnpm app:install` çalıştır.
+
 ## Token sızarsa
 
 Bookmarklet bağlantısı veya iPhone Kestirmesi başkasının eline geçtiyse: Ayarlar → *Tarayıcıdan gönder* →
