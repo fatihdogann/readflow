@@ -21,22 +21,31 @@ describe("tokenizeCommand", () => {
   });
 });
 
+// Unix komutları (cat/echo/sleep) yerine node: testler Windows'ta da çalışır.
+const nodeCmd = (code: string) => ({ argv: [process.execPath, "-e", code] });
+
 describe("CommandAgentAdapter", () => {
-  it("prompt'u stdin'den alıp stdout'a yazar (cat)", async () => {
-    const adapter = new CommandAgentAdapter("cat", { label: "cat-test" });
+  it("prompt'u stdin'den alıp stdout'a yazar", async () => {
+    const adapter = new CommandAgentAdapter("node", {
+      label: "cat-test",
+      ...nodeCmd("process.stdin.pipe(process.stdout)"),
+    });
     const result = await adapter.run({ prompt: "merhaba readflow", timeoutMs: 10_000 });
     expect(result.text).toBe("merhaba readflow");
     expect(result.meta.promptVia).toBe("stdin");
   });
 
-  it("prompt'u argv ile de verebilir (echo argümanları yazdırır)", async () => {
-    const adapter = new CommandAgentAdapter("echo", { promptVia: "argv" });
+  it("prompt'u argv ile de verebilir", async () => {
+    const adapter = new CommandAgentAdapter("node", {
+      promptVia: "argv",
+      ...nodeCmd("console.log(process.argv.slice(1).join(' '))"),
+    });
     const result = await adapter.run({ prompt: "argv yolu", timeoutMs: 10_000 });
     expect(result.text).toBe("argv yolu");
   });
 
   it("zaman aşımında hata üretir", async () => {
-    const adapter = new CommandAgentAdapter("sleep 5");
+    const adapter = new CommandAgentAdapter("node", nodeCmd("setTimeout(() => {}, 5000)"));
     await expect(adapter.run({ prompt: "x", timeoutMs: 400 })).rejects.toThrow(/zaman aşımı/);
   });
 

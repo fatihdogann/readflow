@@ -16,9 +16,17 @@ export function dbFilePath(dataDir = resolveDataDir()): string {
   return path.join(dataDir, "readflow.sqlite");
 }
 
+/** Veri dizini yalnız sahibine açık (0700); Windows'ta mode yok sayılır. */
+export function ensurePrivateDir(dir: string): void {
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  if (process.platform !== "win32") fs.chmodSync(dir, 0o700);
+}
+
 export function openDatabase(dataDir = resolveDataDir()): SqliteDb {
-  fs.mkdirSync(dataDir, { recursive: true });
-  const db = new Database(dbFilePath(dataDir));
+  ensurePrivateDir(dataDir);
+  const file = dbFilePath(dataDir);
+  const db = new Database(file);
+  if (process.platform !== "win32") fs.chmodSync(file, 0o600);
   db.pragma("journal_mode = WAL");
   db.pragma("busy_timeout = 5000");
   db.pragma("foreign_keys = ON");

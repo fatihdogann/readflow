@@ -129,7 +129,7 @@ Readflow bağımsız süreçler halinde çalışır; hepsi aynı SQLite dosyası
 | Web uygulaması | `pnpm dev:web` | Next.js 16 (App Router): UI, REST API, URL/dosya extraction, export servisleri |
 | Worker | `pnpm dev:worker` | `pending` job'ları atomik claim eder, agent CLI'ı çalıştırır, çıktıyı yazar |
 | MCP sunucusu | `pnpm dev:mcp` | Coding agent'lara stdio üzerinden job/doküman tool'ları sunar |
-| Remote worker | `pnpm worker:install` | Uygulama sunucuda (Coolify), AI Mac'te: worker `/api/worker` ucuna outbound HTTPS ile bağlanır, prompt'u alır, CLI'ı çalıştırır, sonucu yazar. launchd servisi olarak açılışta başlar |
+| Mac servisi | `pnpm app:install` | Production web (yalnız `127.0.0.1`) + yerel worker launchd servisi olarak açılışta başlar; ayarlar `~/.readflow/app.env`. Uzak erişim Tailscale Serve ile |
 | Agent CLI | senin makinen | AI işini gerçekleştiren `claude` / `codex` / `jcode` / özel script |
 
 ```

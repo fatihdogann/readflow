@@ -81,7 +81,7 @@ scripts/             migrate, mock-agent.mjs
 
 `pnpm dev:all` · `pnpm dev:web` · `pnpm dev:worker` · `pnpm dev:mcp` · `pnpm db:migrate` · `pnpm build` · `pnpm start` · `pnpm test` · `pnpm typecheck` · `pnpm lint`
 
-Uzak kurulum (uygulama Coolify'da, AI Mac'te): `pnpm worker:install` (launchd servisi, açılışta başlar) · `pnpm worker:status` · `pnpm worker:logs` · `pnpm worker:uninstall`. İkon seti logo değişince: `pnpm icons`.
+Mac production (web 127.0.0.1 + yerel worker, uzak erişim Tailscale Serve): `pnpm app:start` · `pnpm app:install` (launchd, env `~/.readflow/app.env`) · `pnpm app:status` · `pnpm app:logs` · `pnpm app:uninstall`. İkon seti logo değişince: `pnpm icons`.
 
 Testler vitest; test'ler geçici dizinde kendi SQLite'ını kurar (`src/lib/db/testDb.ts`), ağa bağlanmaz (URL extractor için `src/lib/extraction/__fixtures__/` fixture'ları var). Yeni özellik → önce core'a test.
 

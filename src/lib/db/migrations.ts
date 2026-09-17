@@ -523,7 +523,7 @@ export function getSchemaVersion(db: SqliteDb): number {
 export function backupBeforeUpgrade(db: SqliteDb, currentVersion: number, dataDir: string): string | null {
   try {
     const backupDir = path.join(dataDir, "backups");
-    fs.mkdirSync(backupDir, { recursive: true });
+    fs.mkdirSync(backupDir, { recursive: true, mode: 0o700 });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     const backupPath = path.join(backupDir, `pre-upgrade-v${currentVersion}-${stamp}.sqlite`);
     db.prepare("VACUUM INTO ?").run(backupPath);

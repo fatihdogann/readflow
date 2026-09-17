@@ -6,10 +6,10 @@
     "dev:web": "next dev",
     "dev:worker": "tsx src/worker/index.ts",
     "worker:remote": "tsx src/worker/remote.ts",
-    "worker:install": "bash scripts/worker-agent.sh install",
-    "worker:uninstall": "bash scripts/worker-agent.sh uninstall",
-    "worker:logs": "bash scripts/worker-agent.sh logs",
-    "worker:status": "bash scripts/worker-agent.sh status",
+    "app:install": "bash scripts/app-service.sh install",
+    "app:uninstall": "bash scripts/app-service.sh uninstall",
+    "app:logs": "bash scripts/app-service.sh logs",
+    "app:status": "bash scripts/app-service.sh status",
     "dev:all": "concurrently -k -n web,worker -c blue,magenta \"next dev\" \"tsx watch src/worker/index.ts\"",
     "dev:mcp": "tsx src/mcp/server.ts",
     "db:migrate": "tsx scripts/migrate.ts",
@@ -22,7 +22,8 @@
     "test:e2e": "pnpm build && playwright test",
     "dev:e2e": "node scripts/e2e-server.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "app:start": "concurrently -k -n web,worker -c blue,magenta \"next start -H 127.0.0.1\" \"tsx src/worker/index.ts\""
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -59,5 +60,6 @@
     "typescript": "^5",
     "vitest": "^5.0.0"
   },
-  "packageManager": "pnpm@12.3.4"
+  "packageManager": "pnpm@12.3.4",
+  "engines": { "node": ">=22" }
 }

@@ -20,7 +20,7 @@
 4. Health check: `GET /api/worker` → `{"ok":true,"enrollmentConfigured":...}`.
 5. Mac worker — **kalıcı kurulum (önerilen)**: elle komut çalıştırmaya gerek yok.
    ```bash
-   pnpm worker:install
+   pnpm worker:remote   # (launchd kurulumu kaldırıldı; uygulama artık Mac'te: pnpm app:install)
    ```
    İlk çalıştırma `~/.readflow/worker.env` şablonunu oluşturur; `READFLOW_SERVER_URL`
    ve `READFLOW_WORKER_TOKEN` doldurulup komut tekrarlanır. Sonrası launchd servisi:

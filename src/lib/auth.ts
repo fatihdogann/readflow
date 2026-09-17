@@ -40,8 +40,14 @@ export async function verifyCredentials(username: string, password: string): Pro
 }
 
 function sessionSecret(): string {
-  // Oturum imza anahtarı: ayrı secret verilmişse o; yoksa paroladan türetilir.
-  return process.env.READFLOW_SESSION_SECRET?.trim() || `pw:${process.env.READFLOW_AUTH_PASSWORD ?? ""}`;
+  // Oturum imza anahtarı: ayrı secret verilmişse o. Paroladan türetme yalnız
+  // geliştirmede; production'da secret instrumentation-node.ts ile zorunlu.
+  const secret = process.env.READFLOW_SESSION_SECRET?.trim();
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("READFLOW_SESSION_SECRET production'da zorunlu");
+  }
+  return `pw:${process.env.READFLOW_AUTH_PASSWORD ?? ""}`;
 }
 
 async function hmac(payload: string): Promise<string> {
