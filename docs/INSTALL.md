@@ -62,6 +62,12 @@ claude        # ilk çalıştırmada giriş yap, sonra çık
 
 CLI yoksa uygulama çalışır, yalnızca AI işleri beklemede kalır.
 
+İsteğe bağlı — taranmış PDF'ler için yerel OCR:
+
+```bash
+brew install tesseract tesseract-lang poppler
+```
+
 ## 5. Servisi kur
 
 ```bash
@@ -73,7 +79,7 @@ pnpm app:logs        # canlı log (Ctrl+C ile çık)
 Kontrol:
 
 ```bash
-curl -s http://127.0.0.1:3000/api/health     # {"ok":true}
+pnpm diagnose     # Node, veritabanı, giriş ayarları, agent, OCR, servis ve sağlık ucu
 ```
 
 Tarayıcıda `http://127.0.0.1:3000` → giriş yap → bir metin yapıştır → **Özetle**.
@@ -109,6 +115,18 @@ adresle oluşturulan bağlantı çalışmaz.
 - **Android:** Tailscale adresini Chrome'da açıp *Ana ekrana ekle* ile uygulamayı kur.
   Paylaş menüsünde Readflow çıkar; paylaşılan bağlantı ana sayfadaki forma dolar,
   **Kaydet** ile eklenir.
+
+### Toplu içe aktarma
+
+```bash
+pnpm import:files ~/Documents/Notlar           # .md .txt .html .pdf .docx (alt klasörler dahil)
+pnpm import:files ~/Downloads/instapaper.csv   # url sütunlu CSV: Instapaper, Pocket, Readwise…
+pnpm import:files ~/Downloads/bookmarks.html   # tarayıcı / Pocket yer imi dışa aktarımı
+```
+
+Bağlantılar sırayla indirilir (aralarında 1 sn). Arşivde zaten olanlar ve aynı içerikli
+belgeler atlanır, komut tekrar çalıştırılabilir. Başarısız olanlar sonda listelenir;
+bot koruması olan siteler için bookmarklet'i kullan.
 
 ## 7. Güncelleme
 
@@ -157,7 +175,7 @@ rm -rf ~/.readflow     # DİKKAT: tüm belgeler ve yedekler silinir
 
 Uygulama çalışır, ancak servis kurulumu yoktur.
 
-- Adım 1–4 aynıdır (Windows'ta PowerShell kullan; `open -e` yerine not defteri).
+- Adım 1–4 aynıdır (Windows'ta PowerShell kullan; `open -e` yerine not defteri). OCR için `apt install tesseract-ocr tesseract-ocr-tur poppler-utils`.
 - Ortam değişkenlerini repo kökündeki `.env.local` dosyasına yaz.
 - `pnpm build` ardından `pnpm app:start` ile başlat. Açılışta başlatmak için
   Linux'ta `systemd --user` birimi, Windows'ta Görev Zamanlayıcı ile bu komutu çalıştırabilirsin.

@@ -23,7 +23,8 @@ src/lib/db/          SQLite bağlantısı (WAL), migrations.ts (sürüm meta tab
 src/lib/jobs/        job queue yardımcıları + ReadflowWorker döngüsü (kalp atışı meta'ya yazılır)
 src/lib/agent/       AgentAdapter sözleşmesi; CommandAgentAdapter (stdin/stdout, shell yok), MockAgentAdapter, detect (CLI --help imza doğrulaması)
 src/lib/ai/instructions/  Tüm prompt'lar burada — React component'larına asla gömme
-src/lib/extraction/  URL fetch (timeout/boyut/redirect/SSRF+DNS kontrolleri, 403'te Wayback yedeği) + Readability + sanitize + fromBuffer (PDF/DOCX/metin)
+src/lib/import/      toplu içe aktarma (klasör, url'li CSV, yer imi HTML'i) — createDocumentFromInput üzerinden
+src/lib/extraction/  URL fetch (timeout/boyut/redirect/SSRF+DNS kontrolleri, 403'te Wayback yedeği) + Readability + sanitize + fromBuffer (PDF/DOCX/metin) + ocr (sistem tesseract/pdftoppm, npm bağımlılığı yok)
 src/lib/export/      format (md/txt), docx, notion/telegram adapter'ları (env-gated)
 src/lib/documents/   createDocumentFromInput + getDocumentDetail servisleri
 src/mcp/             yerel MCP sunucusu (stdio) — web core'una gömülü değildir
@@ -79,7 +80,7 @@ scripts/             migrate, mock-agent.mjs
 
 ## Komutlar
 
-`pnpm dev:all` · `pnpm dev:web` · `pnpm dev:worker` · `pnpm dev:mcp` · `pnpm db:migrate` · `pnpm db:backup` · `pnpm db:restore <dosya> [--check]` · `pnpm build` · `pnpm start` · `pnpm test` · `pnpm typecheck` · `pnpm lint`
+`pnpm dev:all` · `pnpm dev:web` · `pnpm dev:worker` · `pnpm dev:mcp` · `pnpm db:migrate` · `pnpm db:backup` · `pnpm db:restore <dosya> [--check]` · `pnpm import:files <yol>` · `pnpm diagnose` · `pnpm build` · `pnpm start` · `pnpm test` · `pnpm typecheck` · `pnpm lint`
 
 Mac production (web 127.0.0.1 + yerel worker, uzak erişim Tailscale Serve): `pnpm app:start` · `pnpm app:install` (launchd, env `~/.readflow/app.env`) · `pnpm app:status` · `pnpm app:logs` · `pnpm app:uninstall`. İkon seti logo değişince: `pnpm icons`.
 

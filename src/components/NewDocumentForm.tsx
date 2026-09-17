@@ -12,6 +12,7 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
   const [value, setValue] = useState(initialValue);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   // URL engellendiğinde açılan kaçış yolu: sayfanın kaynağını elle yapıştır.
   const [pasteFor, setPasteFor] = useState<string | null>(null);
   const [pastedHtml, setPastedHtml] = useState("");
@@ -74,15 +75,33 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
     }
   }
 
-  async function submitFile(file: File): Promise<void> {
-    if (busy) return;
+  function upload(file: File): Promise<Response> {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch("/api/documents", { method: "POST", body: form });
+  }
+
+  /** Tek dosya: belgeyi açar. Birden fazla: sırayla ekler, özet gösterir. */
+  async function submitFiles(files: File[]): Promise<void> {
+    if (busy || files.length === 0) return;
     setBusy(true);
     setError(null);
+    setNotice(null);
     setPasteFor(null);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      await open(await fetch("/api/documents", { method: "POST", body: form }));
+      if (files.length === 1) {
+        await open(await upload(files[0]));
+        return;
+      }
+      const failed: string[] = [];
+      for (const [index, file] of files.entries()) {
+        setNotice(`${index + 1}/${files.length}: ${file.name}`);
+        const response = await upload(file).catch(() => null);
+        if (!response?.ok) failed.push(file.name);
+      }
+      setNotice(`${files.length - failed.length} belge eklendi.`);
+      if (failed.length) setError(`Eklenemeyen: ${failed.join(", ")}`);
+      router.refresh();
     } catch (fileError) {
       setError(fileError instanceof Error ? fileError.message : "Dosya işlenemedi");
     } finally {
@@ -101,8 +120,7 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
       onDrop={(event) => {
         event.preventDefault();
         setDragging(false);
-        const file = event.dataTransfer.files[0];
-        if (file) void submitFile(file);
+        void submitFiles(Array.from(event.dataTransfer.files));
       }}
       className={`flex flex-col gap-3 rounded-2xl border bg-white/70 p-3 shadow-[0_16px_45px_rgba(28,25,23,0.07)] transition dark:bg-stone-900/35 dark:shadow-none sm:p-4 ${
         dragging
@@ -138,12 +156,13 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
           ref={fileInput}
           type="file"
           accept={ACCEPTED}
+          multiple
           className="sr-only"
-          aria-label="PDF, Word veya metin dosyası"
+          aria-label="PDF, Word veya metin dosyaları"
           onChange={(event) => {
-            const file = event.target.files?.[0];
+            const files = Array.from(event.target.files ?? []);
             event.target.value = "";
-            if (file) void submitFile(file);
+            void submitFiles(files);
           }}
         />
         {value.trim() ? (
@@ -155,11 +174,16 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
           </span>
         ) : (
           <span className="text-xs text-stone-400">
-            PDF · Word · Markdown sürükleyebilirsin. Her şey yalnızca bu bilgisayarda saklanır.
+            PDF · Word · Markdown sürükleyebilirsin (birden fazla da olur). Her şey yalnızca bu bilgisayarda saklanır.
           </span>
         )}
       </div>
 
+      {notice ? (
+        <p role="status" className="text-sm text-stone-600 dark:text-stone-400">
+          {notice}
+        </p>
+      ) : null}
       {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
 
       {pasteFor ? (

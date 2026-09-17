@@ -24,7 +24,8 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 
 - Bir **URL yapıştırırsın**: sayfa sunucu tarafında indirilir, Mozilla Readability ile ana makaleye ayrıştırılır (navigation, reklam, cookie banner gürültüsü atılır, HTML sanitize edilir). Site bot koruması verirse Wayback Machine kopyası denenir.
 - Bir **metin yapıştırırsın**: doğrudan arşive kaydedilir.
-- Bir **dosya bırakırsın**: PDF, Word (.docx), Markdown ve düz metin sürükle-bırak ya da "Dosya seç" ile eklenir. Taranmış (görsel) PDF'te metin yoksa net hata verir — OCR yoktur.
+- Bir **dosya bırakırsın**: PDF, Word (.docx), Markdown ve düz metin sürükle-bırak ya da "Dosya seç" ile eklenir; birden fazla dosya birlikte bırakılabilir. Taranmış (görsel) PDF'ler, makinede `tesseract` + `poppler` varsa yerel OCR ile okunur (Türkçe + İngilizce, ilk 50 sayfa).
+- **Toplu içe aktarırsın**: `pnpm import:files <klasör|dosya>` — Markdown/TXT/HTML/PDF/DOCX klasörleri ve okuma uygulamalarının dışa aktarımları (Instapaper, Pocket, Readwise CSV'leri; tarayıcı/Pocket yer imi HTML'i). Arşivde olan bağlantılar ve aynı içerikli belgeler atlanır; etiketler korunur.
 - **Telefondan paylaşırsın**: iPhone'da Kestirmeler, Android'de PWA paylaşım hedefi ile bağlantı veya metin arşive gider (Ayarlar'da kurulum adımları).
 - **Bookmarklet ile gönderirsin**: yer imleri çubuğundaki "Readflow'a gönder" düğmesi, açık sekmenin HTML'ini doğrudan Readflow'a yollar. Sunucu siteye hiç istek atmadığı için bot koruması, paywall, çerez duvarı ve JavaScript ile üretilen sayfalar da eklenebilir. Ayarlar ekranından kurulur.
 - Dört içerik türü nettir: **Orijinal** (asla değişmez), **Düzenlenmiş** (kullanıcının kendi sürümü, revision kontrollü), **AI Düzenlemesi** (okunabilirlik çıktısı) ve **Özet** (Kısa/Normal/Detaylı).
@@ -73,6 +74,8 @@ pnpm typecheck    # tsc --noEmit
 pnpm lint         # eslint
 pnpm build        # production build
 pnpm db:migrate   # şema sürümünü yazdırır
+pnpm diagnose     # kurulumu salt-okunur denetler (Node, DB, giriş, agent, OCR, servis, sağlık)
+pnpm import:files <yol>   # toplu içe aktarma
 ```
 
 ## Agent CLI bağlantısı
@@ -226,7 +229,7 @@ Ayrıntı ve "projeyi çalıştır" protokolü için [AGENTS.md](AGENTS.md). Gü
 ## Sınırlar
 
 - Tek kullanıcılıdır; hesap, çoklu kullanıcı veya cloud sync yoktur.
-- Taranmış PDF için OCR yoktur.
+- OCR yalnızca sistemde `tesseract` ve `pdftoppm` kuruluysa çalışır; el yazısı için uygun değildir.
 - Servis kurulumu (`app:install`) yalnızca macOS içindir; Linux/Windows'ta `pnpm app:start` elle çalıştırılır.
 
 ## Lisans

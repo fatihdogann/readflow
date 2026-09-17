@@ -1,6 +1,7 @@
 import { InputError } from "../types";
 import { sanitizeArticleHtml } from "./sanitize";
 import type { ArticleExtraction } from "./fetchArticle";
+import { OCR_INSTALL_HINT, ocrAvailable, ocrPdf } from "./ocr";
 
 /** PDF sayfa sayısı yüksek olabilir; metin sınırı HTML yolundakiyle aynı. */
 const MAX_TEXT_CHARS = 2_000_000;
@@ -53,10 +54,21 @@ async function extractPdf(buffer: Buffer, label: string): Promise<ArticleExtract
   } catch {
     throw new InputError("PDF okunamadı (bozuk veya şifreli olabilir)");
   }
+  let domain = "pdf";
   if (text.replace(/\s/g, "").length < 30) {
-    throw new InputError(
-      "PDF'te seçilebilir metin yok — taranmış (görsel) bir belge gibi görünüyor. OCR gerekiyor.",
-    );
+    // Taranmış (görsel) PDF: yerel OCR varsa dene.
+    if (!ocrAvailable()) {
+      throw new InputError(`PDF'te seçilebilir metin yok — taranmış bir belge gibi görünüyor. ${OCR_INSTALL_HINT}`);
+    }
+    try {
+      text = await ocrPdf(buffer);
+    } catch {
+      throw new InputError("Taranmış PDF OCR ile okunamadı");
+    }
+    if (text.replace(/\s/g, "").length < 30) {
+      throw new InputError("OCR sonrası da okunabilir metin bulunamadı");
+    }
+    domain = "pdf-ocr";
   }
   return {
     title: (title || label).slice(0, 300),
@@ -64,7 +76,7 @@ async function extractPdf(buffer: Buffer, label: string): Promise<ArticleExtract
     publishedAt: null,
     originalText: text.slice(0, MAX_TEXT_CHARS),
     originalHtml: null,
-    domain: "pdf",
+    domain,
   };
 }
 

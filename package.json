@@ -16,6 +16,8 @@
     "icons": "node scripts/build-icons.mjs",
     "db:backup": "tsx scripts/db-backup.ts",
     "db:restore": "tsx scripts/db-restore.ts",
+    "import:files": "tsx scripts/import.ts",
+    "diagnose": "tsx scripts/diagnose.ts",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",

@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { detectKind, extractFromBuffer } from "./fromBuffer";
+import { ocrAvailable } from "./ocr";
 import { InputError } from "../types";
 
 const fixture = (name: string): Buffer =>
@@ -60,5 +61,24 @@ describe("extractFromBuffer", () => {
     await expect(
       extractFromBuffer(Buffer.from(""), { contentType: "text/plain", fileName: "bos.txt" }),
     ).rejects.toThrow(/boş/i);
+  });
+});
+
+describe("taranmış PDF (OCR)", () => {
+  const scanned = () => fixture("scanned.pdf");
+
+  it.skipIf(!ocrAvailable())("seçilebilir metni olmayan PDF'i tesseract ile okur", async () => {
+    const result = await extractFromBuffer(scanned(), { fileName: "scanned.pdf" });
+    expect(result.originalText).toMatch(/Readflow PDF/i);
+    expect(result.domain).toBe("pdf-ocr");
+  });
+
+  it("OCR araçları yoksa kurulum ipucuyla reddeder", async () => {
+    vi.stubEnv("READFLOW_OCR", "off");
+    try {
+      await expect(extractFromBuffer(scanned(), { fileName: "scanned.pdf" })).rejects.toThrow(/tesseract/);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
