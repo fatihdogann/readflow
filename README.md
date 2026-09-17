@@ -32,6 +32,7 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 - AI işlemleri **remote LLM API'si ile değil**, kendi bilgisayarındaki coding-agent CLI üzerinden yapılır. **Hiçbir LLM API key istemez.** CLI'ın kendisi kendi oturumuyla uzak model sağlayıcısına bağlanabilir; Readflow'un verisi (dokümanlar, notlar, çıktılar) ise yalnızca `~/.readflow/` içinde saklanır — "yerel saklama" ile "AI tamamen çevrimdışı" aynı şey değildir.
 - İş oluşturulduğunda **kaynak metin, notlar ve AI yapılandırması snapshot olarak sabitlenir**; sonraki değişiklikler bekleyen işi etkilemez. Retry aynı snapshot ile çalışır.
 - Arama, favoriler, klasörler, etiketler, okuma durumu (Okunacak/Okuyorum/Bitti), domain/AI filtreleri ve "Notlu"/"Düzenlenmiş" filtreleriyle arşivde gezilir. Her AI çıktısının değişmez sürüm geçmişi tutulur.
+- **Çevrimdışı okunur**: service worker son 60 sayfayı önbelleğe alır; Tailscale kopsa veya Mac uykuda olsa da daha önce açtığın belgeler telefonda okunabilir (API istekleri önbelleğe alınmaz).
 - **Vurgular** sayfası tüm belgelerdeki altı çizilenleri ve notları bir arada gösterir: renk/metin/notlu filtreleri, belgeye atlama ve Markdown olarak panoya kopyalama.
 - Çıktılar panoya, TXT, Markdown, PDF (yazdır), DOCX olarak yerel olarak dışa aktarılır; Notion/Telegram adapter'ları env ile kurulur.
 
@@ -99,6 +100,7 @@ READFLOW_AGENT_TIMEOUT_MS=120000
 READFLOW_OCR=off                # tamamen kapat
 READFLOW_OCR_LANG=tur+eng       # kurulu tesseract dilleri
 READFLOW_OCR_MAX_PAGES=50       # bir PDF'ten okunacak en fazla sayfa
+READFLOW_OCR_CONCURRENCY=4      # aynı anda okunan sayfa (varsayılan: çekirdek/2, en çok 4)
 ```
 
 > Çok sayfalı taramalarda web isteği uzun sürer; 50 sayfanın üstündeki belgeleri

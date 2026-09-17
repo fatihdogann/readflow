@@ -33,11 +33,28 @@ export function RightRail({
 }) {
   const panelRef = useRef<HTMLElement>(null);
 
+  /**
+   * Odağı geri verme ve kaydırma kilidi YALNIZCA açılış/kapanışta çalışır:
+   * `onClose` her render'da yeni referans olabildiği için tuş efektinden ayrıldı —
+   * aksi halde hedef, panel içindeki (kapanınca yok olan) öğeyle değişiyordu.
+   */
   useEffect(() => {
     const media = window.matchMedia("(max-width: 1023px)");
-    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     if (media.matches) document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      // Panel kapanınca odak kendi açma düğmesine döner. Düğme DOM'da aranır:
+      // panel yeniden oluşturulduğunda (router.refresh) açılışta yakalanan öğe
+      // bayatlamış olabilir.
+      const trigger = document.querySelector<HTMLElement>(`[data-rail-trigger="${tab}"]`);
+      (trigger ?? opener)?.focus();
+    };
+  }, [tab]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1023px)");
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -65,11 +82,7 @@ export function RightRail({
     };
 
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previousOverflow;
-      returnFocus?.focus();
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (

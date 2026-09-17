@@ -24,6 +24,10 @@ const child = spawn(
       ...process.env,
       READFLOW_DATA_DIR: dataDir,
       READFLOW_AGENT_MODE: "mock",
+      // Production build oturumsuz başlamaz; e2e için sabit test kimliği.
+      READFLOW_AUTH_USERNAME: "e2e",
+      READFLOW_AUTH_PASSWORD: "e2e-parola-123",
+      READFLOW_SESSION_SECRET: "e2e-oturum-anahtari-0123456789abcdef",
     },
   },
 );

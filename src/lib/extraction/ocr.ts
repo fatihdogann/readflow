@@ -10,6 +10,17 @@ const run = promisify(execFile);
 const DEFAULT_MAX_PAGES = 50;
 const PAGE_TIMEOUT_MS = 120_000;
 
+/**
+ * Kaç sayfa aynı anda okunur. Varsayılan: çekirdeklerin yarısı (en çok 4) —
+ * makineyi boğmamak için bilinçli olarak muhafazakâr. READFLOW_OCR_CONCURRENCY
+ * ile değişir; her tesseract süreci ayrıca tek iş parçacığına sabitlenir.
+ */
+export function ocrConcurrency(): number {
+  const raw = Number(process.env.READFLOW_OCR_CONCURRENCY);
+  if (Number.isFinite(raw) && raw >= 1) return Math.floor(raw);
+  return Math.max(1, Math.min(4, Math.floor(os.cpus().length / 2)));
+}
+
 export function ocrMaxPages(): number {
   const raw = Number(process.env.READFLOW_OCR_MAX_PAGES);
   if (!Number.isFinite(raw) || raw < 1) return DEFAULT_MAX_PAGES;
@@ -57,15 +68,22 @@ export async function ocrPdf(buffer: Buffer): Promise<string> {
       .filter((name) => name.startsWith("page") && name.endsWith(".png"))
       .sort((a, b) => Number(a.match(/\d+/)?.[0]) - Number(b.match(/\d+/)?.[0]));
     const lang = languages();
-    const texts: string[] = [];
-    // ponytail: sayfalar sırayla okunur; çok sayfalı taramalarda yavaş, gerekirse paralelleştir.
-    for (const page of pages) {
-      const { stdout } = await run("tesseract", [path.join(dir, page), "stdout", "-l", lang], {
-        timeout: PAGE_TIMEOUT_MS,
-        maxBuffer: 10_000_000,
-      });
-      texts.push(stdout.replace(/[ \t]+/g, " ").trim());
-    }
+    const texts: string[] = new Array(pages.length).fill("");
+    const limit = ocrConcurrency();
+    let next = 0;
+    // Sayfalar sıralı kuyruktan çekilir; aynı anda en çok `limit` tesseract çalışır.
+    const worker = async (): Promise<void> => {
+      for (let index = next++; index < pages.length; index = next++) {
+        const { stdout } = await run("tesseract", [path.join(dir, pages[index]), "stdout", "-l", lang], {
+          timeout: PAGE_TIMEOUT_MS,
+          maxBuffer: 10_000_000,
+          // tesseract kendi içinde de iş parçacığı açar; paralel çalışırken tek çekirdeğe sabitle.
+          env: { ...process.env, OMP_THREAD_LIMIT: "1" },
+        });
+        texts[index] = stdout.replace(/[ \t]+/g, " ").trim();
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, pages.length) }, worker));
     return texts.filter(Boolean).join("\n\n");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

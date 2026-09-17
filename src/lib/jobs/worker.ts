@@ -38,6 +38,9 @@ export interface WorkerHeartbeat {
   ts: string;
   agentMode: AgentRuntimeInfo["mode"];
   agentName: string | null;
+  /** Adapter nereden geldi: env kilidi, profil veya otomatik tespit. */
+  agentSource?: AgentRuntimeInfo["source"] | null;
+  agentCommand?: string | null;
   fallbackAgentName?: string | null;
   currentJobId?: number | null;
   workerId: string;
@@ -218,6 +221,8 @@ export class ReadflowWorker {
           ts: new Date().toISOString(),
           agentMode: resolution.info.mode,
           agentName: this.currentAgentName ?? resolution.adapter?.name ?? null,
+          agentSource: resolution.info.source ?? null,
+          agentCommand: resolution.info.command ?? null,
           fallbackAgentName: resolution.adapter?.name ?? null,
           currentJobId: this.currentJobId,
           workerId: this.workerId,

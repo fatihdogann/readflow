@@ -1,3 +1,4 @@
+import { AgentRunnerCard } from "@/components/AgentRunnerCard";
 import { AgentSettings } from "@/components/AgentSettings";
 import { BackupCard } from "@/components/BackupCard";
 import { BookmarkletCard } from "@/components/BookmarkletCard";
@@ -18,6 +19,7 @@ export default function SettingsPage() {
       </header>
       <BookmarkletCard />
       <BackupCard />
+      <AgentRunnerCard />
       <AgentSettings />
     </div>
   );

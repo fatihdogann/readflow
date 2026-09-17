@@ -28,6 +28,7 @@ src/lib/extraction/  URL fetch (timeout/boyut/redirect/SSRF+DNS kontrolleri, 403
 src/lib/export/      format (md/txt), docx, notion/telegram adapter'ları (env-gated)
 src/lib/documents/   createDocumentFromInput + getDocumentDetail servisleri
 src/mcp/             yerel MCP sunucusu (stdio) — web core'una gömülü değildir
+public/sw.js         service worker: sayfalar ağ-önce önbellek (son 60), /api asla önbelleğe girmez
 public/bookmarklet.js  tarayıcıdan gönderme kaynağı; /api/bookmarklet token gömüp javascript: bağlantısına çevirir
 src/worker/          worker giriş noktası (pnpm dev:worker)
 src/app/             Next.js App Router UI + API route'ları

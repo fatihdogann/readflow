@@ -5,8 +5,10 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   reporter: "line",
+  globalSetup: "./e2e/global-setup.ts",
   use: {
     baseURL: "http://127.0.0.1:3210",
+    storageState: ".readflow-e2e/state.json",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { MobileNav, Sidebar } from "@/components/Sidebar";
+import { ServiceWorker } from "@/components/ServiceWorker";
 
 export const metadata: Metadata = {
   title: "Readflow",
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-[#faf9f7] text-stone-900 antialiased dark:bg-[#171512] dark:text-stone-200">
         {/* Tema başlangıcı: hydrate öncesi çalışır, parlaklık sıçramasını önler */}
         <Script id="theme-init" strategy="beforeInteractive">{themeInit}</Script>
+        <ServiceWorker />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-stone-900 focus:px-3 focus:py-2 focus:text-sm focus:text-white"

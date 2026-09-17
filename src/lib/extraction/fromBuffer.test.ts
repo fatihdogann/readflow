@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { detectKind, extractFromBuffer } from "./fromBuffer";
-import { ocrAvailable, ocrMaxPages } from "./ocr";
+import { ocrAvailable, ocrConcurrency, ocrMaxPages } from "./ocr";
 import { InputError } from "../types";
 
 const fixture = (name: string): Buffer =>
@@ -79,6 +80,16 @@ describe("taranmış PDF (OCR)", () => {
     expect(ocrMaxPages()).toBe(300);
     vi.stubEnv("READFLOW_OCR_MAX_PAGES", "sıfır");
     expect(ocrMaxPages()).toBe(50);
+    vi.unstubAllEnvs();
+  });
+
+  it("paralellik makineyi boğmaz: varsayılan en çok 4, env ile değişir", () => {
+    const auto = ocrConcurrency();
+    expect(auto).toBeGreaterThanOrEqual(1);
+    expect(auto).toBeLessThanOrEqual(4);
+    expect(auto).toBeLessThanOrEqual(Math.max(1, os.cpus().length - 1));
+    vi.stubEnv("READFLOW_OCR_CONCURRENCY", "8");
+    expect(ocrConcurrency()).toBe(8);
     vi.unstubAllEnvs();
   });
 

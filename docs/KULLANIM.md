@@ -46,6 +46,9 @@ Daha fazla sayfa için `~/.readflow/app.env` dosyasına ekle ve `pnpm app:instal
 READFLOW_OCR_MAX_PAGES=300
 ```
 
+OCR sayfaları paralel okur: çekirdeklerin yarısı, en fazla 4 süreç. Makineyi daha az
+yormasını istersen `READFLOW_OCR_CONCURRENCY=1` yaz.
+
 Uzun taramaları (yaklaşık 50 sayfa üstü) tarayıcıdan yüklemek yerine komutla ekle; tarayıcı isteği zaman aşımına uğrayabilir, komut satırında böyle bir sınır yok:
 
 ```bash
@@ -53,6 +56,15 @@ pnpm import:files ~/Downloads/taranmis-kitap.pdf
 ```
 
 OCR'ı kapatmak için `READFLOW_OCR=off`. El yazısı için uygun değildir.
+
+## Çevrimdışı okuma
+
+Açtığın sayfalar tarayıcıda saklanır. Mac uykudayken ya da Tailscale kopukken **daha önce
+açtığın belgeler** okunabilir; hiç açılmamış bir sayfaya gidersen "Çevrimdışısın" bilgisi gelir.
+
+- Son 60 sayfa saklanır, en eskisi düşer. Yani uçak yolculuğundan önce okuyacaklarını bir kez aç.
+- Yeni içerik ekleme, arama ve AI işleri çevrimdışıyken çalışmaz; bağlantı gelince devam eder.
+- Telefonda **Ana Ekrana Ekle** dersen uygulama gibi açılır ve aynı önbelleği kullanır.
 
 ## Toplu içe aktarma
 
@@ -94,7 +106,7 @@ Geri yükleme mevcut veritabanını önce `backups/pre-restore-*.sqlite` olarak 
 
 | Komut | Ne yapar |
 |---|---|
-| `pnpm diagnose` | Kurulumu baştan sona kontrol eder. Bir şey ters gittiğinde ilk çalıştıracağın komut. |
+| `pnpm diagnose` | Kurulumu baştan sona kontrol eder; hangi CLI'ı hem bu kabuğun hem worker'ın gördüğünü yazar. Bir şey ters gittiğinde ilk çalıştıracağın komut. |
 | `pnpm app:status` | Servis çalışıyor mu? |
 | `pnpm app:logs` | Canlı log (çıkmak için Ctrl+C). |
 | `pnpm app:uninstall` | Servisi durdurur ve kaldırır. Veriye dokunmaz. |
@@ -106,6 +118,7 @@ Geri yükleme mevcut veritabanını önce `backups/pre-restore-*.sqlite` olarak 
 |---|---|
 | Sayfa açılmıyor | `pnpm diagnose` → servis kurulu değilse `pnpm app:install`. |
 | "Agent bağlı değil" | Terminalde `claude` (veya `codex`) yazıp oturum aç, sonra başarısız işte **Yeniden dene**. |
+| Hangi CLI'ın çalıştığı belirsiz | Ayarlar'ın en üstündeki "İşleri şu an ne çalıştırıyor?" kartına bak; sabitlemek için bir profili varsayılan yap. |
 | Telefondan açılmıyor | Telefonda ve Mac'te Tailscale bağlı mı? Mac uyanık mı? |
 | Özet gelmiyor | `pnpm app:logs` ile agent hatasına bak. |
 | Bağlantı eklenmiyor | Bookmarklet'i kullan veya sayfa kaynağını yapıştır. |

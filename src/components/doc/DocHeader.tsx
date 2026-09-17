@@ -119,6 +119,7 @@ export function DocHeader({
           <button
             type="button"
             onClick={() => onRailToggle("note")}
+            data-rail-trigger="note"
             aria-expanded={rail === "note"}
             className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
               rail === "note" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
@@ -131,6 +132,7 @@ export function DocHeader({
           <button
             type="button"
             onClick={() => onRailToggle("highlights")}
+            data-rail-trigger="highlights"
             aria-expanded={rail === "highlights"}
             className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
               rail === "highlights" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
@@ -147,6 +149,7 @@ export function DocHeader({
           <button
             type="button"
             onClick={() => onRailToggle("chat")}
+            data-rail-trigger="chat"
             aria-expanded={rail === "chat"}
             className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
               rail === "chat" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"

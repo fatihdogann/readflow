@@ -76,6 +76,30 @@ function checkData(): void {
   }
 }
 
+interface HeartbeatInfo {
+  ts: string;
+  agentName: string | null;
+  agentCommand?: string | null;
+  agentSource?: string | null;
+}
+
+/** Worker'ın son kalp atışı (salt-okunur; 120 sn'den eskiyse yok sayılır). */
+function readServiceHeartbeat(): HeartbeatInfo | null {
+  const file = dbFilePath(resolveDataDir());
+  if (!fs.existsSync(file)) return null;
+  const db = new Database(file, { readonly: true, fileMustExist: true });
+  try {
+    const row = db.prepare(`SELECT value FROM meta WHERE key = 'worker_heartbeat'`).get() as { value: string } | undefined;
+    if (!row) return null;
+    const beat = JSON.parse(row.value) as HeartbeatInfo;
+    return Date.now() - new Date(beat.ts).getTime() < 120_000 ? beat : null;
+  } catch {
+    return null;
+  } finally {
+    db.close();
+  }
+}
+
 function checkAuth(): void {
   const user = process.env.READFLOW_AUTH_USERNAME?.trim();
   const pass = process.env.READFLOW_AUTH_PASSWORD?.trim() ?? "";
@@ -95,8 +119,21 @@ function checkAuth(): void {
 
 function checkTools(): void {
   const { adapter, info } = resolveAdapter();
-  if (adapter) ok(`Agent: ${info.command ?? info.mode}${info.source ? ` [${info.source}]` : ""}`);
-  else warn(`Agent bulunamadı — AI işleri bekler. ${info.message ?? "claude / codex / jcode kur ve oturum aç"}`);
+  const local = info.command ?? info.mode;
+  if (adapter) ok(`Agent (bu kabuk): ${local}${info.source ? ` [${info.source}]` : ""}`);
+  else warn(`Agent bulunamadı (bu kabuk). ${info.message ?? "claude / codex / jcode kur ve oturum aç"}`);
+
+  // İşleri çalıştıran worker'dır; farklı PATH gördüğü için başka CLI seçmiş olabilir.
+  const beat = readServiceHeartbeat();
+  if (!beat) {
+    warn("Worker'ın kalp atışı yok — çalışmıyor olabilir (pnpm app:status)");
+  } else {
+    const running = beat.agentCommand ?? beat.agentName ?? "bilinmiyor";
+    ok(`Agent (worker): ${running}${beat.agentSource ? ` [${beat.agentSource}]` : ""}`);
+    if (adapter && beat.agentCommand && beat.agentCommand !== info.command) {
+      warn(`Bu kabuk ${local}, worker ${beat.agentCommand} kullanıyor — sabitlemek için Ayarlar'dan varsayılan profil seç`);
+    }
+  }
 
   if (ocrAvailable()) ok("OCR: tesseract + pdftoppm");
   else warn(`OCR yok — taranmış PDF'ler eklenemez. ${OCR_INSTALL_HINT}`);
