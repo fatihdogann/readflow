@@ -68,7 +68,16 @@ function useFolders() {
     }
   }
 
-  return { folders, newFolder, setNewFolder, createFolder, refreshFolders, folderError: error };
+  async function deleteFolder(id: number): Promise<void> {
+    try {
+      const response = await fetch(`/api/folders/${id}`, { method: "DELETE" });
+      if (response.ok) notifyFoldersChanged();
+    } catch {
+      /* yoksay */
+    }
+  }
+
+  return { folders, newFolder, setNewFolder, createFolder, deleteFolder, refreshFolders, folderError: error };
 }
 
 function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
@@ -113,18 +122,31 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
         Klasörler
       </div>
       {shared.folders.map((folder) => (
-        <Link
+        <div
           key={folder.id}
-          href={`/history?folder=${folder.id}`}
-          onClick={onNavigate}
-          className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-sm text-stone-600 transition hover:bg-stone-200/55 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"
+          className="group flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-sm text-stone-600 transition hover:bg-stone-200/55 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"
         >
-          <FolderIcon size={15} className="shrink-0 text-stone-400" />
-          <span className="truncate">{folder.name}</span>
-          <span className="ml-auto min-w-5 shrink-0 rounded-full bg-stone-200/80 px-1.5 py-0.5 text-center text-[10px] tabular-nums text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+          <Link href={`/history?folder=${folder.id}`} onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-2.5">
+            <FolderIcon size={15} className="shrink-0 text-stone-400" />
+            <span className="truncate">{folder.name}</span>
+          </Link>
+          <span className="min-w-5 shrink-0 rounded-full bg-stone-200/80 px-1.5 py-0.5 text-center text-[10px] tabular-nums text-stone-600 dark:bg-stone-800 dark:text-stone-400">
             {folder.document_count + folder.note_count}
           </span>
-        </Link>
+          <button
+            type="button"
+            title="Klasörü sil"
+            aria-label={`${folder.name} klasörünü sil`}
+            onClick={() => {
+              if (window.confirm(`"${folder.name}" klasörü silinsin mi? İçindeki belge ve notlar klasörsüz kalır.`)) {
+                void shared.deleteFolder(folder.id);
+              }
+            }}
+            className="shrink-0 rounded-md p-1 text-stone-400 opacity-0 transition hover:bg-stone-300/60 hover:text-stone-800 group-hover:opacity-100 dark:hover:bg-stone-700 dark:hover:text-stone-200"
+          >
+            <CloseIcon size={13} />
+          </button>
+        </div>
       ))}
       <form
         onSubmit={async (event) => {

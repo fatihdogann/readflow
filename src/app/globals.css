@@ -199,6 +199,15 @@ html {
 .dark .hl-lavender {
   background: rgba(167, 139, 250, 0.34);
 }
+.hl-dot-yellow {
+  background: #fbbf24;
+}
+.hl-dot-green {
+  background: #4ade80;
+}
+.hl-dot-lavender {
+  background: #a78bfa;
+}
 .hl-flash {
   animation: hl-pulse 0.8s ease-in-out 2;
 }
