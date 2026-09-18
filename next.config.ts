@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // better-sqlite3 native modüldür; bundle edilmemeli.
   serverExternalPackages: ["better-sqlite3"],
+  // Yerelde 127.0.0.1 üzerinden erişim de HMR/dev kaynaklarını kullanabilsin.
+  allowedDevOrigins: ["127.0.0.1"],
   // CSP proxy.ts'te (her istekte nonce üretilir); burada sabit başlıklar durur.
   async headers() {
     return [
