@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { ThemeToggle } from "./ThemeToggle";
 import { NAV_ITEMS } from "./nav-items";
@@ -294,37 +295,40 @@ export function MobileNav() {
           <MenuIcon size={20} />
         </button>
       </div>
-      {open ? (
-        <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="Gezinme menüsü">
-          <button
-            type="button"
-            aria-label="Menüyü kapat"
-            className="absolute inset-0 bg-black/30"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            ref={panelRef}
-            className="relative z-10 ml-auto flex h-full w-72 flex-col gap-4 overflow-y-auto border-l border-stone-200 bg-[#faf9f7] p-4 dark:border-stone-800 dark:bg-[#171512]"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">Menü</span>
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="Gezinme menüsü">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
                 aria-label="Menüyü kapat"
-                className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-stone-200/60 dark:hover:bg-stone-800/60"
+                className="absolute inset-0 bg-black/30"
+                onClick={() => setOpen(false)}
+              />
+              <div
+                ref={panelRef}
+                className="relative z-10 ml-auto flex h-full w-72 flex-col gap-4 overflow-y-auto border-l border-stone-200 bg-[#faf9f7] p-4 dark:border-stone-800 dark:bg-[#171512]"
               >
-                <CloseIcon size={20} />
-              </button>
-            </div>
-            <NavLinkList onNavigate={() => setOpen(false)} />
-            <FolderSection shared={shared} onNavigate={() => setOpen(false)} />
-            <div className="mt-auto flex flex-col gap-0.5 border-t border-stone-200 pt-3 dark:border-stone-800">
-              <ThemeToggle />
-            </div>
-          </div>
-        </div>
-      ) : null}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold">Menü</span>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    aria-label="Menüyü kapat"
+                    className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-stone-200/60 dark:hover:bg-stone-800/60"
+                  >
+                    <CloseIcon size={20} />
+                  </button>
+                </div>
+                <NavLinkList onNavigate={() => setOpen(false)} />
+                <FolderSection shared={shared} onNavigate={() => setOpen(false)} />
+                <div className="mt-auto flex flex-col gap-0.5 border-t border-stone-200 pt-3 dark:border-stone-800">
+                  <ThemeToggle />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </header>
   );
 }
