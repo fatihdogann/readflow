@@ -453,6 +453,30 @@ const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    id: 17,
+    name: "standalone-notes",
+    up: (db) => {
+      runAll(db, [
+        `CREATE TABLE notes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`,
+        `CREATE INDEX idx_notes_folder ON notes (folder_id)`,
+        `CREATE INDEX idx_notes_updated ON notes (updated_at DESC)`,
+        `CREATE TABLE note_tags (
+          note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+          tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          PRIMARY KEY (note_id, tag_id)
+        )`,
+        `CREATE INDEX idx_note_tags_tag ON note_tags (tag_id)`,
+      ]);
+    },
+  },
 ];
 
 /**

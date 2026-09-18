@@ -67,6 +67,39 @@ test("mobil menü klavye ile kapanır ve odağı geri verir", async ({ page }, t
   await expect(trigger).toBeFocused();
 });
 
+test("mobilde bağımsız not klasöre bırakılıp basılı tutarak etiketlenir", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobil not akışı");
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Menüyü aç" }).click();
+  const menu = page.getByRole("dialog", { name: "Gezinme menüsü" });
+  await menu.getByLabel("Yeni klasör adı").fill("Finans");
+  await menu.getByLabel("Yeni klasör adı").press("Enter");
+  await page.getByRole("button", { name: "Menüyü aç" }).click();
+  const reopenedMenu = page.getByRole("dialog", { name: "Gezinme menüsü" });
+  await reopenedMenu.getByRole("link", { name: "Notlar" }).click();
+
+  await page.getByLabel("Not başlığı").fill("Bilanço fikri");
+  await page.getByLabel("Not içeriği").fill("Faiz kararı öncesi kontrol edilecek.");
+  await page.getByLabel("Klasör", { exact: true }).selectOption({ label: "Finans" });
+  await page.getByRole("button", { name: "Notu kaydet" }).click();
+
+  const note = page.getByRole("article", { name: "Bilanço fikri" });
+  await note.dispatchEvent("pointerdown", { pointerType: "touch" });
+  await page.waitForTimeout(550);
+  await note.dispatchEvent("pointerup", { pointerType: "touch" });
+  await expect(page.getByRole("dialog", { name: "Not işlemleri" })).toBeVisible();
+
+  await page.getByLabel("Etiket ekle").fill("takip");
+  await page.getByRole("button", { name: "Etiketi ekle" }).click();
+  await expect(note).toContainText("takip");
+  await expect(note).toContainText("Finans");
+
+  await page.getByRole("button", { name: "Not işlemlerini kapat" }).click();
+  await page.getByRole("button", { name: "Menüyü aç" }).click();
+  await expect(page.getByRole("link", { name: /Finans\s+1/ })).toBeVisible();
+});
+
 test("çevrimdışıyken daha önce açılan belge önbellekten okunur", async ({ page, context }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "Service worker tek projede yeterli");
 

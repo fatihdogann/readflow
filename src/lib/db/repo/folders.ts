@@ -6,6 +6,7 @@ export interface FolderRow {
   name: string;
   created_at: string;
   document_count: number;
+  note_count: number;
 }
 
 export function createFolder(db: SqliteDb, name: string): FolderRow {
@@ -15,13 +16,13 @@ export function createFolder(db: SqliteDb, name: string): FolderRow {
     | { id: number; name: string; created_at: string }
     | undefined;
   if (existing) {
-    return { ...existing, document_count: countForFolder(db, existing.id) };
+    return { ...existing, document_count: countForFolder(db, existing.id), note_count: countNotesForFolder(db, existing.id) };
   }
   const result = db
     .prepare(`INSERT INTO folders (name, created_at) VALUES (?, ?)`)
     .run(trimmed, nowIso());
   const id = Number(result.lastInsertRowid);
-  return { id, name: trimmed, created_at: nowIso(), document_count: 0 };
+  return { id, name: trimmed, created_at: nowIso(), document_count: 0, note_count: 0 };
 }
 
 function countForFolder(db: SqliteDb, folderId: number): number {
@@ -31,12 +32,17 @@ function countForFolder(db: SqliteDb, folderId: number): number {
   return row.c;
 }
 
+function countNotesForFolder(db: SqliteDb, folderId: number): number {
+  return (db.prepare(`SELECT COUNT(*) AS c FROM notes WHERE folder_id = ?`).get(folderId) as { c: number }).c;
+}
+
 export function listFolders(db: SqliteDb): FolderRow[] {
   return db
     .prepare(
-      `SELECT f.id, f.name, f.created_at, COUNT(d.id) AS document_count
-       FROM folders f LEFT JOIN documents d ON d.folder_id = f.id AND d.deleted_at IS NULL
-       GROUP BY f.id ORDER BY f.name COLLATE NOCASE`,
+      `SELECT f.id, f.name, f.created_at,
+        (SELECT COUNT(*) FROM documents d WHERE d.folder_id = f.id AND d.deleted_at IS NULL) AS document_count,
+        (SELECT COUNT(*) FROM notes n WHERE n.folder_id = f.id) AS note_count
+       FROM folders f ORDER BY f.name COLLATE NOCASE`,
     )
     .all() as FolderRow[];
 }

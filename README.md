@@ -32,6 +32,7 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 - AI işlemleri **remote LLM API'si ile değil**, kendi bilgisayarındaki coding-agent CLI üzerinden yapılır. **Hiçbir LLM API key istemez.** CLI'ın kendisi kendi oturumuyla uzak model sağlayıcısına bağlanabilir; Readflow'un verisi (dokümanlar, notlar, çıktılar) ise yalnızca `~/.readflow/` içinde saklanır — "yerel saklama" ile "AI tamamen çevrimdışı" aynı şey değildir.
 - İş oluşturulduğunda **kaynak metin, notlar ve AI yapılandırması snapshot olarak sabitlenir**; sonraki değişiklikler bekleyen işi etkilemez. Retry aynı snapshot ile çalışır.
 - Arama, favoriler, klasörler, etiketler, okuma durumu (Okunacak/Okuyorum/Bitti), domain/AI filtreleri ve "Notlu"/"Düzenlenmiş" filtreleriyle arşivde gezilir. Her AI çıktısının değişmez sürüm geçmişi tutulur.
+- **Bağımsız notlar** klasöre bırakılıp etiketlenebilir. Telefonda not kartına yaklaşık yarım saniye basılı tutmak işlem panelini açar; aynı panel karttaki **İşlemler** düğmesiyle de erişilebilir.
 - **Çevrimdışı okunur**: service worker son 60 sayfayı önbelleğe alır; Tailscale kopsa veya Mac uykuda olsa da daha önce açtığın belgeler telefonda okunabilir (API istekleri önbelleğe alınmaz).
 - **Vurgular** sayfası tüm belgelerdeki altı çizilenleri ve notları bir arada gösterir: renk/metin/notlu filtreleri, belgeye atlama ve Markdown olarak panoya kopyalama.
 - Çıktılar panoya, TXT, Markdown, PDF (yazdır), DOCX olarak yerel olarak dışa aktarılır; Notion/Telegram adapter'ları env ile kurulur.
@@ -183,6 +184,7 @@ Tarayıcı ──▶ Web (Next.js) ──▶ documents + pending jobs
 | `document_outputs` | AI çıktıları: `readability` veya `summary`; özette `summary_level` (short/normal/detailed). `UNIQUE(document, operation, level)` — aynı işlem yeniden çalıştırılırsa **upsert** olur, orijinal içerik asla overwrite edilmez |
 | `jobs` | Kuyruk: status (`pending → processing → completed/failed`), attempts, error, zaman damgaları + iş anlık görüntüsü (kaynak metin, notlar, AI yapılandırması). Bitmiş işlerin metin kopyası 90 gün sonra worker tarafından boşaltılır (`READFLOW_JOB_SNAPSHOT_DAYS`), satır geçmiş için kalır |
 | `folders`, `tags`, `document_tags` | Arşiv organizasyonu (many-to-many etiketler, FK `ON DELETE CASCADE/SET NULL`) |
+| `notes`, `note_tags` | Bağımsız kişisel notlar; mevcut klasörler ve etiketlerle ilişkileri |
 | `document_edits` | Kullanıcının kendi sürümü: içerik + `revision` (optimistic concurrency; uyumsuz revision → 409). Orijinal asla değişmez |
 | `document_output_revisions` | Her AI çıktısının **değişmez** sürüm geçmişi (agent adı, provenance, job id) |
 | `document_annotations` | Vurgular: alıntı + önek/sonek bağlamı, renk, nota bağlı not. Metnin içine yazılmaz |

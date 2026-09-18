@@ -19,7 +19,7 @@ Readflow, **local-first** kişisel okuma/metin işleme uygulamasıdır: URL veya
 ## Mimari harita
 
 ```
-src/lib/db/          SQLite bağlantısı (WAL), migrations.ts (sürüm meta tablosunda), repo/ (documents, jobs, outputs, folders, tags, meta)
+src/lib/db/          SQLite bağlantısı (WAL), migrations.ts (sürüm meta tablosunda), repo/ (documents, notes, jobs, outputs, folders, tags, meta)
 src/lib/jobs/        job queue yardımcıları + ReadflowWorker döngüsü (kalp atışı meta'ya yazılır)
 src/lib/agent/       AgentAdapter sözleşmesi; CommandAgentAdapter (stdin/stdout, shell yok), MockAgentAdapter, detect (CLI --help imza doğrulaması)
 src/lib/ai/instructions/  Tüm prompt'lar burada — React component'larına asla gömme
@@ -57,6 +57,7 @@ scripts/             migrate, mock-agent.mjs
 - Kullanıcı sürümü `document_edits` tablosunda (revision + optimistic concurrency; uyumsuz revision → 409). AI çıktıları `document_outputs` + `document_output_revisions`. Elle düzenleme asla sahte AI job'ı olarak modellenmez.
 - Vurgular (`document_annotations`) metnin içine yazılmaz; alıntı + önek/sonek bağlamıyla saklanır ve okuma sırasında eşleştirilir. Orijinal HTML yolunda DOM'da `<mark>` sarılır, Markdown yollarında `rehypeHighlights` ile AST'ye eklenir — React'ın yönettiği ağaca sonradan düğüm sokulmaz.
 - Notlar (`documents.note`) varsayılan AI'a gönderilmez; yalnızca iş bazında açıkça dahil edilirse snapshot'a girer ve prompt'a "ek bağlam" bloğu olarak eklenir.
+- Bağımsız notlar `notes` / `note_tags` tablolarındadır; belge notundan ayrıdır, AI job snapshot'larına girmez.
 
 ## AI profilleri
 

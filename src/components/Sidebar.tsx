@@ -13,6 +13,7 @@ interface FolderItem {
   id: number;
   name: string;
   document_count: number;
+  note_count: number;
 }
 
 function useFolders() {
@@ -121,7 +122,7 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
           <FolderIcon size={15} className="shrink-0 text-stone-400" />
           <span className="truncate">{folder.name}</span>
           <span className="ml-auto min-w-5 shrink-0 rounded-full bg-stone-200/80 px-1.5 py-0.5 text-center text-[10px] tabular-nums text-stone-600 dark:bg-stone-800 dark:text-stone-400">
-            {folder.document_count}
+            {folder.document_count + folder.note_count}
           </span>
         </Link>
       ))}
@@ -281,7 +282,7 @@ export function MobileNav() {
           />
           <div
             ref={panelRef}
-            className="absolute right-0 top-0 flex h-full w-72 flex-col gap-4 overflow-y-auto border-l border-stone-200 bg-[#faf9f7] p-4 dark:border-stone-800 dark:bg-[#171512]"
+            className="relative z-10 ml-auto flex h-full w-72 flex-col gap-4 overflow-y-auto border-l border-stone-200 bg-[#faf9f7] p-4 dark:border-stone-800 dark:bg-[#171512]"
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold">Menü</span>
