@@ -1,0 +1,17 @@
+# Readflow
+
+> Local-first okuma alanı: bağlantıları, metinleri ve PDF'leri temiz bir okuma görünümüne çevirir, vurguları saklar ve özetleri kendi bilgisayarındaki coding-agent CLI ile üretir.
+
+Readflow; okunabilirlik düzenlemesi, üç renkli vurgulama, not ekleme ve Kısa/Normal/Detaylı özet sunar. Arşiv tek bir SQLite dosyasında kalır; AI işleri API anahtarı olmadan, zaten kullandığın claude/codex/jcode CLI'ına devredilir. Hesap yok, bulut yok. Local-first · açık kaynak · MIT.
+
+## Sayfalar
+
+- [Readflow tanıtım sayfası (TR)](https://readflow.mehmetfatihdogan.com.tr/)
+- [Readflow showcase (EN)](https://readflow.mehmetfatihdogan.com.tr/en/)
+- [GitHub deposu](https://github.com/fatihdogann/readflow)
+
+## English summary
+
+- Readflow is a local-first reading workspace: it turns links, text and PDFs into a clean reading view, keeps highlights and notes in one place, and generates summaries with the coding-agent CLI on your own computer.
+- No API keys, no account, no cloud: the archive is a single SQLite file. Imports from URL, text, PDF (with local OCR), Word, Markdown, bookmarklet, share menu and Instapaper/Pocket/Readwise. Exports: Markdown, TXT, DOCX, PDF, optionally Notion and Telegram.
+- Open source (MIT): https://github.com/fatihdogann/readflow
