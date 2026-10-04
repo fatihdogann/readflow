@@ -1,5 +1,11 @@
 # Readflow — Geliştirme Planı
 
+> **Belge kontrolü: 2026-10-04.** Tamamlanan fazların aşağıdaki tasarım metinleri
+> tarihsel kayıttır; eski dosya adları ve "Bugün/Yapılacak" ifadeleri yeniden
+> uygulanacak iş değildir. Güncel kurulum ve komutlar [README.md](README.md) ve
+> [docs/INSTALL.md](docs/INSTALL.md) içindedir. Açık kapsam bu belgenin
+> "Yarım kalan işler" bölümündedir.
+
 Her faz tek başına sevk edilebilir. Faz sonunda `pnpm test && pnpm typecheck && pnpm lint` geçmeli,
 dokunulan dokümantasyon aynı commit'te güncellenmeli.
 
@@ -11,17 +17,15 @@ Bunlar her gün canını sıkan şeyler; önce bunlar.
 
 ### 0.1 Mac worker elle başlatma bitsin
 
-Bugün: `cd ~/Desktop/Projeler/readflow && pnpm worker:remote` + terminal açık kalacak.
+Güncel depo `/Users/mfd/Developer/readflow` altındadır. Servis kurulumu
+`scripts/app-service.sh` üzerinden `pnpm app:install` ile yapılır; production web
+ve yerel worker birlikte çalışır. Ayarlar `~/.readflow/app.env` içindedir.
+Kontrol/kaldırma komutları `pnpm app:status`, `pnpm app:logs` ve `pnpm app:uninstall`.
+Coolify yalnız `showcase/` tanıtım yüzünü sunar; eski uzak worker tasarımı
+bu kurulumun talimatı değildir. Ayrıntı: [COOLIFY-DEPLOY.md](COOLIFY-DEPLOY.md).
 
-- `scripts/install-worker-agent.sh` — macOS **launchd LaunchAgent** kurar
-  (`~/Library/LaunchAgents/com.readflow.worker.plist`): açılışta başlar, çökerse
-  `KeepAlive` ile geri gelir, log `~/.readflow/logs/worker.log`.
-- Env (`READFLOW_SERVER_URL`, `READFLOW_WORKER_TOKEN`) plist'e değil `~/.readflow/worker.env`'e
-  yazılır; `remote.ts` zaten `loadLocalEnv()` çağırıyor, oradan okur.
-- `pnpm worker:install` / `pnpm worker:uninstall` / `pnpm worker:logs` script'leri.
-- Uyku/uyanma ve ağ kopmasında `remote.ts` döngüsü zaten 5 sn'de bir yeniden deniyor — dokunma.
-
-Kabul: Mac'i yeniden başlat, hiçbir komut yazmadan `/api/agent/status` → `workerAlive: true`.
+Kabul ölçütü: Mac yeniden başladığında `/api/agent/status` → `workerAlive: true`.
+Bu belge temizliği sırasında servis kurulumu veya yeniden başlatma yapılmadı.
 
 ### 0.2 Model önceliği: jcode → codex → claude (doğrulanmış bayraklarla)
 
