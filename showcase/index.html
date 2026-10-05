@@ -1,6 +1,4 @@
-<!doctype html>
-<html lang="tr">
-<head>
+<!DOCTYPE html><html lang="tr"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Readflow — yerel öncelikli okuma alanı</title>
@@ -26,134 +24,90 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/style.css?v=20261005">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/", "description": "Bağlantı, metin ve PDF'leri arşivleyen, vurgulayan ve kendi coding-agent CLI'ınla özetleyen local-first okuma uygulaması.", "inLanguage": "tr", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og.jpg"}</script>
 </head>
-<body>
+<body><a class="skip-link" href="#main">İçeriğe atla</a>
 <div class="wrap">
   <header class="top">
     <a class="brand" href="/"><img src="/favicon.svg" alt="" width="32" height="32">Readflow</a>
     <nav class="top" aria-label="Sayfa">
       <a href="#ozellikler">Özellikler</a>
       <a href="#mimari">Mimari</a>
-      <a href="https://github.com/fatihdogann/readflow">GitHub</a>
-      <a href="/en/" hreflang="en" lang="en">English</a>
+
+      <a href="#kurulum">Kurulum</a><a href="/en/" hreflang="en" lang="en">English</a>
     </nav>
   </header>
 
-  <main>
-    <div class="hero">
-      <p class="eyebrow">Local-first · açık kaynak · MIT</p>
-      <h1>Okuduğunu <mark>tut</mark>, sadece biriktirme.</h1>
-      <p class="lead">Readflow; bağlantıları, metinleri ve PDF'leri temiz bir okuma görünümüne çevirir, vurgularını saklar ve özetleri kendi bilgisayarındaki coding-agent CLI ile üretir. API anahtarı yok, hesap yok.</p>
-      <div class="actions">
+  <main id="main">
+    <div class="hero"><div class="hero-copy"><h1>Okudukların, <mark>elinin altında.</mark></h1><p class="lead">Bağlantı, metin ve PDF’lerini tek bir okuma alanında topla. Vurgula, not al ve kendi coding agent’ınla özetle. Arşivin kendi bilgisayarında kalsın.</p><div class="actions">
         <a class="btn primary" href="#kurulum">Kurulumu gör</a>
-        <a class="btn" href="https://github.com/fatihdogann/readflow">GitHub’da kaynak kod</a>
-      </div>
+        <a class="btn" href="#mimari">Nasıl çalışır?</a>
+      </div><p class="hero-facts">Açık kaynak · MIT · Readflow için API anahtarı gerekmez</p></div>
+
       <figure class="shot">
         <picture>
           <source srcset="/assets/doc-dark.jpg" media="(prefers-color-scheme: dark)">
           <img src="/assets/doc-light.jpg" width="2560" height="1600" alt="Readflow belge görünümü: başlık, okuma durumu, Metni işle paneli ve Normal seviye özet sekmesi" fetchpriority="high">
         </picture>
-      </figure>
-    </div>
-
-    <section aria-labelledby="sorun">
-      <h2 id="sorun">Sorun ve çözüm</h2>
-      <div class="two">
-        <p class="sub">Okuma listeleri dolar ama okunan pek hatırlanmaz. AI özet araçları ise metni ve API anahtarını bir buluta ister, arşiv o servise bağlı kalır.</p>
-        <p class="sub">Readflow arşivi bir SQLite dosyasında tutar. Özet ve düzenleme işlerini zaten kullandığın <code>claude</code>, <code>codex</code> veya <code>jcode</code> CLI'ına devreder. Vurgular ve notlar okuma sırasında birikir, bir sayfada toplanır.</p>
-      </div>
+      <figcaption>Okuma, notlar ve özetler aynı yerde. Demo arşivinden bir görünüm.</figcaption></figure>
+    </div><section id="mimari" aria-labelledby="mimari-baslik">
+      <h2 id="mimari-baslik">Arşiv yerelde. İşler kendi agent’ında.</h2>
+      <p class="sub">Readflow’un mimarisi: içerik önce arşivlenir, AI işi kuyruğa girer ve yerel worker tarafından çalıştırılır.</p>
+      <ol class="pipeline" aria-label="İçerikten AI çıktısına işlem sırası">
+ <li><span class="step">1</span><div><h3>İçeriği al</h3><p>URL, metin veya PDF temiz okuma metnine dönüşür.</p><small>Readability · OCR</small></div></li>
+ <li><span class="step">2</span><div><h3>Yerelde sakla</h3><p>Arşiv ve bekleyen iş, kaynak metnin kopyasıyla kaydedilir.</p><small>SQLite · snapshot</small></div></li>
+ <li><span class="step">3</span><div><h3>İşi çalıştır</h3><p>Worker işi kilitleyerek alır ve kendi CLI’ına gönderir.</p><small>Worker · Claude / Codex / jcode</small></div></li>
+ <li><span class="step">4</span><div><h3>Sonuca dön</h3><p>Özet ve düzenleme arşive yazılır; orijinal metin korunur.</p><small>stdin / stdout · sürüm geçmişi</small></div></li>
+ </ol>
+      <p class="note mt">Veri yerelde saklanır. AI işlemini hangi modelin yaptığı kullandığın CLI'a bağlıdır: CLI uzak bir modele bağlıysa işlenen metin o sağlayıcıya gider.</p>
     </section>
 
     <section id="ozellikler" aria-labelledby="ozellikler-baslik">
-      <h2 id="ozellikler-baslik">Özellikler</h2>
-      <p class="sub">Bir okuma aracı ile bir arşivin kesiştiği yer. Sohbet botu değil.</p>
+      <h2 id="ozellikler-baslik">Biriktirmekten fazlası.</h2>
+      <p class="sub">Orijinali koru, düşüncelerini ekle, ihtiyacın olduğunda bul. Ayrıntılar için bir özelliği aç.</p>
       <div class="grid">
-        <div class="card"><h3>Her kaynaktan içerik</h3><p>URL, metin, PDF (taranmışlar yerel OCR ile), Word, Markdown, bookmarklet, telefon paylaşım menüsü ve Instapaper/Pocket/Readwise içe aktarma.</p></div>
-        <div class="card"><h3>Temiz okuma</h3><p>Readability ile reklam ve menüden arındırılmış, sanitize edilmiş metin.</p></div>
-        <div class="card"><h3>Vurgular ve notlar</h3><p>Üç renk, not ekleme, tüm vurgular tek sayfada, Markdown olarak kopyalama.</p></div>
-        <div class="card"><h3>Yerel agent ile AI</h3><p>Kısa/Normal/Detaylı özet ve okunabilirlik düzenlemesi; her çıktının değişmez sürüm geçmişi.</p></div>
-        <div class="card"><h3>Dört ayrı içerik</h3><p>Orijinal asla değişmez; senin düzenlemen, AI düzenlemesi ve özet ayrı tutulur.</p></div>
-        <div class="card"><h3>Çevrimdışı okunur</h3><p>Açtığın son 60 sayfa tarayıcıda saklanır: uçakta, metroda ya da Mac uykudayken de okunur.</p></div>
-        <div class="card"><h3>Dışa aktarma</h3><p>Markdown, TXT, DOCX, PDF; isteğe bağlı Notion ve Telegram.</p></div>
+        <details class="feature"><summary>Her kaynaktan içerik</summary><p>URL, metin, PDF (taranmışlar yerel OCR ile), Word, Markdown, bookmarklet, telefon paylaşım menüsü ve Instapaper/Pocket/Readwise içe aktarma.</p></details>
+        <details class="feature"><summary>Temiz okuma</summary><p>Readability ile reklam ve menüden arındırılmış, sanitize edilmiş metin.</p></details>
+        <details class="feature"><summary>Vurgular ve notlar</summary><p>Üç renk, not ekleme, tüm vurgular tek sayfada, Markdown olarak kopyalama.</p></details>
+        <details class="feature"><summary>Yerel agent ile AI</summary><p>Kısa/Normal/Detaylı özet ve okunabilirlik düzenlemesi; her çıktının değişmez sürüm geçmişi.</p></details>
+        <details class="feature"><summary>Dört ayrı içerik</summary><p>Orijinal asla değişmez; senin düzenlemen, AI düzenlemesi ve özet ayrı tutulur.</p></details>
+        <details class="feature"><summary>Çevrimdışı okunur</summary><p>Açtığın son 60 sayfa tarayıcıda saklanır: uçakta, metroda ya da Mac uykudayken de okunur.</p></details>
+        <details class="feature"><summary>Dışa aktarma</summary><p>Markdown, TXT, DOCX, PDF; isteğe bağlı Notion ve Telegram.</p></details>
       </div>
     </section>
 
-    <section aria-labelledby="gorunumler">
+    <section aria-labelledby="gorunumler" id="gorunumler-bolumu">
       <h2 id="gorunumler">Görünümler</h2>
-      <p class="sub">Görüntüler demo verisiyle alındı. Sistem temasına göre açık veya koyu sürüm gösterilir.</p>
-      <div class="two">
-        <figure class="shot">
+      <p class="sub">Bir ekran seçerek incele. Görüntüler demo verisiyle alınmıştır; açık ve koyu tema sistemini izler.</p>
+
+    <div class="gallery"><details class="screen" name="screens"><summary>İçerik ekle</summary><figure class="shot">
           <picture>
             <source srcset="/assets/home-dark.jpg" media="(prefers-color-scheme: dark)">
             <img src="/assets/home-light.jpg" width="2560" height="1600" loading="lazy" alt="Ana ekran: bağlantı veya metin ekleme alanı ve son eklenen belgeler">
           </picture>
           <figcaption>Ana ekran: bağlantı yapıştır, metin veya dosya bırak.</figcaption>
-        </figure>
-        <figure class="shot">
+        </figure></details><details class="screen" name="screens"><summary>Vurgular ve notlar</summary><figure class="shot">
           <picture>
             <source srcset="/assets/highlights-dark.jpg" media="(prefers-color-scheme: dark)">
             <img src="/assets/highlights-light.jpg" width="2560" height="1600" loading="lazy" alt="Vurgular sayfası: belgelere göre gruplanmış alıntılar ve notlar">
           </picture>
           <figcaption>Vurgular: tüm belgelerdeki alıntılar ve notlar.</figcaption>
-        </figure>
-      </div>
-      <figure class="shot mt">
+        </figure></details><details class="screen" name="screens"><summary>Ayarlar ve bağlantılar</summary><figure class="shot mt">
         <picture>
           <source srcset="/assets/settings-dark.jpg" media="(prefers-color-scheme: dark)">
           <img src="/assets/settings-light.jpg" width="2560" height="1600" loading="lazy" alt="Ayarlar ekranı: tarayıcıdan gönderme, yedek ve taşıma, çalışan AI profili">
         </picture>
         <figcaption>Ayarlar: bookmarklet ve telefon kestirmesi, yedek indirme, çalışan agent.</figcaption>
-      </figure>
-      <div class="two mobile mt">
-        <p class="note">Telefonda da aynı arşiv. Uzaktan erişim yalnızca izinli cihazlardan, Tailscale üzerinden yapılır.</p>
-        <figure class="shot">
+      </figure></details><details class="screen" name="screens"><summary>Telefonda oku</summary><figure class="shot phone-shot">
           <picture>
             <source srcset="/assets/mobile-doc-dark.jpg" media="(prefers-color-scheme: dark)">
             <img src="/assets/mobile-doc-light.jpg" width="780" height="1688" loading="lazy" alt="Mobil belge görünümü">
           </picture>
-        </figure>
-      </div>
-    </section>
+        <figcaption>Aynı arşive izinli cihazlarından Tailscale ile eriş.</figcaption></figure></details></div></section>
 
-    <section id="mimari" aria-labelledby="mimari-baslik">
-      <h2 id="mimari-baslik">Mimari</h2>
-      <p class="sub">Web arayüzü işi doğrudan çalıştırmaz: SQLite'a bekleyen bir iş yazar. Yerel worker işi kilitleyip alır, CLI'ı çalıştırır, sonucu geri yazar.</p>
-      <div class="flow">
-        <svg viewBox="0 0 900 250" role="img" aria-labelledby="flow-title">
-          <title id="flow-title">URL'den özete akış: çıkarma, SQLite kuyruğu, worker ve agent CLI</title>
-          <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="currentColor" opacity=".6"/></marker></defs>
-          <rect class="zone" x="170" y="20" width="720" height="210" rx="16"/>
-          <text class="small" x="186" y="44">Senin Mac'in</text>
-          <rect class="box" x="10" y="90" width="130" height="70" rx="10"/>
-          <text x="75" y="120" text-anchor="middle">URL / metin</text>
-          <text class="small" x="75" y="140" text-anchor="middle">PDF · bookmarklet</text>
-          <rect class="box local" x="200" y="90" width="140" height="70" rx="10"/>
-          <text x="270" y="120" text-anchor="middle">Çıkarma</text>
-          <text class="small" x="270" y="140" text-anchor="middle">Readability · SSRF</text>
-          <rect class="box local" x="380" y="90" width="140" height="70" rx="10"/>
-          <text x="450" y="120" text-anchor="middle">SQLite (WAL)</text>
-          <text class="small" x="450" y="140" text-anchor="middle">iş + snapshot</text>
-          <rect class="box local" x="560" y="90" width="140" height="70" rx="10"/>
-          <text x="630" y="120" text-anchor="middle">Worker</text>
-          <text class="small" x="630" y="140" text-anchor="middle">lease · heartbeat</text>
-          <rect class="box local" x="740" y="90" width="130" height="70" rx="10"/>
-          <text x="805" y="120" text-anchor="middle">Agent CLI</text>
-          <text class="small" x="805" y="140" text-anchor="middle">stdin → stdout</text>
-          <path class="arrow" d="M140 125h58"/>
-          <path class="arrow" d="M340 125h38"/>
-          <path class="arrow" d="M520 125h38"/>
-          <path class="arrow" d="M700 125h38"/>
-          <path class="arrow" d="M805 160v40H450v-38"/>
-          <text class="small" x="630" y="195" text-anchor="middle">sonuç + değişmez revizyon</text>
-        </svg>
-      </div>
-      <p class="note mt">Veri yerelde saklanır. AI işlemini hangi modelin yaptığı kullandığın CLI'a bağlıdır: CLI uzak bir modele bağlıysa işlenen metin o sağlayıcıya gider.</p>
-    </section>
+    <section aria-labelledby="guvenlik" class="compact-section"><details class="technical"><summary id="guvenlik">Güvenlik kararları</summary>
 
-    <section aria-labelledby="guvenlik">
-      <h2 id="guvenlik">Güvenlik kararları</h2>
       <div class="two">
         <ul class="checks">
           <li>Uygulama yalnızca <code>127.0.0.1</code> adresini dinler; uzaktan erişim Tailscale Serve ile.</li>
@@ -167,25 +121,26 @@
           <li>Veri dizini <code>0700</code>, veritabanı <code>0600</code> izinli; kullanıcı verisi Git'e girmez.</li>
         </ul>
       </div>
-    </section>
+    </details></section>
 
-    <section aria-labelledby="teknoloji">
-      <h2 id="teknoloji">Teknoloji</h2>
+    <section aria-labelledby="teknoloji" class="compact-section"><details class="technical"><summary id="teknoloji">Teknoloji</summary>
+
       <ul class="tags">
         <li>Next.js 16</li><li>React 19</li><li>TypeScript</li><li>Tailwind CSS 4</li><li>SQLite · better-sqlite3</li><li>Mozilla Readability</li><li>MCP</li><li>Vitest</li><li>Playwright</li><li>GitHub Actions</li>
       </ul>
-    </section>
+    </details></section>
 
     <section id="kurulum" aria-labelledby="kurulum-baslik">
       <h2 id="kurulum-baslik">Kurulum</h2>
       <p class="sub">macOS için kısa yol aşağıda. Linux/Windows ve servis kurulumu: <a href="https://github.com/fatihdogann/readflow/blob/main/docs/INSTALL.md">docs/INSTALL.md</a>.</p>
       <pre><code><span class="c"># Node 22+ ve pnpm gerekli</span>
-git clone https://github.com/fatihdogann/readflow.git &amp;&amp; cd readflow
+git clone https://github.com/fatihdogann/readflow.git
+cd readflow
 pnpm install
 pnpm build
 <span class="c"># claude / codex / jcode CLI'ında oturum açık olmalı</span>
 pnpm app:start      <span class="c"># http://127.0.0.1:3000</span></code></pre>
-    </section>
+    <p class="source-link"><a href="https://github.com/fatihdogann/readflow">GitHub’da kaynak kodu incele</a></p></section>
   </main>
 
   <footer>
@@ -193,5 +148,5 @@ pnpm app:start      <span class="c"># http://127.0.0.1:3000</span></code></pre>
     <span><a href="https://github.com/fatihdogann/readflow">GitHub</a> · <a href="https://mehmetfatihdogan.com.tr">Portföy</a></span>
   </footer>
 </div>
-</body>
-</html>
+
+</body></html>
