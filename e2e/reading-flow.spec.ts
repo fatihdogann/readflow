@@ -30,6 +30,7 @@ test("metin ekleme, doğal düzenleme, not ve yerel AI özeti birlikte çalış�
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Not" })).toBeFocused();
 
+  await page.locator("summary").filter({ hasText: "Özetle ve düzenle" }).click();
   await page.getByText("Çalıştırma ayarları", { exact: true }).click();
   await page.getByLabel("Notu AI'a ekle").check();
   await page.getByRole("button", { name: "Özetle" }).click();
@@ -44,14 +45,14 @@ test("klasör belge sayısı sayfa yenilenmeden güncellenir", async ({ page }, 
   await page.goto("/");
   await page.getByLabel("Yeni klasör adı").fill("Canlı Sayaç");
   await page.getByLabel("Yeni klasör adı").press("Enter");
-  await expect(page.getByRole("link", { name: /Canlı Sayaç\s+0/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Canlı Sayaç", exact: true }).locator("..")).toContainText("0");
 
   await page.getByPlaceholder("Bağlantı ekle, metin yapıştır veya dosya bırak…").fill("Sayaç belgesi\n\nKlasöre taşınacak içerik.");
   await page.getByRole("button", { name: "Kaydet" }).click();
   await expect(page).toHaveURL(/\/doc\/\d+$/);
   await page.getByLabel("Klasör:").selectOption({ label: "Canlı Sayaç" });
 
-  await expect(page.getByRole("link", { name: /Canlı Sayaç\s+1/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Canlı Sayaç", exact: true }).locator("..")).toContainText("1");
 });
 
 test("mobil menü klavye ile kapanır ve odağı geri verir", async ({ page }, testInfo) => {
@@ -97,7 +98,7 @@ test("mobilde bağımsız not klasöre bırakılıp basılı tutarak etiketlenir
 
   await page.getByRole("button", { name: "Not işlemlerini kapat" }).click();
   await page.getByRole("button", { name: "Menüyü aç" }).click();
-  await expect(page.getByRole("link", { name: /Finans\s+1/ })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Gezinme menüsü" }).getByRole("link", { name: "Finans", exact: true }).locator("..")).toContainText("1");
 });
 
 test("çevrimdışıyken daha önce açılan belge önbellekten okunur", async ({ page, context }, testInfo) => {
@@ -144,7 +145,7 @@ test("güvenlik başlıkları uygulanır ve CSP sayfayı bozmaz", async ({ page 
   expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
 
   // Tema script'i (nonce'lu satır içi) çalıştıysa sınıf bilgisi uygulanmıştır.
-  await expect(page.getByRole("heading", { name: "Okumak istediğin şeyi buraya bırak." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Okumak için bir yer aç." })).toBeVisible();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 15_000 });
   expect(violations).toEqual([]);
 });

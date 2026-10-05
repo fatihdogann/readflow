@@ -3,6 +3,7 @@ import { listDocuments } from "@/lib/db/repo/documents";
 import { listOutputSummariesForDocuments } from "@/lib/db/repo/outputs";
 import { DocumentList, type OutputBadge } from "@/components/DocumentList";
 import { NewDocumentForm } from "@/components/NewDocumentForm";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -25,20 +26,18 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   ) as Map<number, OutputBadge[]>;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-12">
-      <section className="pt-4 md:pt-8">
-        <h1 className="mb-2 max-w-xl text-3xl font-semibold leading-tight tracking-[-0.03em] md:text-4xl">Okumak istediğin şeyi buraya bırak.</h1>
-        <p className="mb-6 max-w-2xl text-sm leading-relaxed text-stone-600 dark:text-stone-400">
-          Bir bağlantı yapıştır; sayfa burada indirilip ana makaleye ayrıştırılır. Ya da doğrudan
-          metin bırak. Sonra <strong>Okunabilirliği Artır</strong> veya <strong>Özetle</strong>{" "}
-          ile yerel agent&apos;ını iş yaptır.
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 md:gap-9">
+      <section>
+        <h1 className="mb-2 max-w-xl text-2xl font-semibold leading-tight tracking-tight md:text-3xl">Okumak için bir yer aç.</h1>
+        <p className="mb-4 max-w-xl text-sm leading-relaxed text-stone-600 dark:text-stone-400">
+          Bağlantı, metin veya dosya ekle. Rahatça oku, özetle ve notlarınla birlikte arşivle.
         </p>
         <NewDocumentForm initialValue={shared} />
       </section>
 
       {reading.length > 0 ? (
         <section>
-          <h2 className="mb-3 px-1 text-sm font-semibold tracking-tight text-stone-700 dark:text-stone-300">
+          <h2 className="mb-3 text-base font-semibold tracking-tight">
             Okumaya devam et
           </h2>
           <DocumentList docs={reading} outputsByDoc={outputsByDoc} />
@@ -46,9 +45,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       ) : null}
 
       <section>
-        <h2 className="mb-3 px-1 text-sm font-semibold tracking-tight text-stone-700 dark:text-stone-300">
-          Son eklenenler
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold tracking-tight">
+            Son eklenenler
+          </h2>
+          <Link href="/history" className="inline-flex min-h-11 items-center text-sm text-stone-600 underline underline-offset-4 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">Arşivi aç</Link>
+        </div>
         <DocumentList docs={docs} outputsByDoc={outputsByDoc} />
       </section>
     </div>

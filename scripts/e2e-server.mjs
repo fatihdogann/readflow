@@ -1,15 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 const dataDir = path.resolve(".readflow-e2e");
 fs.rmSync(dataDir, { recursive: true, force: true });
 
 const child = spawn(
-  "pnpm",
+  process.execPath,
   [
-    "exec",
-    "concurrently",
+    path.join(path.dirname(require.resolve("concurrently/package.json")), "dist/bin/index.js"),
     "-k",
     "-n",
     "web,worker",

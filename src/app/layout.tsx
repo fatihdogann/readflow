@@ -46,11 +46,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           İçeriğe atla
         </a>
-        <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col md:flex-row">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col md:flex-row">
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">
             <MobileNav />
-            <main id="main-content" className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">
+            <main id="main-content" className="app-content min-w-0 flex-1 px-4 pt-5 md:px-8 md:py-8 lg:px-10">
               {children}
             </main>
           </div>

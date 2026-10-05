@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { ThemeToggle } from "./ThemeToggle";
 import { NAV_ITEMS } from "./nav-items";
-import { AddDocumentIcon, CloseIcon, FolderIcon, HeartIcon, HighlightIcon, HistoryIcon, MenuIcon, PlusIcon, SettingsIcon } from "./Icons";
+import { AddDocumentIcon, CloseIcon, FolderIcon, HeartIcon, HighlightIcon, HistoryIcon, MenuIcon, NoteIcon, PlusIcon, SettingsIcon } from "./Icons";
 import { FOLDERS_CHANGED_EVENT, notifyFoldersChanged } from "@/lib/client/events";
 
 interface FolderItem {
@@ -86,6 +86,7 @@ function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
   const icons = {
     "/": AddDocumentIcon,
     "/history": HistoryIcon,
+    "/notes": NoteIcon,
     "/favorites": HeartIcon,
     "/highlights": HighlightIcon,
     "/settings": SettingsIcon,
@@ -101,7 +102,7 @@ function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
             href={item.href}
             aria-current={active ? "page" : undefined}
             onClick={onNavigate}
-            className={`flex min-h-[42px] items-center gap-3 rounded-xl px-3 text-sm transition ${
+            className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm transition ${
               active
                 ? "bg-white font-medium text-stone-950 shadow-[0_5px_18px_rgba(28,25,23,0.07)] ring-1 ring-stone-200/70 dark:bg-stone-800 dark:text-stone-50 dark:shadow-none dark:ring-stone-700"
                 : "text-stone-600 hover:bg-stone-200/55 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"
@@ -143,7 +144,7 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
                 void shared.deleteFolder(folder.id);
               }
             }}
-            className="shrink-0 rounded-md p-1 text-stone-400 opacity-0 transition hover:bg-stone-300/60 hover:text-stone-800 group-hover:opacity-100 dark:hover:bg-stone-700 dark:hover:text-stone-200"
+            className="folder-delete flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-stone-500 transition hover:bg-stone-300/60 hover:text-stone-800 dark:hover:bg-stone-700 dark:hover:text-stone-200"
           >
             <CloseIcon size={13} />
           </button>
@@ -179,7 +180,7 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
 export function Sidebar() {
   const shared = useFolders();
   return (
-    <aside className="no-print sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-stone-200 bg-stone-100/35 px-3 py-5 dark:border-stone-800 dark:bg-stone-950/15 md:flex">
+    <aside className="no-print sticky top-0 hidden h-dvh w-52 shrink-0 flex-col overflow-y-auto border-r border-stone-200 bg-stone-100/35 px-3 py-5 dark:border-stone-800 dark:bg-stone-950/15 md:flex lg:w-60">
       <Link href="/" className="mb-7 flex items-center gap-3 rounded-xl px-2 py-1.5">
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-900 font-serif text-sm font-semibold text-white shadow-[0_6px_18px_rgba(28,25,23,0.18)] dark:bg-stone-100 dark:text-stone-900 dark:shadow-none">R</span>
         <span>
@@ -234,6 +235,7 @@ function LogoutButton() {
 
 /** Dar ekranlar için üst header + çekmece menü. */
 export function MobileNav() {
+  const pathname = usePathname();
   const shared = useFolders();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -277,24 +279,43 @@ export function MobileNav() {
   }, [open]);
 
   return (
-    <header className="no-print sticky top-0 z-30 flex items-center justify-between border-b border-stone-200 bg-[#faf9f7]/95 px-4 py-2.5 backdrop-blur dark:border-stone-800 dark:bg-[#171512]/95 md:hidden">
+    <>
+    <header className="mobile-header no-print sticky top-0 z-30 flex items-center justify-between border-b border-stone-200 bg-[#faf9f7] px-4 py-2 dark:border-stone-800 dark:bg-[#171512] md:hidden">
       <Link href="/" className="flex items-center gap-2.5 text-base font-semibold tracking-tight">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-900 font-serif text-xs text-white dark:bg-stone-100 dark:text-stone-900">R</span>
         Readflow
       </Link>
       <div className="flex items-center gap-1">
         <AgentStatusBadge />
+      </div>
+    </header>
+    <nav aria-label="Hızlı gezinme" className="mobile-bottom-nav no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-[#faf9f7] px-2 pt-1 dark:border-stone-800 dark:bg-[#171512] md:hidden">
+      {[
+        { href: "/", label: "Yeni ekle", icon: AddDocumentIcon },
+        { href: "/history", label: "Arşiv", icon: HistoryIcon },
+        { href: "/notes", label: "Notlar", icon: NoteIcon },
+        { href: "/favorites", label: "Favoriler", icon: HeartIcon },
+      ].map(({ href, label, icon: Icon }) => {
+        const active = pathname === href || (href === "/history" && pathname.startsWith("/doc/"));
+        return (
+          <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[11px] ${active ? "bg-stone-200/70 font-semibold text-stone-950 dark:bg-stone-800 dark:text-stone-50" : "text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"}`}>
+            <Icon size={20} />
+            {label}
+          </Link>
+        );
+      })}
         <button
           ref={triggerRef}
           type="button"
           onClick={() => setOpen(true)}
           aria-expanded={open}
           aria-label="Menüyü aç"
-          className="flex h-11 w-11 items-center justify-center rounded-md text-lg hover:bg-stone-200/60 dark:hover:bg-stone-800/60"
+          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[11px] hover:bg-stone-200/60 dark:hover:bg-stone-800/60 ${pathname === "/settings" || pathname === "/highlights" ? "bg-stone-200/70 font-semibold dark:bg-stone-800" : "text-stone-600 dark:text-stone-400"}`}
         >
           <MenuIcon size={20} />
+          Menü
         </button>
-      </div>
+    </nav>
       {open && typeof document !== "undefined"
         ? createPortal(
             <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="Gezinme menüsü">
@@ -306,7 +327,7 @@ export function MobileNav() {
               />
               <div
                 ref={panelRef}
-                className="relative z-10 ml-auto flex h-full w-72 flex-col gap-4 overflow-y-auto border-l border-stone-200 bg-[#faf9f7] p-4 dark:border-stone-800 dark:bg-[#171512]"
+                className="relative z-10 ml-auto flex h-dvh w-80 max-w-full flex-col gap-4 overflow-y-auto overscroll-contain border-l border-stone-200 bg-[#faf9f7] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-stone-800 dark:bg-[#171512]"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold">Menü</span>
@@ -323,12 +344,13 @@ export function MobileNav() {
                 <FolderSection shared={shared} onNavigate={() => setOpen(false)} />
                 <div className="mt-auto flex flex-col gap-0.5 border-t border-stone-200 pt-3 dark:border-stone-800">
                   <ThemeToggle />
+                  <LogoutButton />
                 </div>
               </div>
             </div>,
             document.body,
           )
         : null}
-    </header>
+    </>
   );
 }

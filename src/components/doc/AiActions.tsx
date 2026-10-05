@@ -172,7 +172,15 @@ export function AiActions({
   const configLabel = `${selectedProfile?.name ?? "Otomatik AI"} · ${sourceLabel}${selection.includeNotes ? " · Not dahil" : ""}`;
 
   return (
-    <section className="no-print flex flex-col gap-4 rounded-2xl border border-stone-200 bg-stone-100/55 p-4 shadow-[0_12px_36px_rgba(28,25,23,0.045)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none" aria-label="AI işlemleri">
+    <details className="no-print group/ai rounded-xl border border-stone-200 bg-stone-100/55 dark:border-stone-800 dark:bg-stone-900/35">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 marker:hidden sm:px-4">
+        <span className="text-sm font-medium">Özetle ve düzenle <span className="ml-1 text-xs font-normal text-stone-500 dark:text-stone-400">· AI</span></span>
+        <span className="flex items-center gap-2">
+          {detail.jobs.some((job) => job.status === "pending" || job.status === "processing") ? <span className="text-xs text-amber-700 dark:text-amber-300">İş sürüyor</span> : detail.jobs.some((job) => job.status === "failed" && !job.cancelled) ? <span className="text-xs text-red-600 dark:text-red-400">İş başarısız</span> : null}
+          <ChevronDownIcon size={16} className="transition-transform group-open/ai:rotate-180" />
+        </span>
+      </summary>
+    <section className="flex flex-col gap-3 border-t border-stone-200 p-3 dark:border-stone-800 sm:p-4" aria-label="AI işlemleri">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold tracking-tight">Metni işle</h2>
@@ -195,7 +203,7 @@ export function AiActions({
         >
           {activeJobFor("readability") ? "Okunabilirlik işleniyor…" : "Okunabilirliği artır"}
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div role="radiogroup" aria-label="Özet seviyesi" className="flex overflow-hidden rounded-lg border border-stone-300 bg-white dark:border-stone-700 dark:bg-stone-900">
             {SUMMARY_LEVELS.map((level) => (
               <button
@@ -227,7 +235,7 @@ export function AiActions({
           <ChevronDownIcon size={16} className="text-stone-500 transition-transform group-open:rotate-180" />
         </summary>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone-200 px-3 py-3 text-xs dark:border-stone-800">
-        <fieldset className="flex items-center gap-1.5">
+        <fieldset className="flex min-w-0 flex-wrap items-center gap-1.5">
           <legend className="sr-only">AI kaynak metni</legend>
           <span className="text-stone-500 dark:text-stone-400">Kaynak:</span>
           {(
@@ -262,7 +270,7 @@ export function AiActions({
           Notu AI&apos;a ekle
         </label>
 
-        <fieldset className="flex items-center gap-1.5">
+        <fieldset className="flex min-w-0 flex-wrap items-center gap-1.5">
           <legend className="sr-only">Hangi AI ile çalışsın</legend>
           <span className="text-stone-500 dark:text-stone-400">AI:</span>
           {status?.envLock.locked ? (
@@ -422,5 +430,6 @@ export function AiActions({
         </p>
       )}
     </section>
+    </details>
   );
 }

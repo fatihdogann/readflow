@@ -105,7 +105,7 @@ export function DocHeader({
         <h1 className="min-w-0 flex-1 basis-[20ch] max-w-[34ch] text-2xl font-semibold leading-[1.18] tracking-[-0.028em] md:text-3xl">
           {doc.title}
         </h1>
-        <div className="no-print flex shrink-0 flex-wrap items-center gap-1 sm:pt-0.5">
+        <div className="no-print flex w-full min-w-0 flex-wrap items-center gap-1 sm:w-auto sm:pt-0.5">
           <button
             type="button"
             onClick={() => void patch({ favorite: doc.favorite === 0 })}

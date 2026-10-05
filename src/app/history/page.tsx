@@ -17,7 +17,7 @@ export default async function HistoryPage({
   const db = getDb();
   return (
     <HistoryView
-      title="Geçmiş"
+      title="Arşiv"
       basePath="/history"
       initialFilters={parseHistoryFilters(params)}
       facets={{

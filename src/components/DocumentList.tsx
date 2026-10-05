@@ -26,17 +26,17 @@ export function DocumentList({
     );
   }
   return (
-    <ul className="grid gap-3">
+    <ul className="divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
       {docs.map((doc) => {
         const badges = outputsByDoc.get(doc.id) ?? [];
         return (
           <li key={doc.id}>
             <Link
               href={`/doc/${doc.id}`}
-              className="group block rounded-2xl border border-stone-200 bg-white/55 px-4 py-4 shadow-[0_8px_24px_rgba(28,25,23,0.035)] transition duration-200 hover:-translate-y-px hover:border-stone-300 hover:bg-white hover:shadow-[0_14px_32px_rgba(28,25,23,0.07)] dark:border-stone-800 dark:bg-stone-900/25 dark:shadow-none dark:hover:border-stone-700 dark:hover:bg-stone-900/55 sm:px-5"
+              className="group block rounded-sm px-1 py-3 transition-colors hover:bg-stone-100 dark:hover:bg-stone-900/55 sm:px-3 sm:py-4"
             >
               <div className="flex items-start justify-between gap-3">
-                <h3 className="min-w-0 font-medium leading-snug text-stone-900 group-hover:underline dark:text-stone-100">
+                <h3 className="min-w-0 break-words font-medium leading-snug text-stone-900 group-hover:underline dark:text-stone-100">
                   {doc.title || "Adsız"}
                 </h3>
                 {doc.favorite ? (
@@ -80,7 +80,7 @@ export function DocumentList({
                   </span>
                 ))}
               </div>
-              <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-stone-500 dark:text-stone-400">
+              <p className="mt-1 line-clamp-1 text-sm leading-relaxed text-stone-600 dark:text-stone-400 sm:line-clamp-2">
                 {doc.preview}
               </p>
               {doc.matched && doc.matched.length > 0 ? (

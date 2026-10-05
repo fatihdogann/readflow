@@ -22,7 +22,7 @@ export function Toast({ message, onDismiss }: { message: string | null; onDismis
     <div
       role="status"
       aria-live="polite"
-      className="no-print fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-sm items-start gap-2 rounded-xl border border-stone-300 bg-white px-3.5 py-3 text-xs leading-relaxed shadow-[0_14px_40px_rgba(28,25,23,0.18)] dark:border-stone-700 dark:bg-stone-900 sm:left-auto sm:right-6 sm:mx-0"
+      className="no-print fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-sm items-start gap-2 rounded-xl border border-stone-300 bg-white px-3.5 py-3 text-xs leading-relaxed shadow-[0_14px_40px_rgba(28,25,23,0.18)] dark:border-stone-700 dark:bg-stone-900 sm:left-auto sm:right-6 sm:mx-0 md:bottom-4"
     >
       <span className="min-w-0 flex-1 text-stone-700 dark:text-stone-200">{message}</span>
       <button

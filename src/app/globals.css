@@ -8,6 +8,7 @@
 
 html {
   color-scheme: light;
+  scroll-padding-block: 5rem;
 }
 html.dark {
   color-scheme: dark;
@@ -19,6 +20,29 @@ body {
     sans-serif;
   text-rendering: optimizeLegibility;
   accent-color: #57534e;
+}
+
+/* Keep the last control above the phone's persistent navigation and safe area. */
+.app-content {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+.mobile-bottom-nav {
+  padding-bottom: max(0.375rem, env(safe-area-inset-bottom));
+}
+.mobile-header {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+@media (min-width: 768px) {
+  .app-content { padding-bottom: 2rem; }
+}
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]), textarea, select {
+    font-size: 16px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .folder-delete { opacity: 0; }
+  .group:hover .folder-delete, .folder-delete:focus-visible { opacity: 1; }
 }
 
 ::selection {
