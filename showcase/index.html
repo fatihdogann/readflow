@@ -24,7 +24,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/style.css?v=20261005b">
+<link rel="stylesheet" href="/style.css?v=20261005c">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/", "description": "Bağlantı, metin ve PDF'leri arşivleyen, vurgulayan ve kendi coding-agent CLI'ınla özetleyen local-first okuma uygulaması.", "inLanguage": "tr", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og.jpg"}</script>
 </head>
 <body><a class="skip-link" href="#main">İçeriğe atla</a>
@@ -61,6 +61,30 @@
  <li><span class="step">4</span><div><h3>Sonuca dön</h3><p>Özet ve düzenleme arşive yazılır; orijinal metin korunur.</p><small>stdin / stdout · sürüm geçmişi</small></div></li>
  </ol>
       <p class="note mt">Veri yerelde saklanır. AI işlemini hangi modelin yaptığı kullandığın CLI'a bağlıdır: CLI uzak bir modele bağlıysa işlenen metin o sağlayıcıya gider.</p>
+    </section>
+
+    <section aria-labelledby="guvenlik" class="technical-section"><h2 id="guvenlik">Güvenlik kararları</h2>
+
+      <div class="two">
+        <ul class="checks">
+          <li>Uygulama yalnızca <code>127.0.0.1</code> adresini dinler; uzaktan erişim Tailscale Serve ile.</li>
+          <li>Tek kullanıcı girişi, imzalı HttpOnly oturum çerezi, origin denetimi.</li>
+          <li>Production'da kimlik bilgileri eksikse uygulama başlamaz.</li>
+        </ul>
+        <ul class="checks">
+          <li>URL indirmede her istekte DNS çözümlemesi ile SSRF koruması.</li>
+          <li>Nonce tabanlı CSP, çerçevelemeye kapalı; giriş denemeleri sınırlı.</li>
+          <li>Agent komutları shell olmadan çalışır; CLI bayrakları <code>--help</code> çıktısıyla doğrulanır.</li>
+          <li>Veri dizini <code>0700</code>, veritabanı <code>0600</code> izinli; kullanıcı verisi Git'e girmez.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section aria-labelledby="teknoloji" class="technical-section"><h2 id="teknoloji">Teknoloji</h2>
+
+      <ul class="tags">
+        <li>Next.js 16</li><li>React 19</li><li>TypeScript</li><li>Tailwind CSS 4</li><li>SQLite · better-sqlite3</li><li>Mozilla Readability</li><li>MCP</li><li>Vitest</li><li>Playwright</li><li>GitHub Actions</li>
+      </ul>
     </section>
 
     <section id="ozellikler" aria-labelledby="ozellikler-baslik">
@@ -105,30 +129,6 @@
             <img src="/assets/mobile-doc-light.jpg" width="780" height="1688" loading="lazy" alt="Mobil belge görünümü">
           </picture>
         <figcaption>Aynı arşive izinli cihazlarından Tailscale ile eriş.</figcaption></figure></details></div></section>
-
-    <section aria-labelledby="guvenlik" class="compact-section"><details class="technical"><summary id="guvenlik">Güvenlik kararları</summary>
-
-      <div class="two">
-        <ul class="checks">
-          <li>Uygulama yalnızca <code>127.0.0.1</code> adresini dinler; uzaktan erişim Tailscale Serve ile.</li>
-          <li>Tek kullanıcı girişi, imzalı HttpOnly oturum çerezi, origin denetimi.</li>
-          <li>Production'da kimlik bilgileri eksikse uygulama başlamaz.</li>
-        </ul>
-        <ul class="checks">
-          <li>URL indirmede her istekte DNS çözümlemesi ile SSRF koruması.</li>
-          <li>Nonce tabanlı CSP, çerçevelemeye kapalı; giriş denemeleri sınırlı.</li>
-          <li>Agent komutları shell olmadan çalışır; CLI bayrakları <code>--help</code> çıktısıyla doğrulanır.</li>
-          <li>Veri dizini <code>0700</code>, veritabanı <code>0600</code> izinli; kullanıcı verisi Git'e girmez.</li>
-        </ul>
-      </div>
-    </details></section>
-
-    <section aria-labelledby="teknoloji" class="compact-section"><details class="technical"><summary id="teknoloji">Teknoloji</summary>
-
-      <ul class="tags">
-        <li>Next.js 16</li><li>React 19</li><li>TypeScript</li><li>Tailwind CSS 4</li><li>SQLite · better-sqlite3</li><li>Mozilla Readability</li><li>MCP</li><li>Vitest</li><li>Playwright</li><li>GitHub Actions</li>
-      </ul>
-    </details></section>
 
     <section id="kurulum" aria-labelledby="kurulum-baslik">
       <h2 id="kurulum-baslik">Kurulum</h2>

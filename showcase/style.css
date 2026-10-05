@@ -76,10 +76,7 @@ summary:hover { color: var(--muted); }
 .screen .shot { margin-bottom: 18px; }
 .phone-shot { max-width: 280px; margin-inline: auto; }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 28px; }
-.compact-section { padding-block: 0; border-top: 0; }
-.technical { padding-block: 4px; }
-.technical > summary { font-size: 18px; }
-.technical .two, .technical .tags { margin-block: 12px 24px; }
+.technical-section h2 { font-size: 20px; margin-bottom: 18px; }
 ul.checks { margin: 0; padding-left: 18px; display: grid; gap: 10px; font-size: 14px; color: var(--muted); }
 pre { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; overflow-wrap: anywhere; white-space: pre-wrap; font: 13px/1.8 var(--mono); margin: 0; }
 pre .c { color: var(--muted); }
@@ -114,7 +111,6 @@ footer a { display: inline-flex; min-height: 44px; align-items: center; }
   .pipeline small { font-size: 12px; }
   .grid, .gallery, .two { grid-template-columns: minmax(0,1fr); }
   summary { min-height: 50px; font-size: 15px; }
-  .technical > summary { font-size: 16px; }
   .note { font-size: 12px; }
   pre { padding: 14px; font-size: 12px; }
 }
