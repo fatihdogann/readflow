@@ -70,7 +70,9 @@ summary::-webkit-details-marker { display: none; }
 summary::after { content: ""; flex: 0 0 8px; width: 8px; height: 8px; margin-right: 5px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); }
 details[open] > summary::after { transform: rotate(225deg); }
 summary:hover { color: var(--muted); }
-.feature p { font-size: 14px; color: var(--muted); margin: 0 24px 18px 0; }
+.feature { padding-block: 14px; border-bottom: 1px solid var(--line); }
+.feature h3 { font-size: 16px; line-height: 1.4; margin: 0 0 6px; }
+.feature p { font-size: 14px; color: var(--muted); margin: 0; }
 .screen .shot { margin-bottom: 18px; }
 .phone-shot { max-width: 280px; margin-inline: auto; }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 28px; }
