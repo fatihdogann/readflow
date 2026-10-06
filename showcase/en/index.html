@@ -18,14 +18,17 @@
 <meta property="og:title" content="Readflow — a local-first reading workspace">
 <meta property="og:description" content="Read, highlight, summarize with your own agent. Your data stays on your computer.">
 <meta property="og:url" content="https://readflow.mehmetfatihdogan.com.tr/en/">
-<meta property="og:image" content="https://readflow.mehmetfatihdogan.com.tr/assets/og.jpg">
+<meta property="og:image" content="https://readflow.mehmetfatihdogan.com.tr/assets/og-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Readflow — Your reading, within reach.">
+<meta name="twitter:image" content="https://readflow.mehmetfatihdogan.com.tr/assets/og-en.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/style.css?v=20261005d">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/en/", "description": "A local-first reading app that archives links, text and PDFs, keeps highlights, and summarizes with your own coding-agent CLI.", "inLanguage": "en", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og.jpg"}</script>
+<link rel="stylesheet" href="/style.css?v=20261006a">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/en/", "description": "A local-first reading app that archives links, text and PDFs, keeps highlights, and summarizes with your own coding-agent CLI.", "inLanguage": "en", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og-en.png"}</script>
 </head>
 <body><a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
@@ -40,7 +43,7 @@
   </header>
 
   <main id="main">
-    <div class="hero"><div class="hero-copy"><h1>Your reading, <mark>within reach.</mark></h1><p class="lead">Bring links, text and PDFs into one reading space. Highlight, take notes and summarize with your own coding agent. Keep your archive on your computer.</p><div class="actions">
+    <div class="hero"><div class="hero-copy"><h1>Your reading, <mark>within reach</mark>.</h1><p class="lead">Bring links, text and PDFs into one reading space. Highlight, take notes and summarize with an AI tool such as Claude or Codex on your computer. Keep your archive on your computer.</p><div class="actions">
         <a class="btn primary" href="#setup">See setup</a>
         <a class="btn" href="#architecture">How does it work?</a>
       </div><p class="hero-facts">Open source · MIT · No API key required by Readflow</p></div>
@@ -51,41 +54,7 @@
           <img src="/assets/doc-light.jpg" width="2560" height="1600" alt="Readflow document view: title, reading status, processing panel and a Normal-length summary tab" fetchpriority="high">
         </picture>
       <figcaption>Reading, notes and summaries in one place. A view from a demo archive.</figcaption></figure>
-    </div><section id="architecture" aria-labelledby="architecture-title">
-      <h2 id="architecture-title">Local archive. Your own agent.</h2>
-      <p class="sub">The Readflow architecture: content is archived first, then AI work is queued and run by a local worker.</p>
-      <ol class="pipeline" aria-label="Processing order from content to AI output">
- <li><span class="step">1</span><div><h3>Capture content</h3><p>A URL, text or PDF becomes clean reading text.</p><small>Readability · OCR</small></div></li>
- <li><span class="step">2</span><div><h3>Store locally</h3><p>The archive and pending job are saved with a snapshot of the source.</p><small>SQLite · snapshot</small></div></li>
- <li><span class="step">3</span><div><h3>Run the job</h3><p>The worker leases the job and sends it to your CLI.</p><small>Worker · Claude / Codex / jcode</small></div></li>
- <li><span class="step">4</span><div><h3>Keep the result</h3><p>Summaries and rewrites return to the archive; the original stays intact.</p><small>stdin / stdout · revision history</small></div></li>
- </ol>
-      <p class="note mt">Data is stored locally. Which model does the AI work depends on your CLI: if it talks to a remote model, the processed text goes to that provider.</p>
-    </section>
-
-    <section aria-labelledby="security" class="technical-section"><h2 id="security">Security decisions</h2>
-
-      <div class="two">
-        <ul class="checks">
-          <li>The app listens only on <code>127.0.0.1</code>; remote access goes through Tailscale Serve.</li>
-          <li>Single-user login, signed HttpOnly session cookie, origin checks.</li>
-          <li>In production the app refuses to start without credentials.</li>
-        </ul>
-        <ul class="checks">
-          <li>SSRF protection with a DNS lookup before every fetch.</li>
-          <li>Nonce-based CSP, framing denied, login attempts rate-limited.</li>
-          <li>Agent commands run without a shell; CLI flags are verified against <code>--help</code> output.</li>
-          <li>Data directory is <code>0700</code>, database <code>0600</code>; user data never enters Git.</li>
-        </ul>
-      </div>
-    </section>
-
-    <section aria-labelledby="stack" class="technical-section"><h2 id="stack">Stack</h2>
-
-      <ul class="tags">
-        <li>Next.js 16</li><li>React 19</li><li>TypeScript</li><li>Tailwind CSS 4</li><li>SQLite · better-sqlite3</li><li>Mozilla Readability</li><li>MCP</li><li>Vitest</li><li>Playwright</li><li>GitHub Actions</li>
-      </ul>
-    </section>
+    </div>
 
     <section id="features" aria-labelledby="features-title">
       <h2 id="features-title">More than a reading list.</h2>
@@ -129,6 +98,42 @@
             <img src="/assets/mobile-doc-light.jpg" width="780" height="1688" loading="lazy" alt="Mobile document view">
           </picture>
         <figcaption>Access the same archive from approved devices over Tailscale.</figcaption></figure></details></div></section>
+
+    <section id="architecture" aria-labelledby="architecture-title">
+      <h2 id="architecture-title">Local archive. Your own agent.</h2>
+      <p class="sub">The Readflow architecture: content is archived first, then AI work is queued and run by a local worker.</p>
+      <ol class="pipeline" aria-label="Processing order from content to AI output">
+ <li><span class="step">1</span><div><h3>Capture content</h3><p>A URL, text or PDF becomes clean reading text.</p><small>Readability · OCR</small></div></li>
+ <li><span class="step">2</span><div><h3>Store locally</h3><p>The archive and pending job are saved with a snapshot of the source.</p><small>SQLite · snapshot</small></div></li>
+ <li><span class="step">3</span><div><h3>Run the job</h3><p>The worker leases the job and sends it to your CLI.</p><small>Worker · Claude / Codex / jcode</small></div></li>
+ <li><span class="step">4</span><div><h3>Keep the result</h3><p>Summaries and rewrites return to the archive; the original stays intact.</p><small>stdin / stdout · revision history</small></div></li>
+ </ol>
+      <p class="note mt">Data is stored locally. Which model does the AI work depends on your CLI: if it talks to a remote model, the processed text goes to that provider.</p>
+    </section>
+
+    <section aria-labelledby="security" class="technical-section"><h2 id="security">Security decisions</h2>
+
+      <div class="two">
+        <ul class="checks">
+          <li>The app listens only on <code>127.0.0.1</code>; remote access goes through Tailscale Serve.</li>
+          <li>Single-user login, signed HttpOnly session cookie, origin checks.</li>
+          <li>In production the app refuses to start without credentials.</li>
+        </ul>
+        <ul class="checks">
+          <li>SSRF protection with a DNS lookup before every fetch.</li>
+          <li>Nonce-based CSP, framing denied, login attempts rate-limited.</li>
+          <li>Agent commands run without a shell; CLI flags are verified against <code>--help</code> output.</li>
+          <li>Data directory is <code>0700</code>, database <code>0600</code>; user data never enters Git.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section aria-labelledby="stack" class="technical-section"><h2 id="stack">Stack</h2>
+
+      <ul class="tags">
+        <li>Next.js 16</li><li>React 19</li><li>TypeScript</li><li>Tailwind CSS 4</li><li>SQLite · better-sqlite3</li><li>Mozilla Readability</li><li>MCP</li><li>Vitest</li><li>Playwright</li><li>GitHub Actions</li>
+      </ul>
+    </section>
 
     <section id="setup" aria-labelledby="setup-title">
       <h2 id="setup-title">Setup</h2>
