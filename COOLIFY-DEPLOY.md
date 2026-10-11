@@ -15,6 +15,8 @@ Vitrinde API, giriş, secret, veritabanı veya kalıcı volume **yoktur**.
 7. Eski Readflow uygulamasından `readflow.mehmetfatihdogan.com.tr` alan adını kaldır, yeni kaynağa ekle.
 8. Eski uygulamayı, `/data` volume'unu ve secret'larını (`WORKER_ENROLLMENT_SECRET`, `READFLOW_AUTH_*`) sil.
 
+Vitrin sayfası değişince `node scripts/sitemap.mjs` çalıştırın (`showcase/sitemap.xml` lastmod tarihleri kaynak dosyaların son commitinden güncellenir).
+
 ## Güvenlik başlıkları (Custom Nginx Configuration)
 
 Sayfalarda CSP `<meta>` ile verilir. Kalan başlıklar için Coolify'da kaynağın
