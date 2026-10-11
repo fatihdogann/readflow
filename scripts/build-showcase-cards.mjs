@@ -8,8 +8,8 @@ const browser = await chromium.launch({ headless: true, channel: process.env.PLA
 try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
   for (const [lang, title, highlight, description, label] of [
-    ['tr', 'Okudukların,', 'elinin altında', 'Oku, vurgula, kendi agent’ınla özetle.', 'Kendi bilgisayarında bir okuma alanı'],
-    ['en', 'Your reading,', 'within reach', 'Read, highlight, summarize with your own agent.', 'A reading space on your own computer'],
+    ['tr', 'Makale ve PDF arşivin,', 'elinin altında', 'Oku, vurgula, kendi agent’ınla özetle.', 'Kendi bilgisayarında bir okuma alanı'],
+    ['en', 'Read it later,', 'keep it local', 'Read, highlight, summarize with your own agent.', 'A reading space on your own computer'],
   ]) {
     await page.setContent(`<!doctype html><html lang="${lang}"><meta charset="utf-8"><style>
       * { box-sizing: border-box; }
