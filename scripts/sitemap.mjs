@@ -17,6 +17,7 @@ const pages = [
     alternates: [
       { hreflang: 'tr', href: `${SITE}/` },
       { hreflang: 'en', href: `${SITE}/en/` },
+      { hreflang: 'x-default', href: `${SITE}/` },
     ],
   },
   {
@@ -25,6 +26,25 @@ const pages = [
     alternates: [
       { hreflang: 'tr', href: `${SITE}/` },
       { hreflang: 'en', href: `${SITE}/en/` },
+      { hreflang: 'x-default', href: `${SITE}/` },
+    ],
+  },
+  {
+    loc: `${SITE}/pocket-alternatifi/`,
+    source: 'showcase/pocket-alternatifi/index.html',
+    alternates: [
+      { hreflang: 'tr', href: `${SITE}/pocket-alternatifi/` },
+      { hreflang: 'en', href: `${SITE}/en/pocket-alternative/` },
+      { hreflang: 'x-default', href: `${SITE}/pocket-alternatifi/` },
+    ],
+  },
+  {
+    loc: `${SITE}/en/pocket-alternative/`,
+    source: 'showcase/en/pocket-alternative/index.html',
+    alternates: [
+      { hreflang: 'tr', href: `${SITE}/pocket-alternatifi/` },
+      { hreflang: 'en', href: `${SITE}/en/pocket-alternative/` },
+      { hreflang: 'x-default', href: `${SITE}/pocket-alternatifi/` },
     ],
   },
 ]
