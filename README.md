@@ -162,6 +162,7 @@ Readflow bağımsız süreçler halinde çalışır; hepsi aynı SQLite dosyası
 | Web uygulaması | `pnpm dev:web` | Next.js 16 (App Router): UI, REST API, URL/dosya extraction, export servisleri |
 | Worker | `pnpm dev:worker` | `pending` job'ları atomik claim eder, agent CLI'ı çalıştırır, çıktıyı yazar |
 | MCP sunucusu | `pnpm dev:mcp` | Coding agent'lara stdio üzerinden job/doküman tool'ları sunar |
+| Uzak worker (opsiyonel) | `pnpm worker:remote` | Merkezi bir kuyruğa `READFLOW_SERVER_URL` ile outbound HTTPS üzerinden bağlanır. **Şu an kullanılmıyor:** Coolify yalnız statik vitrini sunar, uygulama ve worker Mac'te çalışır |
 | Mac servisi | `pnpm app:install` | Production web (yalnız `127.0.0.1`) + yerel worker launchd servisi olarak açılışta başlar; ayarlar `~/.readflow/app.env`. Uzak erişim Tailscale Serve ile |
 | Agent CLI | senin makinen | AI işini gerçekleştiren `claude` / `codex` / `jcode` / özel script |
 

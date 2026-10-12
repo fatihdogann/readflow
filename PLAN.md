@@ -91,20 +91,19 @@ için ikon bozuk çıkar.
 
 ## Faz 0.5 — Dokümantasyon temizliği ✅ TAMAMLANDI
 
-Kod ilerledi, dokümanlar geride kaldı. Doğrulanan sapmalar:
+Kod ilerledi, dokümanlar geride kaldı. Sapmalar tek tek koda karşı doğrulandı:
 
-| Doküman | Sorun |
-|---|---|
-| `README.md` | "Worker açılışta takılı `processing` job'ları `pending` yapar" — **yanlış**, artık yalnız süresi dolmuş lease kurtarılıyor (AGENTS.md doğru olanı yazıyor) |
-| `README.md` | PDF export "tarayıcı yazdırma" deniyor; gerçekte `src/lib/export/pdf.ts` pdf-lib ile gerçek PDF üretiyor |
-| `README.md` | Veri modeli tablosunda `annotations`, `chat_*`, `document_edits`, `document_output_revisions`, `agent_profiles` yok |
-| `README.md` | Mimari bölümünde Coolify + `worker:remote` mimarisi hiç geçmiyor — senin gerçek kurulumun bu |
-| `README.md` | Job yaşam döngüsü lease/snapshot'sız anlatılmış |
-| `AGENTS.md` | "profil mutasyonları `assertLocalRequest` ile localhost'a kısıtlı" — artık `assertMutationAllowed` (auth farkında), Coolify için değişti |
-| `readflow-kisisel-kullanim-plani.md` | İçindeki işlerin çoğu bitmiş (anlık filtreler, export içerik çözümleyici, PDF). **Sil.** |
-| `COOLIFY-DEPLOY.md` | launchd bölümü eklenecek (Faz 0.1) |
+| # | Tespit | Durum |
+|---|---|---|
+| 1 | README worker açılışını "takılı `processing` job'ları `pending` yapar" diye anlatıyordu | ✅ Düzeltildi: README yalnız süresi dolmuş lease'in kurtarıldığını yazıyor |
+| 2 | PDF export "tarayıcı yazdırma" sanılıyordu | ✅ Düzeltildi: `src/lib/export/pdf.ts` gerçek PDF üretiyor (gömülü DejaVu fontu) |
+| 3 | Veri modeli tablosu eksikti | ✅ Düzeltildi: `document_annotations`, `chat_*`, `document_edits`, `document_output_revisions`, `agent_profiles` tabloda |
+| 4 | "Coolify + `worker:remote` senin gerçek kurulumun" varsayımı | ⚠️ Varsayım yanlıştı: Coolify **yalnız statik vitrini** sunar (`COOLIFY-DEPLOY.md`), uygulama Mac'te launchd + Tailscale. README'ye `pnpm worker:remote` satırı **opsiyonel ve şu an kullanılmıyor** notuyla eklendi |
+| 5 | Job yaşam döngüsü lease/snapshot'sız anlatılmıştı | ✅ Düzeltildi: README'de "pending job protokolü" bölümü var |
+| 6 | AGENTS.md `assertLocalRequest` diyordu | ✅ Düzeltildi: `assertMutationAllowed` (oturum farkında) |
+| 7 | `readflow-kisisel-kullanim-plani.md` silinecekti | ✅ Dosya artık yok; içindeki işler bitmiş |
 
----
+Bu turda ayrıca: `npm test` ve tip kontrolü ile doğrulandı. Yeni sapma görülürse bu tabloya satır eklenir.
 
 ## Faz 1 — Tek sağ raf ✅ TAMAMLANDI
 
