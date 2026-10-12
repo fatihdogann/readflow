@@ -3,26 +3,32 @@
 import { readFile } from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 
-const logo = Buffer.from(await readFile(new URL('../showcase/favicon.svg', import.meta.url))).toString('base64');
+const asset = async (path, type) => `data:${type};base64,${(await readFile(new URL(path, import.meta.url))).toString('base64')}`;
+const logo = await asset('../showcase/favicon.svg', 'image/svg+xml');
+const shot = await asset('../showcase/assets/doc-light-1600.webp', 'image/webp');
 const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL });
 try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
-  for (const [lang, title, highlight, description, label] of [
-    ['tr', 'Makale ve PDF arşivin,', 'elinin altında', 'Oku, vurgula, kendi agent’ınla özetle.', 'Kendi bilgisayarında bir okuma alanı'],
-    ['en', 'Read it later,', 'keep it local', 'Read, highlight, summarize with your own agent.', 'A reading space on your own computer'],
+  // Large type on purpose: chat apps show this card at roughly a quarter of its size.
+  for (const [lang, title, highlight, description] of [
+    ['tr', 'Oku. Arşivle.', 'Özetle.', 'Makale ve PDF arşivin, kendi bilgisayarında.'],
+    ['en', 'Read. Archive.', 'Summarize.', 'Your articles and PDFs, on your own computer.'],
   ]) {
     await page.setContent(`<!doctype html><html lang="${lang}"><meta charset="utf-8"><style>
-      * { box-sizing: border-box; }
-      body { margin: 0; width: 1200px; height: 630px; padding: 56px 72px; background: #f7f5f2; color: #41483a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-      header { display: flex; align-items: center; gap: 16px; font-size: 32px; font-weight: 650; }
-      img { width: 52px; height: 52px; }
-      h1 { margin: 52px 0 24px; font: 500 80px/1.12 Charter, 'Iowan Old Style', Georgia, serif; letter-spacing: -2px; }
-      mark { color: inherit; background: #f3df9a; padding: 0 8px; }
-      p { margin: 0; color: #57534e; font-size: 26px; line-height: 1.6; }
-      footer { display: flex; justify-content: space-between; align-items: center; margin-top: 48px; padding-top: 20px; border-top: 1px solid #dedad4; font-size: 17px; color: #57534e; }
-    </style><header><img src="data:image/svg+xml;base64,${logo}" alt="">Readflow</header>
-    <h1>${title}<br><mark>${highlight}</mark>.</h1><p>${description}</p>
-    <footer><span>${label}</span><span>readflow.mehmetfatihdogan.com.tr</span></footer></html>`);
+      * { box-sizing: border-box; margin: 0; }
+      body { position: relative; width: 1200px; height: 630px; overflow: hidden; background: #f7f5f2; color: #2f352a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .copy { position: absolute; left: 64px; top: 56px; width: 560px; }
+      header { display: flex; align-items: center; gap: 18px; font-size: 46px; font-weight: 700; letter-spacing: -.5px; }
+      header img { width: 72px; height: 72px; }
+      h1 { margin-top: 56px; font: 600 84px/1.06 Charter, 'Iowan Old Style', Georgia, serif; letter-spacing: -2px; }
+      mark { color: inherit; background: #f3df9a; padding: 0 10px; }
+      p { margin-top: 26px; color: #4a4640; font-size: 28px; line-height: 1.4; }
+      footer { position: absolute; left: 64px; bottom: 46px; font-size: 25px; font-weight: 600; color: #41483a; }
+      figure { position: absolute; left: 650px; top: 64px; width: 640px; border: 1px solid #dedad4; border-radius: 14px; overflow: hidden; box-shadow: 0 30px 70px -24px #4a40306b; }
+      figure img { display: block; width: 100%; }
+    </style><div class="copy"><header><img src="${logo}" alt="">Readflow</header>
+    <h1>${title}<br><mark>${highlight}</mark></h1><p>${description}</p></div>
+    <footer>readflow.mehmetfatihdogan.com.tr</footer><figure><img src="${shot}" alt=""></figure></html>`);
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path: new URL(`../showcase/assets/og-${lang}.png`, import.meta.url).pathname });
     console.log(`showcase/assets/og-${lang}.png — 1200×630`);
