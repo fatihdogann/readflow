@@ -20,7 +20,7 @@
     "diagnose": "tsx scripts/diagnose.ts",
     "build": "next build",
     "start": "next start",
-    "test": "vitest run",
+    "test": "node --test scripts/showcase.test.mjs && vitest run",
     "test:watch": "vitest",
     "test:e2e": "pnpm build && playwright test",
     "dev:e2e": "node scripts/e2e-server.mjs",

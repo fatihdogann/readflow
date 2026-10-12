@@ -32,8 +32,8 @@
 <meta name="twitter:image:alt" content="Readflow paylaşım kartı: makale ve PDF arşivi, okuma listesi ve vurgular — kendi bilgisayarında.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/style.css?v=20261006a">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Pocket Alternatifi — Makale ve PDF Arşivi, Local-first","description":"Pocket 2025'te kapandı. Readflow bir Pocket alternatifi: makale ve PDF arşivi, okuma listesi, vurgular ve kendi AI aracınla özet.","inLanguage":"tr","url":"https://readflow.mehmetfatihdogan.com.tr/pocket-alternatifi/","isPartOf":{"@type":"WebSite","name":"Readflow","url":"https://readflow.mehmetfatihdogan.com.tr/"}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Pocket kapandı mı?","acceptedAnswer":{"@type":"Answer","text":"Evet. Pocket 2025'te kapatıldı; kaydedilen makaleler için alternatif bir okuma arşivi gerekiyor."}},{"@type":"Question","name":"Pocket arşivimi Readflow'a taşıyabilir miyim?","acceptedAnswer":{"@type":"Answer","text":"Evet. Readflow Pocket, Instapaper ve Readwise içe aktarmayı destekler; Pocket dışa aktarma dosyanı içe aktararak arşivini taşıyabilirsin."}},{"@type":"Question","name":"Readflow ücretli mi?","acceptedAnswer":{"@type":"Answer","text":"Hayır. Readflow açık kaynaklıdır (MIT) ve API anahtarı istemez; özetleri kendi bilgisayarındaki AI aracı üretir."}},{"@type":"Question","name":"İnternet olmadan okuyabilir miyim?","acceptedAnswer":{"@type":"Answer","text":"Evet. Açtığın son 60 sayfa tarayıcıda saklanır; çevrimdışıyken de okunur."}}]}]}</script>
+<link rel="stylesheet" href="/style.css?v=20261012b">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Pocket Alternatifi — Makale ve PDF Arşivi, Local-first","description":"Pocket 2025'te kapandı. Readflow bir Pocket alternatifi: makale ve PDF arşivi, okuma listesi, vurgular ve kendi AI aracınla özet.","inLanguage":"tr","url":"https://readflow.mehmetfatihdogan.com.tr/pocket-alternatifi/","isPartOf":{"@type":"WebSite","name":"Readflow","url":"https://readflow.mehmetfatihdogan.com.tr/"}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Pocket kapandı mı?","acceptedAnswer":{"@type":"Answer","text":"Evet. Pocket 2025'te kapatıldı; kaydedilen makaleler için alternatif bir okuma arşivi gerekiyor."}},{"@type":"Question","name":"Arşivimi nasıl taşırım?","acceptedAnswer":{"@type":"Answer","text":"Önceden aldığın CSV/HTML dışa aktarma dosyasını içe aktar; bağlantılar, başlıklar ve etiketler eklenir, makaleler yeniden alınır. Eski vurgular ve notlar taşınmaz."}},{"@type":"Question","name":"Readflow ücretli mi?","acceptedAnswer":{"@type":"Answer","text":"Hayır. Readflow açık kaynaklıdır (MIT) ve API anahtarı istemez; özetleri kendi bilgisayarındaki AI aracı üretir."}},{"@type":"Question","name":"İnternet olmadan okuyabilir miyim?","acceptedAnswer":{"@type":"Answer","text":"Evet. Açtığın son 60 sayfa tarayıcıda saklanır; çevrimdışıyken de okunur."}}]}]}</script>
 </head>
 <body><a class="skip-link" href="#main">İçeriğe atla</a>
 <div class="wrap">
@@ -48,7 +48,7 @@
   </header>
 
   <main id="main">
-    <div class="hero"><div class="hero-copy">
+    <div class="hero hero-text"><div class="hero-copy">
       <h1>Pocket alternatifi: arşivin <mark>kendi bilgisayarında</mark>.</h1>
       <p class="lead">Pocket 2025'te kapandı. Readflow; makale, bağlantı ve PDF'lerini tek yerde toplayan, okuma listeni kuran ve vurgularını kendi cihazında tutan local-first bir okuma alanıdır. Özetleri kendi bilgisayarındaki AI aracı çıkarır — API anahtarı gerekmez.</p>
       <div class="actions">
@@ -62,7 +62,7 @@
       <h2 id="neden">Neden Readflow?</h2>
       <p class="sub">Bir okuma listesinden beklediğin şeyler: kaydetmek kolay, bulmak kolay, veri sende kalsın.</p>
       <div class="grid">
-        <div class="feature"><h3>Pocket arşivini devral</h3><p>Pocket, Instapaper ve Readwise içe aktarma desteklenir. Kaydettiğin makaleler, vurgular ve notlar yeni arşivine taşınır.</p></div>
+        <div class="feature"><h3>Pocket arşivini devral</h3><p>Önceden aldığın Pocket, Instapaper veya Readwise CSV/HTML dışa aktarma dosyasındaki bağlantıları, başlıkları ve etiketleri içe aktar. Makale içerikleri bağlantılardan yeniden alınır; eski vurgular ve notlar taşınmaz.</p></div>
         <div class="feature"><h3>Local-first</h3><p>Arşiv, vurgular ve özetler kendi bilgisayarında durur. Bulut hesabı ya da hizmet bağımlılığı yok.</p></div>
         <div class="feature"><h3>PDF ve taranmış belgeler</h3><p>Web makalesi kadar PDF de arşivlenir; taranmış sayfalar yerel OCR ile okunabilir metne çevrilir.</p></div>
         <div class="feature"><h3>Kendi AI aracınla özet</h3><p>Claude veya Codex gibi bilgisayarındaki bir CLI ile Kısa/Normal/Detaylı özet ve okunabilirlik düzenlemesi. Her çıktı sürüm geçmişiyle saklanır.</p></div>
@@ -75,17 +75,18 @@
       <h2 id="kurulum-kisa">Kısa kurulum</h2>
       <p class="sub">Yerel çalışır; tek komutla ayağa kalkar. Ayrıntılı adımlar <a href="/#kurulum">ana sayfada</a>.</p>
       <pre><code>git clone https://github.com/fatihdogann/readflow
+cd readflow
 pnpm install
 pnpm build
 <span class="c"># claude / codex / jcode CLI'ında oturum açık olmalı</span>
 pnpm app:start      <span class="c"># http://127.0.0.1:3000</span></code></pre>
     </section>
 
-    <section aria-labelledby="sss" id="sss">
+    <section aria-labelledby="sss-baslik" id="sss">
       <h2 id="sss-baslik">Sık sorulanlar</h2>
       <dl class="grid">
         <div class="feature"><dt><h3>Pocket kapandı mı?</h3></dt><dd><p>Evet, Pocket 2025'te kapatıldı. Kaydedilen makaleler için alternatif bir okuma arşivi gerekiyor.</p></dd></div>
-        <div class="feature"><dt><h3>Arşivimi nasıl taşırım?</h3></dt><dd><p>Pocket dışa aktarma dosyanı Readflow'a içe aktar; makaleler, vurgular ve notlar arşivine eklenir.</p></dd></div>
+        <div class="feature"><dt><h3>Arşivimi nasıl taşırım?</h3></dt><dd><p>Önceden aldığın CSV/HTML dışa aktarma dosyasını içe aktar; bağlantılar, başlıklar ve etiketler eklenir, makaleler yeniden alınır. Eski vurgular ve notlar taşınmaz.</p></dd></div>
         <div class="feature"><dt><h3>Ücretli mi?</h3></dt><dd><p>Hayır. Açık kaynak (MIT) ve API anahtarı istemez; özetleri kendi AI aracın üretir.</p></dd></div>
         <div class="feature"><dt><h3>İnternet gerekir mi?</h3></dt><dd><p>Kaydetmek için evet, okumak için hayır: açtığın son 60 sayfa çevrimdışı okunur.</p></dd></div>
       </dl>
