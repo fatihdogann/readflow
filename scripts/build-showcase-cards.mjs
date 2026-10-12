@@ -24,8 +24,9 @@ try {
       mark { color: inherit; background: #f3df9a; padding: 0 10px; }
       p { margin-top: 26px; color: #4a4640; font-size: 28px; line-height: 1.4; }
       footer { position: absolute; left: 64px; bottom: 46px; font-size: 25px; font-weight: 600; color: #41483a; }
-      figure { position: absolute; left: 650px; top: 64px; width: 640px; border: 1px solid #dedad4; border-radius: 14px; overflow: hidden; box-shadow: 0 30px 70px -24px #4a40306b; }
-      figure img { display: block; width: 100%; }
+      /* Zoomed into the reading pane so the preview stays legible at chat-preview size. */
+      figure { position: absolute; left: 660px; top: 64px; width: 600px; height: 470px; border: 1px solid #dedad4; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 30px 70px -24px #4a40306b; }
+      figure img { position: absolute; left: -250px; top: -12px; width: 1150px; }
     </style><div class="copy"><header><img src="${logo}" alt="">Readflow</header>
     <h1>${title}<br><mark>${highlight}</mark></h1><p>${description}</p></div>
     <footer>readflow.mehmetfatihdogan.com.tr</footer><figure><img src="${shot}" alt=""></figure></html>`);
