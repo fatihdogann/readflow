@@ -6,7 +6,7 @@ for (const path of ['pocket-alternatifi/index.html', 'en/pocket-alternative/inde
   test(`${path}: complete setup, single-column hero and honest import copy`, () => {
     const html = readFileSync(new URL(`../showcase/${path}`, import.meta.url), 'utf8');
     assert.match(html, /class="hero hero-text"/);
-    assert.match(html, /git clone[^\n]+\ncd readflow\npnpm install/);
+    assert.match(html, /git clone[^\n]+\r?\ncd readflow\r?\npnpm install/);
     assert.doesNotMatch(html, /makaleler, vurgular ve notlar|articles, highlights and notes/);
     for (const id of [...html.matchAll(/aria-labelledby="([^"]+)"/g)].map(m => m[1])) {
       assert.ok(html.includes(`id="${id}"`), `Missing heading ${id}`);
