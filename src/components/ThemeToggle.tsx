@@ -1,8 +1,11 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
+  const t = useT();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -28,10 +31,10 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60"
-      title="Açık / koyu tema"
+      title={t("Açık / koyu tema")}
     >
       <span aria-hidden>{dark ? "☾" : "☀"}</span>
-      <span>{dark ? "Koyu tema" : "Açık tema"}</span>
+      <span>{dark ? t("Koyu tema") : t("Açık tema")}</span>
     </button>
   );
 }

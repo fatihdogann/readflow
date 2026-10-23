@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
+import type { translator } from "@/lib/i18n";
 import { useCallback, useEffect, useState } from "react";
 
 interface AgentStatusResponse {
@@ -24,59 +26,60 @@ interface StatusView {
   detail: string;
 }
 
-function toView(status: AgentStatusResponse | null, fetchFailures: number): StatusView {
+function toView(status: AgentStatusResponse | null, fetchFailures: number, t: ReturnType<typeof translator>): StatusView {
   // Tekrarlayan hata sonrası eski "hazır" bilgisini süresiz gösterme.
   if (fetchFailures >= 3) {
-    return { label: "Durum alınamıyor", color: "bg-orange-500", detail: "Sunucuya erişilemiyor" };
+    return { label: t("Durum alınamıyor"), color: "bg-orange-500", detail: t("Sunucuya erişilemiyor") };
   }
-  if (!status) return { label: "Durum alınıyor…", color: "bg-stone-400", detail: "" };
+  if (!status) return { label: t("Durum alınıyor…"), color: "bg-stone-400", detail: "" };
   if (!status.workerAlive && status.lastHeartbeat) {
     return {
-      label: "Worker yanıt vermiyor",
+      label: t("Worker yanıt vermiyor"),
       color: "bg-orange-500",
-      detail: "pnpm dev:worker çalışıyor mu?",
+      detail: t("pnpm dev:worker çalışıyor mu?"),
     };
   }
   if (!status.workerAlive) {
-    return { label: "Worker kapalı", color: "bg-stone-400", detail: "pnpm dev:worker ile başlatın" };
+    return { label: t("Worker kapalı"), color: "bg-stone-400", detail: t("pnpm dev:worker ile başlatın") };
   }
   if (status.counts.processing > 0) {
     return {
-      label: `${status.agentName ?? "AI"} çalışıyor`,
+      label: t("{0} çalışıyor", status.agentName ?? "AI"),
       color: "bg-amber-500",
-      detail: `${status.counts.processing} iş sürüyor${status.counts.pending ? `, ${status.counts.pending} kuyrukta` : ""}`,
+      detail: t("{0} iş sürüyor{1}", status.counts.processing, status.counts.pending ? t(", {0} kuyrukta", status.counts.pending) : ""),
     };
   }
   if (status.envLock.locked) {
     return {
-      label: status.agentMode === "none" ? "Agent devre dışı" : `Agent hazır (${status.agentName ?? "env"})`,
+      label: status.agentMode === "none" ? t("Agent devre dışı") : t("Agent hazır ({0})", status.agentName ?? "env"),
       color: status.agentMode === "none" ? "bg-red-500" : "bg-emerald-600",
-      detail: `${status.envLock.description} · Ayarlar ekranında değiştirilemez`,
+      detail: t("{0} · Ayarlar ekranında değiştirilemez", status.envLock.description),
     };
   }
   if (status.defaultProfileId && status.profiles.some((p) => p.id === status.defaultProfileId)) {
     const profile = status.profiles.find((p) => p.id === status.defaultProfileId)!;
     return {
-      label: "Agent hazır",
+      label: t("Agent hazır"),
       color: "bg-emerald-600",
-      detail: `Varsayılan profil: ${profile.name} (${profile.cli})${status.counts.pending > 0 ? ` · ${status.counts.pending} kuyrukta` : ""}`,
+      detail: t("Varsayılan profil: {0} ({1}){2}", profile.name, profile.cli, status.counts.pending > 0 ? t(" · {0} kuyrukta", status.counts.pending) : ""),
     };
   }
   if (status.agentMode === "command" || status.agentMode === "mock") {
     return {
-      label: status.agentMode === "mock" ? "Mock agent (geliştirme)" : "Agent hazır",
+      label: status.agentMode === "mock" ? t("Mock agent (geliştirme)") : t("Agent hazır"),
       color: status.agentMode === "mock" ? "bg-amber-500" : "bg-emerald-600",
-      detail: `${status.agentName ?? "agent"} bağlı${status.counts.pending > 0 ? ` · ${status.counts.pending} kuyrukta` : ""}`,
+      detail: t("{0} bağlı{1}", status.agentName ?? "agent", status.counts.pending > 0 ? t(" · {0} kuyrukta", status.counts.pending) : ""),
     };
   }
   return {
-    label: "Agent bağlı değil",
+    label: t("Agent bağlı değil"),
     color: "bg-red-500",
-    detail: status.message ?? "Ayarlar ekranından profil oluştur veya READFLOW_AGENT_CMD ile bağla",
+    detail: status.message ?? t("Ayarlar ekranından profil oluştur veya READFLOW_AGENT_CMD ile bağla"),
   };
 }
 
 export function AgentStatusBadge() {
+  const t = useT();
   const [status, setStatus] = useState<AgentStatusResponse | null>(null);
   const [failures, setFailures] = useState(0);
 
@@ -103,18 +106,18 @@ export function AgentStatusBadge() {
     };
   }, [refresh]);
 
-  const view = toView(status, failures);
-  const detail = status?.lastError ? `${view.detail} — son hata: ${status.lastError}` : view.detail;
+  const view = toView(status, failures, t);
+  const detail = status?.lastError ? t("{0} — son hata: {1}", view.detail, status.lastError) : view.detail;
 
   return (
     <Link
       href="/settings"
       className="flex items-center gap-2 rounded-md px-2 py-2 text-xs text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60"
-      title={`${detail} — Ayarları aç`}
-      aria-label={`Yerel AI durumu: ${view.label}. Ayarları aç`}
+      title={t("{0} — Ayarları aç", detail)}
+      aria-label={t("Yerel AI durumu: {0}. Ayarları aç", view.label)}
     >
       <span className={`h-2 w-2 shrink-0 rounded-full ${view.color}`} aria-hidden />
-      <span className="truncate">{view.label}</span>
+      <span className="truncate">{t(view.label)}</span>
     </Link>
   );
 }

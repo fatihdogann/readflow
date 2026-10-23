@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useEffect, useRef } from "react";
 import { CloseIcon } from "@/components/Icons";
 
@@ -31,6 +33,7 @@ export function RightRail({
   badges?: Partial<Record<RailTab, string>>;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const panelRef = useRef<HTMLElement>(null);
 
   /**
@@ -89,17 +92,17 @@ export function RightRail({
     <div className="no-print fixed inset-0 z-40 lg:sticky lg:top-6 lg:z-auto lg:h-fit lg:max-h-[calc(100vh-3rem)] lg:w-72 lg:shrink-0 xl:w-80">
       <button
         type="button"
-        aria-label="Paneli kapat"
+        aria-label={t("Paneli kapat")}
         className="absolute inset-0 bg-stone-950/35 backdrop-blur-[2px] lg:hidden"
         onClick={onClose}
       />
       <aside
         ref={panelRef}
-        aria-label="Belge yardımcı paneli"
+        aria-label={t("Belge yardımcı paneli")}
         className="absolute inset-x-0 bottom-0 flex h-[78vh] flex-col gap-2 rounded-t-2xl border border-stone-200 bg-[#faf9f7] p-3 shadow-[0_-16px_50px_rgba(28,25,23,0.16)] dark:border-stone-800 dark:bg-[#171512] lg:relative lg:inset-auto lg:h-auto lg:max-h-[calc(100vh-3rem)] lg:rounded-2xl lg:bg-stone-100/70 lg:p-3 lg:shadow-[0_14px_40px_rgba(28,25,23,0.08)] lg:dark:bg-stone-900/55"
       >
         <div className="flex items-center gap-1">
-          <div role="tablist" aria-label="Yardımcı panel sekmeleri" className="flex min-w-0 flex-1 gap-0.5">
+          <div role="tablist" aria-label={t("Yardımcı panel sekmeleri")} className="flex min-w-0 flex-1 gap-0.5">
             {RAIL_TABS.map((entry, index) => (
               <button
                 key={entry.key}
@@ -123,7 +126,7 @@ export function RightRail({
                     : "text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60"
                 }`}
               >
-                {entry.label}
+                {t(entry.label)}
                 {badges?.[entry.key] ? (
                   <span className="rounded-full bg-stone-200 px-1.5 text-[10px] tabular-nums text-stone-700 dark:bg-stone-700 dark:text-stone-200">
                     {badges[entry.key]}
@@ -135,7 +138,7 @@ export function RightRail({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Paneli kapat"
+            aria-label={t("Paneli kapat")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-stone-500 hover:bg-stone-200/70 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100"
           >
             <CloseIcon size={16} />

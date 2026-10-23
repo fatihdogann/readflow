@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useEffect, useRef, useState } from "react";
 import type { FolderRow } from "@/lib/db/repo/folders";
 import type { DocumentDetail } from "@/lib/documents/service";
@@ -27,6 +29,7 @@ export function DocHeader({
   highlightCount: number;
   onDeleted: () => void;
 }) {
+  const t = useT();
   const doc = detail.document;
   const [error, setError] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
@@ -73,7 +76,7 @@ export function DocHeader({
       });
       onChange({ ...detail, tags: body.tags });
     } catch (mutationError) {
-      setError(mutationError instanceof Error ? mutationError.message : "Etiket kaydedilemedi");
+      setError(mutationError instanceof Error ? mutationError.message : t("Etiket kaydedilemedi"));
     }
   }
 
@@ -94,8 +97,8 @@ export function DocHeader({
 
   const metaParts: string[] = [];
   if (doc.author) metaParts.push(formatAuthorByline(doc.author));
-  if (doc.published_at) metaParts.push(`Yayın: ${doc.published_at.slice(0, 10)}`);
-  metaParts.push(`Arşiv: ${doc.created_at.slice(0, 10)}`);
+  if (doc.published_at) metaParts.push(t("Yayın: {0}", doc.published_at.slice(0, 10)));
+  metaParts.push(t("Arşiv: {0}", doc.created_at.slice(0, 10)));
 
   return (
     <header className="flex flex-col gap-4 border-b border-stone-200 pb-5 dark:border-stone-800">
@@ -110,9 +113,9 @@ export function DocHeader({
             type="button"
             onClick={() => void patch({ favorite: doc.favorite === 0 })}
             className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-stone-200/70 dark:hover:bg-stone-800"
-            title={doc.favorite ? "Favoriden çıkar" : "Favoriye ekle"}
+            title={doc.favorite ? t("Favoriden çıkar") : t("Favoriye ekle")}
             aria-pressed={doc.favorite === 1}
-            aria-label={doc.favorite ? "Favoriden çıkar" : "Favoriye ekle"}
+            aria-label={doc.favorite ? t("Favoriden çıkar") : t("Favoriye ekle")}
           >
             <StarIcon filled={doc.favorite === 1} className={doc.favorite ? "text-amber-500" : "text-stone-400"} />
           </button>
@@ -124,10 +127,9 @@ export function DocHeader({
             className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
               rail === "note" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
             }`}
-            title="Kişisel notu aç/kapat"
+            title={t("Kişisel notu aç/kapat")}
           >
-            <NoteIcon size={16} /> Not
-            {doc.note ? <span className="text-[10px] text-amber-600 dark:text-amber-400" aria-hidden>●</span> : null}
+            <NoteIcon size={16} /> {" "}{t("Not")}{doc.note ? <span className="text-[10px] text-amber-600 dark:text-amber-400" aria-hidden>●</span> : null}
           </button>
           <button
             type="button"
@@ -137,10 +139,9 @@ export function DocHeader({
             className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
               rail === "highlights" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
             }`}
-            title="Vurguları aç/kapat"
+            title={t("Vurguları aç/kapat")}
           >
-            <HighlightIcon size={16} /> Vurgular
-            {highlightCount > 0 ? (
+            <HighlightIcon size={16} /> {" "}{t("Vurgular")}{highlightCount > 0 ? (
               <span className="rounded-full bg-stone-200 px-1.5 text-[10px] tabular-nums text-stone-700 dark:bg-stone-700 dark:text-stone-200">
                 {highlightCount}
               </span>
@@ -154,25 +155,21 @@ export function DocHeader({
             className={`flex h-10 min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-stone-200/70 dark:hover:bg-stone-800 ${
               rail === "chat" ? "bg-stone-200/80 font-medium dark:bg-stone-800" : "text-stone-600 dark:text-stone-300"
             }`}
-            title="Belgeyle ilgili soru sor"
+            title={t("Belgeyle ilgili soru sor")}
           >
-            <ChatIcon size={16} /> AI&apos;a sor
-          </button>
+            <ChatIcon size={16} /> {" "}{t("AI'a sor")}</button>
           <details ref={moreRef} className="group relative">
             <summary className="flex h-10 cursor-pointer list-none items-center rounded-lg px-3 text-sm text-stone-500 marker:hidden hover:bg-stone-200/70 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100">
-              Diğer
-            </summary>
+              {t("Diğer")}</summary>
             <div className="absolute right-0 top-11 z-20 min-w-36 rounded-xl border border-stone-200 bg-white p-1.5 shadow-[0_14px_38px_rgba(28,25,23,0.14)] dark:border-stone-700 dark:bg-stone-900">
               <button
                 type="button"
                 onClick={() => void remove()}
                 className="flex min-h-[38px] w-full items-center rounded-lg px-3 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
               >
-                Dokümanı sil
-              </button>
+                {t("Dokümanı sil")}</button>
               <p className="px-3 pb-1 pt-0.5 text-[11px] text-stone-500 dark:text-stone-400">
-                Geri alınabilir
-              </p>
+                {t("Geri alınabilir")}</p>
             </div>
           </details>
         </div>
@@ -189,7 +186,7 @@ export function DocHeader({
             {doc.source_domain ?? doc.source_url}
           </a>
         ) : (
-          <span>Yapıştırılan metin</span>
+          <span>{t("Yapıştırılan metin")}</span>
         )}
         {metaParts.map((part, index) => (
           <span key={index} className="flex items-center gap-3">
@@ -206,7 +203,7 @@ export function DocHeader({
           />
         </span>
         <label className="flex min-h-[32px] items-center gap-1">
-          <span>Klasör:</span>
+          <span>{t("Klasör:")}</span>
           <select
             value={doc.folder_id === null ? "" : String(doc.folder_id)}
             onChange={(event) =>
@@ -214,7 +211,7 @@ export function DocHeader({
             }
             className="rounded border border-stone-300 bg-white px-1.5 py-1 text-xs outline-none dark:border-stone-700 dark:bg-stone-900"
           >
-            <option value="">Klasörsüz</option>
+            <option value="">{t("Klasörsüz")}</option>
             {folders.map((folder) => (
               <option key={folder.id} value={String(folder.id)}>
                 {folder.name}
@@ -235,7 +232,7 @@ export function DocHeader({
               type="button"
               className="text-stone-500 hover:text-red-500"
               onClick={() => void saveTags(detail.tags.filter((candidate) => candidate !== tag))}
-              aria-label={`${tag} etiketini kaldır`}
+              aria-label={t("{0} etiketini kaldır", tag)}
             >
               ×
             </button>
@@ -253,8 +250,8 @@ export function DocHeader({
           <input
             value={tagInput}
             onChange={(event) => setTagInput(event.target.value)}
-            placeholder="+ etiket"
-            aria-label="Etiket ekle"
+              placeholder={t("+ etiket")}
+            aria-label={t("Etiket ekle")}
             className="w-28 rounded-full border border-dashed border-stone-300 bg-transparent px-2.5 py-1 text-xs outline-none placeholder:text-stone-500 focus:border-stone-500 dark:border-stone-700 dark:placeholder:text-stone-400"
           />
         </form>

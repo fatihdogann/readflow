@@ -42,6 +42,12 @@ Beklenen: ilk dört satır `200`, geri kalanı `404`.
 
 ## Vitrin görüntülerini yenileme
 
-Görüntüler demo verisiyle alınır (`showcase/assets/*.jpg`, 1280×800 @2x, açık/koyu).
-Arayüz değiştiğinde demo veri dizini ve `READFLOW_AGENT_CMD` ile sahte bir agent
-kullanarak production build üzerinden Playwright ile yeniden çekilir.
+Görüntüler kişisel arşivden ayrı demo verisiyle alınır: Türkçe `showcase/assets/*.jpg`,
+İngilizce `showcase/assets/en/*.jpg`. Her dilde açık/koyu ana sayfa, belge, vurgular,
+ayarlar ve mobil belge görüntüsü bulunur. Masaüstü 1280×800 @2x, mobil 390×844 @2x.
+Hero için 800 ve 1600 piksel WebP türevleri de yenilenir. Örnek belge metni ve notları
+ekranın diliyle aynı olmalıdır. CLI çağrısı gerekmez; örnek özetler demo verisidir.
+
+Uygulamanın dil seçimi `readflow-language` çerezinde; vitrinin tema tercihi
+`readflow-showcase-theme` localStorage anahtarında tutulur. Vitrin başlangıçta
+sistem temasını izler; ziyaretçinin seçimi hem sayfaya hem görüntülere uygulanır.

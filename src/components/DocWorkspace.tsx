@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FolderRow } from "@/lib/db/repo/folders";
@@ -28,6 +30,7 @@ export function DocWorkspace({
   initial: DocumentDetail;
   folders: FolderRow[];
 }) {
+  const t = useT();
   const { detail, setDetail, refresh, statusError } = useDocDetail(initial);
   const [tab, setTab] = useState<"original" | "edited" | "ai-edit" | "summary">("original");
   const [selection, setSelection] = useState<AiSelection>({
@@ -106,11 +109,11 @@ export function DocWorkspace({
     setUndoError(null);
     try {
       const response = await fetch(`/api/documents/${detail.document.id}`, { method: "POST" });
-      if (!response.ok) throw new Error("Geri alınamadı");
+      if (!response.ok) throw new Error(t("Geri alınamadı"));
       notifyFoldersChanged();
       setDeleted(false);
     } catch {
-      setUndoError("Geri alınamadı — arşivden tekrar dene");
+      setUndoError(t("Geri alınamadı — arşivden tekrar dene"));
     }
   }
 
@@ -118,8 +121,7 @@ export function DocWorkspace({
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border border-stone-200 bg-white/70 px-6 py-12 text-center dark:border-stone-800 dark:bg-stone-900/35">
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          <strong className="text-stone-900 dark:text-stone-100">{detail.document.title}</strong> silindi.
-        </p>
+          <strong className="text-stone-900 dark:text-stone-100">{detail.document.title}</strong> {" "}{t("silindi.")}</p>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -127,15 +129,13 @@ export function DocWorkspace({
             autoFocus
             className="min-h-[40px] rounded-lg bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
           >
-            Geri al
-          </button>
+            {t("Geri al")}</button>
           <button
             type="button"
             onClick={() => router.push("/history")}
             className="min-h-[40px] rounded-lg border border-stone-300 px-4 text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
           >
-            Arşive dön
-          </button>
+            {t("Arşive dön")}</button>
         </div>
         {undoError ? (
           <p role="alert" className="text-xs text-red-600 dark:text-red-400">
@@ -143,8 +143,7 @@ export function DocWorkspace({
           </p>
         ) : null}
         <p className="text-[11px] text-stone-500 dark:text-stone-400">
-          Bu pencere kapanınca arşive dönersin; doküman çöpte kalır.
-        </p>
+          {t("Bu pencere kapanınca arşive dönersin; doküman çöpte kalır.")}</p>
       </div>
     );
   }
@@ -158,8 +157,7 @@ export function DocWorkspace({
       <div className="flex w-full min-w-0 max-w-3xl flex-col gap-4 md:gap-6">
         {statusError ? (
           <p role="alert" className="no-print rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
-            Durum bilgisi alınamıyor (sunucuya erişilemiyor). Belge ve kayıtlı çıktılar güvende.
-          </p>
+            {t("Durum bilgisi alınamıyor (sunucuya erişilemiyor). Belge ve kayıtlı çıktılar güvende.")}</p>
         ) : null}
 
         <ReadingProgress

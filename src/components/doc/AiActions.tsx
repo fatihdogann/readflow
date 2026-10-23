@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useEffect, useMemo, useState } from "react";
 import { mutateJson } from "@/lib/client/api";
 import type { DocumentDetail } from "@/lib/documents/service";
@@ -60,6 +62,7 @@ export function AiActions({
   onJobsChange: (jobs: JobRow[]) => void;
   onNotice: (message: string) => void;
 }) {
+  const t = useT();
   const doc = detail.document;
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -122,7 +125,7 @@ export function AiActions({
       setRerunJob(null);
       onNotice("");
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "İş kuyruğa eklenemedi");
+      onNotice(error instanceof Error ? error.message : t("İş kuyruğa eklenemedi"));
     } finally {
       setBusy(false);
     }
@@ -134,7 +137,7 @@ export function AiActions({
       const body = await mutateJson<{ job: JobRow }>(`/api/jobs/${jobId}/retry`, "POST");
       onJobsChange([body.job, ...detail.jobs.filter((job) => job.id !== jobId)]);
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "Yeniden deneme başarısız");
+      onNotice(error instanceof Error ? error.message : t("Yeniden deneme başarısız"));
     }
   }
 
@@ -143,9 +146,9 @@ export function AiActions({
     try {
       const body = await mutateJson<{ job: JobRow }>(`/api/jobs/${jobId}/cancel`, "POST");
       onJobsChange([body.job, ...detail.jobs.filter((job) => job.id !== jobId)]);
-      onNotice(body.job.cancelled === 1 ? "İş iptal edildi." : "İptal talebi alındı; süreç sonlandırılıyor.");
+      onNotice(body.job.cancelled === 1 ? t("İş iptal edildi.") : t("İptal talebi alındı; süreç sonlandırılıyor."));
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "İptal edilemedi");
+      onNotice(error instanceof Error ? error.message : t("İptal edilemedi"));
     }
   }
 
@@ -163,34 +166,33 @@ export function AiActions({
     null;
   const sourceLabel =
     selection.sourceKind === "original"
-      ? "Orijinal"
+      ? t("Orijinal")
       : selection.sourceKind === "edited"
-        ? "Düzenlenmiş"
+        ? t("Düzenlenmiş")
         : hasEdit
-          ? "Düzenlenmiş (otomatik)"
+          ? t("Düzenlenmiş (otomatik)")
           : "Orijinal (otomatik)";
-  const configLabel = `${selectedProfile?.name ?? "Otomatik AI"} · ${sourceLabel}${selection.includeNotes ? " · Not dahil" : ""}`;
+  const configLabel = `${selectedProfile?.name ?? t("Otomatik AI")} · ${sourceLabel}${selection.includeNotes ? t(" · Not dahil") : ""}`;
 
   return (
     <details className="no-print group/ai rounded-xl border border-stone-200 bg-stone-100/55 dark:border-stone-800 dark:bg-stone-900/35">
       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 marker:hidden sm:px-4">
-        <span className="text-sm font-medium">Özetle ve düzenle <span className="ml-1 text-xs font-normal text-stone-500 dark:text-stone-400">· AI</span></span>
+        <span className="text-sm font-medium">{t("Özetle ve düzenle")}{" "}<span className="ml-1 text-xs font-normal text-stone-500 dark:text-stone-400">· AI</span></span>
         <span className="flex items-center gap-2">
-          {detail.jobs.some((job) => job.status === "pending" || job.status === "processing") ? <span className="text-xs text-amber-700 dark:text-amber-300">İş sürüyor</span> : detail.jobs.some((job) => job.status === "failed" && !job.cancelled) ? <span className="text-xs text-red-600 dark:text-red-400">İş başarısız</span> : null}
+          {detail.jobs.some((job) => job.status === "pending" || job.status === "processing") ? <span className="text-xs text-amber-700 dark:text-amber-300">{t("İş sürüyor")}</span> : detail.jobs.some((job) => job.status === "failed" && !job.cancelled) ? <span className="text-xs text-red-600 dark:text-red-400">{t("İş başarısız")}</span> : null}
           <ChevronDownIcon size={16} className="transition-transform group-open/ai:rotate-180" />
         </span>
       </summary>
-    <section className="flex flex-col gap-3 border-t border-stone-200 p-3 dark:border-stone-800 sm:p-4" aria-label="AI işlemleri">
+    <section className="flex flex-col gap-3 border-t border-stone-200 p-3 dark:border-stone-800 sm:p-4" aria-label={t("AI işlemleri")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold tracking-tight">Metni işle</h2>
+          <h2 className="text-sm font-semibold tracking-tight">{t("Metni işle")}</h2>
           <p className="mt-0.5 text-xs text-stone-600 dark:text-stone-400">{configLabel}</p>
         </div>
         {status?.currentJobId ? (
           <span className="flex items-center gap-2 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" aria-hidden />
-            {status.agentName ?? "AI"} işliyor
-          </span>
+            {status.agentName ?? "AI"} {" "}{t("işliyor")}</span>
         ) : null}
       </div>
 
@@ -201,10 +203,10 @@ export function AiActions({
           disabled={busy || Boolean(activeJobFor("readability"))}
           onClick={() => void createJob("readability")}
         >
-          {activeJobFor("readability") ? "Okunabilirlik işleniyor…" : "Okunabilirliği artır"}
+          {activeJobFor("readability") ? t("Okunabilirlik işleniyor…") : t("Okunabilirliği artır")}
         </button>
         <div className="flex flex-wrap items-center gap-2">
-          <div role="radiogroup" aria-label="Özet seviyesi" className="flex overflow-hidden rounded-lg border border-stone-300 bg-white dark:border-stone-700 dark:bg-stone-900">
+          <div role="radiogroup" aria-label={t("Özet seviyesi")} className="flex overflow-hidden rounded-lg border border-stone-300 bg-white dark:border-stone-700 dark:bg-stone-900">
             {SUMMARY_LEVELS.map((level) => (
               <button
                 key={level}
@@ -214,7 +216,7 @@ export function AiActions({
                 onClick={() => onSelectionChange({ ...selection, summaryLevel: level })}
                 className={`${radioClass(selection.summaryLevel === level)} rounded-none`}
               >
-                {summaryLevelLabel[level]}
+                {t(summaryLevelLabel[level])}
               </button>
             ))}
           </div>
@@ -224,25 +226,25 @@ export function AiActions({
             disabled={busy || Boolean(activeJobFor("summary", selection.summaryLevel))}
             onClick={() => void createJob("summary", selection.summaryLevel)}
           >
-            {activeJobFor("summary", selection.summaryLevel) ? "Özet işleniyor…" : "Özetle"}
+            {activeJobFor("summary", selection.summaryLevel) ? t("Özet işleniyor…") : t("Özetle")}
           </button>
         </div>
       </div>
 
       <details className="group rounded-xl border border-stone-200 bg-white/70 dark:border-stone-800 dark:bg-stone-950/25">
         <summary className="flex min-h-[40px] cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-medium text-stone-700 marker:hidden hover:text-stone-950 dark:text-stone-300 dark:hover:text-white">
-          <span>Çalıştırma ayarları</span>
+          <span>{t("Çalıştırma ayarları")}</span>
           <ChevronDownIcon size={16} className="text-stone-500 transition-transform group-open:rotate-180" />
         </summary>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone-200 px-3 py-3 text-xs dark:border-stone-800">
         <fieldset className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <legend className="sr-only">AI kaynak metni</legend>
-          <span className="text-stone-500 dark:text-stone-400">Kaynak:</span>
+          <legend className="sr-only">{t("AI kaynak metni")}</legend>
+          <span className="text-stone-500 dark:text-stone-400">{t("Kaynak:")}</span>
           {(
             [
-              { value: "auto", label: "Otomatik" },
-              { value: "original", label: "Orijinal" },
-              { value: "edited", label: "Düzenlenmiş" },
+              { value: "auto", label: t("Otomatik") },
+              { value: "original", label: t("Orijinal") },
+              { value: "edited", label: t("Düzenlenmiş") },
             ] as const
           ).map((option) => (
             <label key={option.value} className={radioClass(selection.sourceKind === option.value)}>
@@ -254,8 +256,8 @@ export function AiActions({
                 onChange={() => onSelectionChange({ ...selection, sourceKind: option.value })}
                 className="accent-stone-700"
               />
-              {option.label}
-              {option.value === "edited" && !hasEdit ? <span aria-hidden> (yok)</span> : null}
+              {t(option.label)}
+              {option.value === "edited" && !hasEdit ? <span aria-hidden> {t("(yok)")}</span> : null}
             </label>
           ))}
         </fieldset>
@@ -267,18 +269,17 @@ export function AiActions({
             onChange={(event) => onSelectionChange({ ...selection, includeNotes: event.target.checked })}
             className="accent-stone-700"
           />
-          Notu AI&apos;a ekle
-        </label>
+          {t("Notu AI'a ekle")}</label>
 
         <fieldset className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <legend className="sr-only">Hangi AI ile çalışsın</legend>
+          <legend className="sr-only">{t("Hangi AI ile çalışsın")}</legend>
           <span className="text-stone-500 dark:text-stone-400">AI:</span>
           {status?.envLock.locked ? (
             <span
               className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
               title={status.envLock.description}
             >
-              <span className="inline-flex items-center gap-1.5"><LockIcon size={14} /> Environment tarafından yönetiliyor</span>
+              <span className="inline-flex items-center gap-1.5"><LockIcon size={14} /> {" "}{t("Environment tarafından yönetiliyor")}</span>
             </span>
           ) : (
             <select
@@ -292,14 +293,14 @@ export function AiActions({
               aria-label="AI profili"
               className="min-h-[32px] rounded border border-stone-300 bg-white px-1.5 py-1 text-xs outline-none dark:border-stone-700 dark:bg-stone-900"
             >
-              <option value="">Otomatik</option>
+              <option value="">{t("Otomatik")}</option>
               {aiOptions.map((profile) => (
                 <option key={profile.id} value={String(profile.id)}>
                   {profile.name} ({profile.cli}
                   {profile.model ? ` · ${profile.model}` : ""})
                 </option>
               ))}
-              {aiOptions.length === 0 ? <option disabled>Ayarlar&apos;dan profil oluştur</option> : null}
+              {aiOptions.length === 0 ? <option disabled>{t("Ayarlar'dan profil oluştur")}</option> : null}
             </select>
           )}
         </fieldset>
@@ -309,13 +310,12 @@ export function AiActions({
       {rerunJob ? (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-stone-300 px-3 py-2 text-xs dark:border-stone-700">
           <span>
-            “{rerunJob.operation === "chat" ? "Soru" : operationLabel[rerunJob.operation]}
+            “{rerunJob.operation === "chat" ? t("Soru") : t(operationLabel[rerunJob.operation])}
             {rerunJob.operation === "summary" && rerunJob.summary_level
-              ? ` · ${summaryLevelLabel[rerunJob.summary_level as SummaryLevel]}`
-              : ""}” işini hangi AI ile yeniden çalıştırayım?
-          </span>
+              ? ` · ${t(summaryLevelLabel[rerunJob.summary_level as SummaryLevel])}`
+              : ""}{t("” işini hangi AI ile yeniden çalıştırayım?")}</span>
           <select
-            aria-label="Yeniden çalıştırma AI seçimi"
+            aria-label={t("Yeniden çalıştırma AI seçimi")}
             onChange={(event) => {
               const value = event.target.value;
               if (rerunJob.operation === "chat") return;
@@ -325,9 +325,8 @@ export function AiActions({
             className="min-h-[32px] rounded border border-stone-300 bg-white px-1.5 py-1 dark:border-stone-700 dark:bg-stone-900"
           >
             <option value="" disabled>
-              Seç…
-            </option>
-            <option value="">Otomatik</option>
+              {t("Seç…")}</option>
+            <option value="">{t("Otomatik")}</option>
             {aiOptions.map((profile) => (
               <option key={profile.id} value={String(profile.id)}>
                 {profile.name} ({profile.cli})
@@ -335,8 +334,7 @@ export function AiActions({
             ))}
           </select>
           <button type="button" className="underline underline-offset-2" onClick={() => setRerunJob(null)}>
-            Vazgeç
-          </button>
+            {t("Vazgeç")}</button>
         </div>
       ) : null}
 
@@ -347,20 +345,20 @@ export function AiActions({
             const cancelled = job.cancelled === 1;
             const pendingReason =
               job.status === "pending" && status && !status.workerAlive
-                ? "Agent bağlı değil — worker açılınca işlenir"
+                ? t("Agent bağlı değil — worker açılınca işlenir")
                 : job.status === "pending" && status?.envLock.locked && status.agentMode === "none"
-                  ? "Agent bağlantısı devre dışı"
+                  ? t("Agent bağlantısı devre dışı")
                   : null;
             return (
               <div key={job.id} className="flex flex-wrap items-center gap-2 border-t border-stone-200/80 pt-2 text-xs first:border-0 first:pt-0 dark:border-stone-800">
                 <span className={`rounded px-1.5 py-0.5 font-medium ${statusBadgeClass(job.status, cancelled)}`}>
-                  {job.operation === "chat" ? "Soru" : operationLabel[job.operation]}
+                  {job.operation === "chat" ? t("Soru") : t(operationLabel[job.operation])}
                   {job.operation === "summary" && job.summary_level
-                    ? ` · ${summaryLevelLabel[job.summary_level as SummaryLevel]}`
+                    ? ` · ${t(summaryLevelLabel[job.summary_level as SummaryLevel])}`
                     : ""}
                 </span>
                 <span className={job.status === "failed" && !cancelled ? "text-red-600 dark:text-red-400" : "text-stone-600 dark:text-stone-400"}>
-                  {cancelled ? "İptal edildi" : (pendingReason ?? jobStatusLabel[job.status])}
+                  {cancelled ? t("İptal edildi") : (pendingReason ?? t(jobStatusLabel[job.status]))}
                   {job.status === "failed" && !cancelled && job.error ? `: ${job.error}` : ""}
                 </span>
                 {config?.name || config?.cli ? (
@@ -371,8 +369,7 @@ export function AiActions({
                 ) : null}
                 {detail.jobs.filter((candidate) => candidate.operation === job.operation && candidate.summary_level === job.summary_level).length > 1 ? (
                   <span className="text-stone-500 dark:text-stone-400">
-                    {detail.jobs.filter((candidate) => candidate.operation === job.operation && candidate.summary_level === job.summary_level).length} çalışma
-                  </span>
+                    {detail.jobs.filter((candidate) => candidate.operation === job.operation && candidate.summary_level === job.summary_level).length} {" "}{t("çalışma")}</span>
                 ) : null}
                 {job.status === "failed" && !cancelled ? (
                   <>
@@ -381,15 +378,13 @@ export function AiActions({
                       className="min-h-[32px] underline underline-offset-2 hover:text-stone-900 dark:hover:text-stone-100"
                       onClick={() => void retry(job.id)}
                     >
-                      Yeniden dene (aynı snapshot)
-                    </button>
+                      {t("Yeniden dene (aynı snapshot)")}</button>
                     <button
                       type="button"
                       className="min-h-[32px] underline underline-offset-2 hover:text-stone-900 dark:hover:text-stone-100"
                       onClick={() => setRerunJob(job)}
                     >
-                      Başka AI ile yeniden çalıştır
-                    </button>
+                      {t("Başka AI ile yeniden çalıştır")}</button>
                   </>
                 ) : job.status === "pending" || job.status === "processing" ? (
                   <>
@@ -399,8 +394,7 @@ export function AiActions({
                       className="min-h-[32px] underline underline-offset-2 hover:text-stone-900 disabled:opacity-40 dark:hover:text-stone-100"
                       onClick={() => void cancel(job.id)}
                     >
-                      İptal et
-                    </button>
+                      {t("İptal et")}</button>
                     <button
                       type="button"
                       disabled={busy}
@@ -415,8 +409,7 @@ export function AiActions({
                             )
                       }
                     >
-                      İptal et ve mevcut ayarlarla yeniden başlat
-                    </button>
+                      {t("İptal et ve mevcut ayarlarla yeniden başlat")}</button>
                   </>
                 ) : null}
               </div>
@@ -425,9 +418,7 @@ export function AiActions({
         </div>
       ) : (
         <p className="text-xs text-stone-500 dark:text-stone-400">
-          Bu doküman için henüz AI çıktısı yok — işlemlerden birini seç. Agent bağlı değilse işler
-          kuyrukta bekler, agent açıldığında işlenir.
-        </p>
+          {t("Bu doküman için henüz AI çıktısı yok — işlemlerden birini seç. Agent bağlı değilse işler kuyrukta bekler, agent açıldığında işlenir.")}</p>
       )}
     </section>
     </details>

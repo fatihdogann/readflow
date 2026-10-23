@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { getDb } from "@/lib/db/connection";
 import { listDocuments } from "@/lib/db/repo/documents";
 import { listOutputSummariesForDocuments } from "@/lib/db/repo/outputs";
@@ -14,6 +15,7 @@ function firstParam(value: string | string[] | undefined): string {
 }
 
 export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
+  const t = await getT();
   const params = await searchParams;
   // Paylaşım hedefi: bağlantı varsa o, yoksa paylaşılan metin (Android URL'yi çoğu zaman text'e koyar).
   const shared = firstParam(params.url) || firstParam(params.text);
@@ -28,18 +30,16 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 md:gap-9">
       <section>
-        <h1 className="mb-2 max-w-xl text-2xl font-semibold leading-tight tracking-tight md:text-3xl">Okumak için bir yer aç.</h1>
+        <h1 className="mb-2 max-w-xl text-2xl font-semibold leading-tight tracking-tight md:text-3xl">{t("Okumak için bir yer aç.")}</h1>
         <p className="mb-4 max-w-xl text-sm leading-relaxed text-stone-600 dark:text-stone-400">
-          Bağlantı, metin veya dosya ekle. Rahatça oku, özetle ve notlarınla birlikte arşivle.
-        </p>
+          {t("Bağlantı, metin veya dosya ekle. Rahatça oku, özetle ve notlarınla birlikte arşivle.")}</p>
         <NewDocumentForm initialValue={shared} />
       </section>
 
       {reading.length > 0 ? (
         <section>
           <h2 className="mb-3 text-base font-semibold tracking-tight">
-            Okumaya devam et
-          </h2>
+            {t("Okumaya devam et")}</h2>
           <DocumentList docs={reading} outputsByDoc={outputsByDoc} />
         </section>
       ) : null}
@@ -47,9 +47,8 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       <section>
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold tracking-tight">
-            Son eklenenler
-          </h2>
-          <Link href="/history" className="inline-flex min-h-11 items-center text-sm text-stone-600 underline underline-offset-4 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">Arşivi aç</Link>
+            {t("Son eklenenler")}</h2>
+          <Link href="/history" className="inline-flex min-h-11 items-center text-sm text-stone-600 underline underline-offset-4 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">{t("Arşivi aç")}</Link>
         </div>
         <DocumentList docs={docs} outputsByDoc={outputsByDoc} />
       </section>

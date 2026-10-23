@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -37,6 +39,7 @@ export function ChatPanel({
   pendingQuote: string | null;
   onQuoteConsumed: () => void;
 }) {
+  const t = useT();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [quote, setQuote] = useState<string | null>(null);
@@ -95,14 +98,14 @@ export function ChatPanel({
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "Soru gönderilemedi");
+        setError(t(body?.error ?? "Soru gönderilemedi"));
         return;
       }
       setInput("");
       setQuote(null);
       await refresh();
     } catch {
-      setError("Sunucuya ulaşılamadı");
+      setError(t("Sunucuya ulaşılamadı"));
     } finally {
       setSending(false);
     }
@@ -113,7 +116,7 @@ export function ChatPanel({
       await mutateJson(`/api/jobs/${jobId}/retry`, "POST");
       await refresh();
     } catch {
-      setError("Yeniden deneme başlatılamadı");
+      setError(t("Yeniden deneme başlatılamadı"));
     }
   }
 
@@ -126,15 +129,15 @@ export function ChatPanel({
       >
         {messages.length === 0 ? (
           <div className="flex flex-col gap-1.5 p-1">
-            <p className="text-xs text-stone-500 dark:text-stone-400">Başlangıç önerileri:</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">{t("Başlangıç önerileri:")}</p>
             {SUGGESTIONS.map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
-                onClick={() => void send(suggestion)}
+                onClick={() => void send(t(suggestion))}
                 className="min-h-[40px] rounded-md border border-stone-200 px-2.5 py-2 text-left text-xs hover:bg-stone-100 dark:border-stone-800 dark:hover:bg-stone-800"
               >
-                {suggestion}
+                {t(suggestion)}
               </button>
             ))}
           </div>
@@ -165,10 +168,10 @@ export function ChatPanel({
                 {message.role === "user" && message.status !== "completed" ? (
                   <div className="mt-1 flex items-center gap-2 text-[10px] text-stone-500 dark:text-stone-400">
                     <span>
-                      {message.status === "queued" ? "Sırada — Mac worker bekleniyor olabilir" : ""}
-                      {message.status === "processing" ? "Yanıt hazırlanıyor…" : ""}
-                      {message.status === "failed" ? "Hata" : ""}
-                      {message.status === "cancelled" ? "İptal edildi" : ""}
+                      {message.status === "queued" ? t("Sırada — Mac worker bekleniyor olabilir") : ""}
+                      {message.status === "processing" ? t("Yanıt hazırlanıyor…") : ""}
+                      {message.status === "failed" ? t("Hata") : ""}
+                      {message.status === "cancelled" ? t("İptal edildi") : ""}
                     </span>
                     {message.status === "failed" && message.job_id ? (
                       <button
@@ -176,8 +179,7 @@ export function ChatPanel({
                         className="underline underline-offset-2"
                         onClick={() => void retry(message.job_id!)}
                       >
-                        Yeniden dene
-                      </button>
+                        {t("Yeniden dene")}</button>
                     ) : null}
                   </div>
                 ) : null}
@@ -202,7 +204,7 @@ export function ChatPanel({
           <button
             type="button"
             onClick={() => setQuote(null)}
-            aria-label="Alıntıyı kaldır"
+            aria-label={t("Alıntıyı kaldır")}
             className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-200/70 dark:hover:bg-stone-800"
           >
             <CloseIcon size={12} />
@@ -228,7 +230,7 @@ export function ChatPanel({
             }
           }}
           rows={2}
-          placeholder={quote ? "Bu alıntı hakkında sor…" : "Belgeyle ilgili sorunu yaz… (Enter gönderir)"}
+          placeholder={quote ? t("Bu alıntı hakkında sor…") : t("Belgeyle ilgili sorunu yaz… (Enter gönderir)")}
           aria-label="Soru"
           className="w-full flex-1 resize-none rounded-md border border-stone-300 bg-white px-2.5 py-2 text-xs outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500"
         />
@@ -237,7 +239,7 @@ export function ChatPanel({
           disabled={sending || !input.trim()}
           className="min-h-[40px] rounded-md bg-stone-900 px-3 text-xs font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
         >
-          {sending ? "…" : "Gönder"}
+          {sending ? "…" : t("Gönder")}
         </button>
       </form>
     </div>

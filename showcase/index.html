@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Readflow — Makale ve PDF Arşivi, Okuma Listesi</title>
 <meta name="description" content="Makaleleri ve PDF'leri tek arşive topla; read-it-later okuma listesi, vurgular ve kendi agent'ınla özetler. Local-first: verin senin bilgisayarında.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)">
@@ -34,12 +34,14 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css?v=20261012b">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/", "description": "Makaleleri ve PDF'leri arşivleyen, vurgulayan ve kendi coding-agent CLI'ınla özetleyen local-first okuma uygulaması.", "inLanguage": "tr", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "@id": "https://mehmetfatihdogan.com.tr/#person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og-tr.png?v=2"}</script>
+<script src="/theme.js"></script>
 </head>
 <body><a class="skip-link" href="#main">İçeriğe atla</a>
 <div class="wrap">
   <header class="top">
     <a class="brand" href="/"><img src="/favicon.svg" alt="" width="32" height="32">Readflow</a>
     <nav class="top" aria-label="Sayfa">
+      <button type="button" class="theme-toggle" data-theme-toggle hidden></button>
       <a href="#ozellikler">Özellikler</a>
       <a href="#mimari">Mimari</a>
 
@@ -56,7 +58,7 @@
       <figure class="shot">
         <picture>
           <source srcset="/assets/doc-dark-800.webp 800w, /assets/doc-dark-1600.webp 1600w, /assets/doc-dark.jpg 2560w" sizes="(max-width: 760px) calc(100vw - 36px), 600px" media="(prefers-color-scheme: dark)">
-          <img src="/assets/doc-light.jpg" srcset="/assets/doc-light-800.webp 800w, /assets/doc-light-1600.webp 1600w, /assets/doc-light.jpg 2560w" sizes="(max-width: 760px) calc(100vw - 36px), 600px" width="2560" height="1600" alt="Readflow belge görünümü: başlık, okuma durumu, Metni işle paneli ve Normal seviye özet sekmesi" fetchpriority="high">
+          <img src="/assets/doc-light.jpg" srcset="/assets/doc-light-800.webp 800w, /assets/doc-light-1600.webp 1600w, /assets/doc-light.jpg 2560w" sizes="(max-width: 760px) calc(100vw - 36px), 600px" width="2560" height="1600" alt="Readflow belge görünümü: okuma durumu, orijinal metin ve vurgular" fetchpriority="high">
         </picture>
       <figcaption>Okuma, notlar ve özetler aynı yerde. Demo arşivinden bir görünüm.</figcaption></figure>
     </div>
@@ -77,7 +79,7 @@
 
     <section aria-labelledby="gorunumler" id="gorunumler-bolumu">
       <h2 id="gorunumler">Görünümler</h2>
-      <p class="sub">Bir ekran seçerek incele. Görüntüler demo verisiyle alınmıştır; açık ve koyu tema sistemini izler.</p>
+      <p class="sub">Bir ekran seçerek incele. Görüntüler demo verisiyle alınmıştır; seçtiğin dil ve temaya göre değişir.</p>
 
     <div class="gallery"><details class="screen" name="screens"><summary>İçerik ekle</summary><figure class="shot">
           <picture>

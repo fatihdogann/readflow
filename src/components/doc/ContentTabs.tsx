@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -55,7 +57,7 @@ function TabButton({
   setIndex: (index: number) => void;
   tabIds: string[];
 }) {
-  return (
+ return (
     <button
       id={`tab-${panelId}`}
       role="tab"
@@ -110,12 +112,12 @@ function RevisionPicker({
   onSelect: (revision: { id: number; content: string } | null) => void;
   selectedId: number | null;
 }) {
+  const t = useT();
   const revisions = useRevisions(outputId);
   if (revisions.length <= 0) return null;
   return (
     <label className="flex items-center gap-1 text-[11px] text-stone-500 dark:text-stone-400">
-      Sürüm:
-      <select
+      {t("Sürüm:")}<select
         value={selectedId === null ? "" : String(selectedId)}
         onChange={(event) => {
           const value = event.target.value;
@@ -128,7 +130,7 @@ function RevisionPicker({
         }}
         className="min-h-[32px] rounded border border-stone-300 bg-white px-1.5 py-1 dark:border-stone-700 dark:bg-stone-900"
       >
-        <option value="">Güncel</option>
+        <option value="">{t("Güncel")}</option>
         {revisions.map((revision) => (
           <option key={revision.id} value={String(revision.id)}>
             {revision.created_at.slice(0, 16).replace("T", " ")} · {revision.agent_name ?? "agent"}
@@ -166,6 +168,7 @@ export function ContentTabs({
   /** Metinde gerçekten bağlanabilen vurgu kimlikleri (rafta rozet için). */
   onLinkedChange: (linkedIds: number[]) => void;
 }) {
+  const t = useT();
   const doc = detail.document;
   const [editing, setEditing] = useState(false);
   const [compare, setCompare] = useState(false);
@@ -230,16 +233,16 @@ export function ContentTabs({
     () =>
       (
         [
-          { key: "original" as TabKey, label: "Orijinal", show: true },
-          { key: "edited" as TabKey, label: "Düzenlenmiş", show: true },
+          { key: "original" as TabKey, label: t("Orijinal"), show: true },
+          { key: "edited" as TabKey, label: t("Düzenlenmiş"), show: true },
           {
             key: "ai-edit" as TabKey,
-            label: "AI Düzenlemesi",
+            label: t("AI Düzenlemesi"),
             show: readabilityOutput !== null || isActive("readability"),
           },
           {
             key: "summary" as TabKey,
-            label: "Özet",
+            label: t("Özet"),
             show: activeLevels.length > 0 || SUMMARY_LEVELS.some((level) => isActive("summary", level)),
           },
         ] as Array<{ key: TabKey; label: string; show: boolean }>
@@ -254,7 +257,7 @@ export function ContentTabs({
     if (
       detail.edit &&
       detail.edit.content.trim() &&
-      !window.confirm("Mevcut Düzenlenmiş sürümün üzerine yazılsın mı? (Orijinal etkilenmez)")
+      !window.confirm(t("Mevcut Düzenlenmiş sürümün üzerine yazılsın mı? (Orijinal etkilenmez)"))
     ) {
       return;
     }
@@ -265,24 +268,24 @@ export function ContentTabs({
         { content, revision: detail.edit?.revision ?? 0 },
       );
       onEditChange(body.edit);
-      onNotice("AI Düzenlemesi çalışma sürümüne alındı (Düzenlenmiş sekmesi).");
+      onNotice(t("AI Düzenlemesi çalışma sürümüne alındı (Düzenlenmiş sekmesi)."));
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "Alınamadı");
+      onNotice(error instanceof Error ? error.message : t("Alınamadı"));
     }
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label="İçerik görünümleri" className="no-print flex flex-wrap items-center gap-1 border-b border-stone-200 dark:border-stone-800">
+      <div role="tablist" aria-label={t("İçerik görünümleri")} className="no-print flex flex-wrap items-center gap-1 border-b border-stone-200 dark:border-stone-800">
         {tabs.map((entry, index) => (
           <TabButton
             key={entry.key}
             active={effectiveTab === entry.key}
             label={
               entry.key === "ai-edit" && isActive("readability")
-                ? "AI Düzenlemesi …"
+                ? t("AI Düzenlemesi …")
                 : entry.key === "summary" && isActive("summary")
-                  ? "Özet …"
+                  ? t("Özet …")
                   : entry.label
             }
             panelId={entry.key}
@@ -297,7 +300,7 @@ export function ContentTabs({
         ))}
         <div className="ml-auto flex items-center gap-2 py-1">
           {effectiveTab === "summary" && activeLevels.length > 0 ? (
-            <div role="radiogroup" aria-label="Özet sürümü" className="flex overflow-hidden rounded-md border border-stone-300 dark:border-stone-700">
+            <div role="radiogroup" aria-label={t("Özet sürümü")} className="flex overflow-hidden rounded-md border border-stone-300 dark:border-stone-700">
               {SUMMARY_LEVELS.filter((level) => activeLevels.includes(level) || isActive("summary", level)).map((level) => (
                 <button
                   key={level}
@@ -311,7 +314,7 @@ export function ContentTabs({
                       : "text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
                   }`}
                 >
-                  {summaryLevelLabel[level]}
+                  {t(summaryLevelLabel[level])}
                   {isActive("summary", level) ? " …" : ""}
                 </button>
               ))}
@@ -321,7 +324,7 @@ export function ContentTabs({
             <ExportMenu
               document={doc}
               output={null}
-              variantLabel="Orijinal"
+              variantLabel={t("Orijinal")}
               onMessage={onNotice}
             />
           ) : null}
@@ -330,7 +333,7 @@ export function ContentTabs({
               document={doc}
               output={null}
               editedContent={detail.edit.content}
-              variantLabel="Düzenlenmiş"
+              variantLabel={t("Düzenlenmiş")}
               onMessage={onNotice}
             />
           ) : null}
@@ -344,7 +347,7 @@ export function ContentTabs({
               <ExportMenu
                 document={doc}
                 output={readabilityOutput}
-                variantLabel="AI Düzenlemesi"
+                variantLabel={t("AI Düzenlemesi")}
                 revisionId={aiRevision?.id}
                 onMessage={onNotice}
               />
@@ -360,7 +363,7 @@ export function ContentTabs({
               <ExportMenu
                 document={doc}
                 output={summaryOutput}
-                variantLabel={`Özet ${summaryLevelLabel[summaryLevel]}`}
+                variantLabel={t("Özet {0}", t(summaryLevelLabel[summaryLevel]))}
                 revisionId={summaryRevision?.id}
                 onMessage={onNotice}
               />
@@ -403,8 +406,7 @@ export function ContentTabs({
                 }}
                 className="no-print inline-flex min-h-[40px] w-fit items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm text-stone-700 shadow-[0_1px_2px_rgba(28,25,23,0.04)] hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
               >
-                <EditIcon size={16} /> Düzenlemeye başla
-              </button>
+                <EditIcon size={16} /> {" "}{t("Düzenlemeye başla")}</button>
             ) : null}
           </div>
         ) : null}
@@ -430,18 +432,16 @@ export function ContentTabs({
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">
-                    Orijinal
-                  </h3>
+                    {t("Orijinal")}</h3>
                   <div className="article max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-stone-200 p-3 dark:border-stone-800">
                     {doc.original_text}
                   </div>
                 </div>
                 <div>
                   <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">
-                    Düzenlenmiş
-                  </h3>
+                    {t("Düzenlenmiş")}</h3>
                   <div className="article max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-stone-200 p-3 dark:border-stone-800">
-                    {detail.edit?.content || "(boş)"}
+                    {detail.edit?.content || t("(boş)")}
                   </div>
                 </div>
               </div>
@@ -451,8 +451,7 @@ export function ContentTabs({
                 onClick={() => setCompare(true)}
                 className="no-print min-h-[36px] w-fit text-xs text-stone-600 underline underline-offset-2 dark:text-stone-400"
               >
-                Orijinal ile karşılaştır
-              </button>
+                {t("Orijinal ile karşılaştır")}</button>
             )}
           </div>
         ) : null}
@@ -465,15 +464,14 @@ export function ContentTabs({
                   type="button"
                   onClick={() => void takeAsEdited(readabilityOutput, aiRevision?.content ?? readabilityOutput.content)}
                   className="min-h-[40px] rounded-md border border-stone-300 px-3 py-2 text-xs text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
-                  title="Mevcut düzenlemeyi sessizce ezmez; onay sorar"
+                  title={t("Mevcut düzenlemeyi sessizce ezmez; onay sorar")}
                 >
-                  ⇩ Düzenlenmiş sürüme al
-                </button>
+                  {t("⇩ Düzenlenmiş sürüme al")}</button>
               </div>
               <MarkdownBlock content={aiRevision?.content ?? readabilityOutput.content} />
             </div>
           ) : (
-            <p className="text-sm text-stone-500">Okunabilirlik çalışması kuyrukta — burada görünecek.</p>
+            <p className="text-sm text-stone-500">{t("Okunabilirlik çalışması kuyrukta — burada görünecek.")}</p>
           )
         ) : null}
 
@@ -482,8 +480,7 @@ export function ContentTabs({
             <MarkdownBlock content={summaryRevision?.content ?? summaryOutput.content} />
           ) : (
             <p className="text-sm text-stone-500">
-              {summaryLevelLabel[summaryLevel]} özet kuyrukta — tamamlandığında burada görünecek.
-            </p>
+              {t(summaryLevelLabel[summaryLevel])} {" "}{t("özet kuyrukta — tamamlandığında burada görünecek.")}</p>
           )
         ) : null}
         </div>

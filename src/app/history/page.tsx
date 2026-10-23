@@ -1,3 +1,4 @@
+import { getT } from "@/lib/i18n/server";
 import { getDb } from "@/lib/db/connection";
 import { listDomains } from "@/lib/db/repo/documents";
 import { listFolders } from "@/lib/db/repo/folders";
@@ -13,11 +14,12 @@ export default async function HistoryPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getT();
   const params = await searchParams;
   const db = getDb();
   return (
     <HistoryView
-      title="Arşiv"
+      title={t("Arşiv")}
       basePath="/history"
       initialFilters={parseHistoryFilters(params)}
       facets={{

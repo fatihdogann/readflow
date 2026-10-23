@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutateJson } from "@/lib/client/api";
 import { LockIcon } from "@/components/Icons";
@@ -55,6 +57,7 @@ const inputClass =
   "min-h-[40px] rounded-md border border-stone-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500";
 
 export function AgentSettings() {
+  const t = useT();
   const [data, setData] = useState<ProfilesResponse | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,12 +82,12 @@ export function AgentSettings() {
         dataRef.current = body;
         setError(null);
       } else {
-        setError(`Profiller yüklenemedi (HTTP ${response.status})`);
+        setError(t("Profiller yüklenemedi (HTTP {0})", response.status));
       }
     } catch {
-      setError("Sunucuya ulaşılamadı");
+      setError(t("Sunucuya ulaşılamadı"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const initial = setTimeout(() => void load(), 0);
@@ -106,10 +109,10 @@ export function AgentSettings() {
         timeoutMs: Number(form.timeoutMs) || undefined,
       });
       setForm((prev) => ({ ...prev, name: "", model: "", provider: "" }));
-      setNotice("Profil oluşturuldu.");
+      setNotice(t("Profil oluşturuldu."));
       await load();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Profil oluşturulamadı");
+      setError(createError instanceof Error ? createError.message : t("Profil oluşturulamadı"));
     }
   }
 
@@ -118,7 +121,7 @@ export function AgentSettings() {
     try {
       await mutateJson("/api/agent/default-profile", "PUT", { profileId });
       await load();
-      setNotice(profileId ? "Varsayılan profil güncellendi (yeniden başlatma gerekmez)." : "Varsayılan profil kaldırıldı.");
+      setNotice(profileId ? t("Varsayılan profil güncellendi (yeniden başlatma gerekmez).") : t("Varsayılan profil kaldırıldı."));
     } catch (defaultError) {
       setError(defaultError instanceof Error ? defaultError.message : "Kaydedilemedi");
     }
@@ -136,7 +139,7 @@ export function AgentSettings() {
       await mutateJson(`/api/agent/profiles/${neighbour.id}`, "PATCH", { priority: profile.priority });
       await load();
     } catch (moveError) {
-      setError(moveError instanceof Error ? moveError.message : "Sıra değiştirilemedi");
+      setError(moveError instanceof Error ? moveError.message : t("Sıra değiştirilemedi"));
     }
   }
 
@@ -146,7 +149,7 @@ export function AgentSettings() {
       await mutateJson(`/api/agent/profiles/${profile.id}`, "PATCH", { effort: effort || null });
       await load();
     } catch (effortError) {
-      setError(effortError instanceof Error ? effortError.message : "Effort kaydedilemedi");
+      setError(effortError instanceof Error ? effortError.message : t("Effort kaydedilemedi"));
     }
   }
 
@@ -156,12 +159,12 @@ export function AgentSettings() {
       await mutateJson(`/api/agent/profiles/${profile.id}`, "PATCH", { enabled: profile.enabled === 0 });
       await load();
     } catch (toggleError) {
-      setError(toggleError instanceof Error ? toggleError.message : "Güncellenemedi");
+      setError(toggleError instanceof Error ? toggleError.message : t("Güncellenemedi"));
     }
   }
 
   async function remove(profile: Profile): Promise<void> {
-    if (!window.confirm(`"${profile.name}" profili silinsin mi? Eski işler kendi kayıtlı yapılandırmasıyla çalışmayı sürdürür.`)) return;
+    if (!window.confirm(t("\"{0}\" profili silinsin mi? Eski işler kendi kayıtlı yapılandırmasıyla çalışmayı sürdürür.", profile.name))) return;
     setError(null);
     try {
       await mutateJson(`/api/agent/profiles/${profile.id}`, "DELETE");
@@ -188,32 +191,29 @@ export function AgentSettings() {
         if (latest?.last_validated_at) {
           setNotice(
             latest.last_validation_ok
-              ? "Doğrulama başarılı."
-              : `Doğrulama başarısız: ${latest.last_error ?? "bilinmeyen hata"}`,
+              ? t("Doğrulama başarılı.")
+              : t("Doğrulama başarısız: {0}", latest.last_error ?? t("bilinmeyen hata")),
           );
           break;
         }
       }
       await load();
     } catch (validateError) {
-      setError(validateError instanceof Error ? validateError.message : "Doğrulama çağrılamadı");
+      setError(validateError instanceof Error ? validateError.message : t("Doğrulama çağrılamadı"));
     } finally {
       setValidating(null);
     }
   }
 
   if (!data) {
-    return <p className="text-sm text-stone-500 dark:text-stone-400">{error ?? "Yükleniyor…"}</p>;
+    return <p className="text-sm text-stone-500 dark:text-stone-400">{error ?? t("Yükleniyor…")}</p>;
   }
 
   return (
     <div className="flex flex-col gap-10">
       {data.envLock.locked ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200" role="note">
-          <strong className="inline-flex items-center gap-1.5"><LockIcon size={15} /> Environment tarafından yönetiliyor.</strong> {data.envLock.description}. Bu
-          ekrandan profil/varsayılan seçimi şu anda etkisizdir; kilidi açmak için ortam
-          değişkenlerini (.env.local) kaldırın.
-        </div>
+          <strong className="inline-flex items-center gap-1.5"><LockIcon size={15} /> {" "}{t("Environment tarafından yönetiliyor.")}</strong> {data.envLock.description}{t(". Bu ekrandan profil/varsayılan seçimi şu anda etkisizdir; kilidi açmak için ortam değişkenlerini (.env.local) kaldırın.")}</div>
       ) : null}
 
       {error ? (
@@ -229,12 +229,9 @@ export function AgentSettings() {
 
       <section aria-labelledby="cli-status">
         <h2 id="cli-status" className="mb-2 text-sm font-semibold">
-          Kurulu CLI&apos;lar ve yetenekler
-        </h2>
+          {t("Kurulu CLI'lar ve yetenekler")}</h2>
         <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
-          &quot;Bulundu&quot; yalnızca CLI&apos;ın kurulu olduğu anlamına gelir; gerçek çalışma doğrulaması
-          profil satırındaki <strong>Bağlantıyı doğrula</strong> ile yapılır.
-        </p>
+          {t("\"Bulundu\" yalnızca CLI'ın kurulu olduğu anlamına gelir; gerçek çalışma doğrulaması profil satırındaki")}{" "}<strong>{t("Bağlantıyı doğrula")}</strong> {" "}{t("ile yapılır.")}</p>
         <ul className="grid gap-3 md:grid-cols-3">
           {data.candidates.map((candidate) => (
             <li key={candidate.cli} className="rounded-2xl border border-stone-200 bg-white/65 p-4 text-xs shadow-[0_10px_28px_rgba(28,25,23,0.04)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none">
@@ -242,12 +239,11 @@ export function AgentSettings() {
                 <span className="text-sm font-semibold capitalize">{candidate.cli}</span>
                 {candidate.found ? (
                   <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-                    bulundu{candidate.version ? ` · ${candidate.version}` : ""}
+                    {t("bulundu")}{candidate.version ? ` · ${candidate.version}` : ""}
                   </span>
                 ) : (
                   <span className="rounded bg-white px-1.5 py-0.5 font-medium text-stone-600 ring-1 ring-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:ring-stone-700">
-                    kurulu değil
-                  </span>
+                    {t("kurulu değil")}</span>
                 )}
                 {candidate.nonInteractive ? (
                   <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -255,17 +251,16 @@ export function AgentSettings() {
                   </span>
                 ) : (
                   <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700 dark:bg-red-950/50 dark:text-red-300">
-                    non-interactive doğrulanamadı
-                  </span>
+                    {t("non-interactive doğrulanamadı")}</span>
                 )}
                 {candidate.modelFlag ? <span className="text-stone-500 dark:text-stone-400">--model ✓</span> : null}
                 {candidate.providerFlag ? <span className="text-stone-500 dark:text-stone-400">--provider ✓</span> : null}
                 {candidate.sandboxReadonlyFlag ? <span className="text-stone-500 dark:text-stone-400">read-only sandbox ✓</span> : null}
                 {candidate.effortFlag ? <span className="text-stone-500 dark:text-stone-400">--effort ✓</span> : null}
                 {candidate.configOverrideFlag ? <span className="text-stone-500 dark:text-stone-400">-c config ✓</span> : null}
-                {candidate.argvRequired ? <span className="text-stone-500 dark:text-stone-400">prompt=argv (zorunlu)</span> : null}
+                {candidate.argvRequired ? <span className="text-stone-500 dark:text-stone-400">{t("prompt=argv (zorunlu)")}</span> : null}
                 {candidate.modelOptions ? (
-                  <span className="text-stone-500 dark:text-stone-400">model kataloğu: {candidate.modelOptions.length} model</span>
+                  <span className="text-stone-500 dark:text-stone-400">{t("model kataloğu:")}{" "}{candidate.modelOptions.length} model</span>
                 ) : null}
               </div>
               {candidate.notes.length > 0 ? (
@@ -278,20 +273,17 @@ export function AgentSettings() {
 
       <section aria-labelledby="profiles">
         <h2 id="profiles" className="mb-2 text-sm font-semibold">
-          Profiller
-        </h2>
+          {t("Profiller")}</h2>
         <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
-          Sıra failover zinciridir: üstteki başarısız olursa bir alttaki denenir.
-          Oklarla sırayı değiştirebilirsin.
-        </p>
+          {t("Sıra failover zinciridir: üstteki başarısız olursa bir alttaki denenir. Oklarla sırayı değiştirebilirsin.")}</p>
         {data.profiles.length === 0 ? (
-          <p className="text-xs text-stone-500 dark:text-stone-400">Henüz profil yok — aşağıdan oluştur.</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">{t("Henüz profil yok — aşağıdan oluştur.")}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {data.profiles.map((profile, index) => (
               <li key={profile.id} className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white/70 p-4 shadow-[0_12px_34px_rgba(28,25,23,0.045)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[11px] font-semibold tabular-nums text-stone-700 dark:bg-stone-700 dark:text-stone-200" title="Failover sırası">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[11px] font-semibold tabular-nums text-stone-700 dark:bg-stone-700 dark:text-stone-200" title={t("Failover sırası")}>
                     {index + 1}
                   </span>
                   <span className="text-sm font-semibold">{profile.name}</span>
@@ -304,39 +296,36 @@ export function AgentSettings() {
                     supportsEffort(data.candidates.find((candidate) => candidate.cli === profile.cli)) ? (
                       <span className="text-stone-500 dark:text-stone-400">effort: {profile.effort}</span>
                     ) : (
-                      <span className="text-amber-700 dark:text-amber-400" title="Bu CLI'ın help çıktısında effort bayrağı yok — değer argv'ye eklenmez">
-                        effort: {profile.effort} (bu CLI desteklemiyor)
-                      </span>
+                      <span className="text-amber-700 dark:text-amber-400" title={t("Bu CLI'ın help çıktısında effort bayrağı yok — değer argv'ye eklenmez")}>
+                        effort: {profile.effort} {" "}{t("(bu CLI desteklemiyor)")}</span>
                     )
                   ) : null}
                   <span className="text-stone-500 dark:text-stone-400">transport: {profile.transport}</span>
                   <span className="text-stone-500 dark:text-stone-400">rev: {profile.config_revision}</span>
                   {data.defaultProfileId === profile.id ? (
                     <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-                      varsayılan
-                    </span>
+                      {t("varsayılan")}</span>
                   ) : null}
                   {profile.last_validated_at ? (
                     <span className={profile.last_validation_ok ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                      {profile.last_validation_ok ? "son doğrulama: başarılı" : "son doğrulama: başarısız"}
+                      {profile.last_validation_ok ? t("son doğrulama: başarılı") : t("son doğrulama: başarısız")}
                       {profile.last_error ? ` — ${profile.last_error.slice(0, 80)}` : ""}
                     </span>
                   ) : (
-                    <span className="text-stone-500 dark:text-stone-400">henüz doğrulanmadı</span>
+                    <span className="text-stone-500 dark:text-stone-400">{t("henüz doğrulanmadı")}</span>
                   )}
                 </div>
                 {data.defaultProfileId === profile.id && !profile.last_validated_at ? (
                   <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/35 dark:text-amber-300">
-                    Bu varsayılan profil henüz doğrulanmadı. İlk işten önce bağlantıyı doğrulaman önerilir.
-                  </p>
+                    {t("Bu varsayılan profil henüz doğrulanmadı. İlk işten önce bağlantıyı doğrulaman önerilir.")}</p>
                 ) : null}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-0.5" role="group" aria-label="Failover sırası">
+                  <div className="flex items-center gap-0.5" role="group" aria-label={t("Failover sırası")}>
                     <button
                       type="button"
                       onClick={() => void move(profile, -1)}
                       disabled={index === 0}
-                      aria-label={`${profile.name} profilini yukarı taşı`}
+                      aria-label={t("{0} profilini yukarı taşı", profile.name)}
                       className="flex h-9 w-9 items-center justify-center rounded-md border border-stone-300 text-xs hover:bg-stone-100 disabled:opacity-30 dark:border-stone-700 dark:hover:bg-stone-800"
                     >
                       ↑
@@ -345,7 +334,7 @@ export function AgentSettings() {
                       type="button"
                       onClick={() => void move(profile, 1)}
                       disabled={index === data.profiles.length - 1}
-                      aria-label={`${profile.name} profilini aşağı taşı`}
+                      aria-label={t("{0} profilini aşağı taşı", profile.name)}
                       className="flex h-9 w-9 items-center justify-center rounded-md border border-stone-300 text-xs hover:bg-stone-100 disabled:opacity-30 dark:border-stone-700 dark:hover:bg-stone-800"
                     >
                       ↓
@@ -360,7 +349,7 @@ export function AgentSettings() {
                         aria-label={`${profile.name} reasoning effort`}
                         className="min-h-[36px] rounded-md border border-stone-300 bg-white px-2 text-xs dark:border-stone-700 dark:bg-stone-900"
                       >
-                        <option value="">varsayılan</option>
+                        <option value="">{t("varsayılan")}</option>
                         {EFFORT_LEVELS.map((level) => (
                           <option key={level} value={level}>
                             {level}
@@ -375,7 +364,7 @@ export function AgentSettings() {
                     disabled={validating === profile.id}
                     className="min-h-[36px] rounded-md border border-stone-300 px-3 text-xs hover:bg-stone-100 disabled:opacity-40 dark:border-stone-700 dark:hover:bg-stone-800"
                   >
-                    {validating === profile.id ? "Doğrulanıyor…" : "Bağlantıyı doğrula"}
+                    {validating === profile.id ? t("Doğrulanıyor…") : t("Bağlantıyı doğrula")}
                   </button>
                   {data.defaultProfileId !== profile.id ? (
                     <button
@@ -384,31 +373,28 @@ export function AgentSettings() {
                       disabled={profile.enabled === 0}
                       className="min-h-[36px] rounded-md border border-stone-300 px-3 text-xs hover:bg-stone-100 disabled:opacity-40 dark:border-stone-700 dark:hover:bg-stone-800"
                     >
-                      Varsayılan yap
-                    </button>
+                      {t("Varsayılan yap")}</button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => void setDefault(null)}
                       className="min-h-[36px] rounded-md border border-stone-300 px-3 text-xs hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
                     >
-                      Varsayılanı kaldır
-                    </button>
+                      {t("Varsayılanı kaldır")}</button>
                   )}
                   <button
                     type="button"
                     onClick={() => void toggleEnabled(profile)}
                     className="min-h-[36px] rounded-md border border-stone-300 px-3 text-xs hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800"
                   >
-                    {profile.enabled ? "Devre dışı bırak" : "Etkinleştir"}
+                    {profile.enabled ? t("Devre dışı bırak") : t("Etkinleştir")}
                   </button>
                   <button
                     type="button"
                     onClick={() => void remove(profile)}
                     className="min-h-[36px] rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                   >
-                    Sil
-                  </button>
+                    {t("Sil")}</button>
                 </div>
               </li>
             ))}
@@ -418,17 +404,15 @@ export function AgentSettings() {
 
       <section aria-labelledby="new-profile">
         <h2 id="new-profile" className="mb-2 text-sm font-semibold">
-          Yeni profil
-        </h2>
+          {t("Yeni profil")}</h2>
         <form onSubmit={createProfile} className="grid grid-cols-1 gap-4 rounded-2xl border border-stone-200 bg-white/70 p-4 shadow-[0_12px_34px_rgba(28,25,23,0.045)] dark:border-stone-800 dark:bg-stone-900/35 dark:shadow-none sm:grid-cols-2 sm:p-5">
           <label className={labelClass}>
-            Görünen ad
-            <input
+            {t("Görünen ad")}<input
               value={form.name}
               onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               required
               maxLength={80}
-              placeholder="ör. Codex okuma"
+              placeholder={t("ör. Codex okuma")}
               className={inputClass}
             />
           </label>
@@ -442,14 +426,13 @@ export function AgentSettings() {
               {data.candidates.map((candidate) => (
                 <option key={candidate.cli} value={candidate.cli} disabled={!candidate.found}>
                   {candidate.cli}
-                  {candidate.found ? "" : " (kurulu değil)"}
+                  {candidate.found ? "" : t("(kurulu değil)")}
                 </option>
               ))}
             </select>
           </label>
           <label className={labelClass}>
-            Model / profil kimliği
-            {(() => {
+            {t("Model / profil kimliği")}{(() => {
               const caps = data.candidates.find((candidate) => candidate.cli === form.cli);
               if (caps?.modelOptions && caps.modelOptions.length > 0) {                return (
                   <select
@@ -457,7 +440,7 @@ export function AgentSettings() {
                     onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
                     className={inputClass}
                   >
-                    <option value="">Seç…</option>
+                    <option value="">{t("Seç…")}</option>
                     {caps.modelOptions.map((option) => (
                       <option key={option} value={option}>
                         {option}
@@ -472,15 +455,14 @@ export function AgentSettings() {
                     value={form.model}
                     onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
                     maxLength={160}
-                    placeholder="model kimliği"
+                    placeholder={t("model kimliği")}
                     className={inputClass}
                   />
                 );
               }
               return (
                 <span className="text-[11px] text-stone-500 dark:text-stone-400">
-                  Bu CLI&apos;ın help çıktısında model bayrağı doğrulanmadı — alan devre dışı
-                </span>
+                  {t("Bu CLI'ın help çıktısında model bayrağı doğrulanmadı — alan devre dışı")}</span>
               );
             })()}
           </label>
@@ -491,7 +473,7 @@ export function AgentSettings() {
                 value={form.provider}
                 onChange={(event) => setForm((prev) => ({ ...prev, provider: event.target.value }))}
                 maxLength={120}
-                placeholder="ör. claude"
+                placeholder={t("ör. claude")}
                 className={inputClass}
               />
             </label>
@@ -504,7 +486,7 @@ export function AgentSettings() {
                 onChange={(event) => setForm((prev) => ({ ...prev, effort: event.target.value }))}
                 className={inputClass}
               >
-                <option value="">varsayılan</option>
+                <option value="">{t("varsayılan")}</option>
                 {EFFORT_LEVELS.map((level) => (
                   <option key={level} value={level}>
                     {level}
@@ -514,25 +496,22 @@ export function AgentSettings() {
             </label>
           ) : null}
           <label className={labelClass}>
-            Prompt aktarımı
-            <select
+            {t("Prompt aktarımı")}<select
               value={form.cli === "jcode" ? "argv" : form.transport}
               onChange={(event) => setForm((prev) => ({ ...prev, transport: event.target.value }))}
               disabled={form.cli === "jcode"}
               className={inputClass}
             >
-              <option value="stdin">stdin (önerilen)</option>
+              <option value="stdin">{t("stdin (önerilen)")}</option>
               <option value="argv">argv</option>
             </select>
             {form.cli === "jcode" ? (
               <span className="text-[11px] text-stone-500 dark:text-stone-400">
-                jcode mesajı argüman olarak ister — argv zorunlu.
-              </span>
+                {t("jcode mesajı argüman olarak ister — argv zorunlu.")}</span>
             ) : null}
           </label>
           <label className={labelClass}>
-            Zaman aşımı (ms)
-            <input
+            {t("Zaman aşımı (ms)")}<input
               type="number"
               min={5000}
               max={600000}
@@ -548,12 +527,10 @@ export function AgentSettings() {
               disabled={data.envLock.locked}
               className="min-h-[40px] rounded-md bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
             >
-              Profil oluştur
-            </button>
+              {t("Profil oluştur")}</button>
             {form.cli === "codex" ? (
               <span className="ml-3 text-[11px] text-stone-500 dark:text-stone-400">
-                Not: codex salt-okunur sandbox ile çalıştırılır; prompt stdin&apos;den verilir.
-              </span>
+                {t("Not: codex salt-okunur sandbox ile çalıştırılır; prompt stdin'den verilir.")}</span>
             ) : null}
           </div>
         </form>
@@ -574,6 +551,7 @@ interface TelegramStatus {
 }
 
 function TelegramSection() {
+  const t = useT();
   const [info, setInfo] = useState<TelegramStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -604,7 +582,7 @@ function TelegramSection() {
       setMessage(body.message);
       await load();
     } catch (testError) {
-      setMessage(testError instanceof Error ? testError.message : "Test gönderilemedi");
+      setMessage(testError instanceof Error ? testError.message : t("Test gönderilemedi"));
       await load();
     } finally {
       setBusy(false);
@@ -626,18 +604,17 @@ function TelegramSection() {
         <span className={`h-2 w-2 rounded-full ${statusColor}`} aria-hidden />
         Telegram
         <span className="text-xs font-normal text-stone-500 dark:text-stone-400">
-          durum: {info?.status ?? "yükleniyor…"}
+          {t("durum:")}{" "} {t(info?.status ?? "yükleniyor…")}
         </span>
       </h2>
 
       {!info?.configured ? (
         <p className="text-xs text-stone-500 dark:text-stone-400">
-          Kurulmadı. Gerekli ortam değişkenleri:{" "}
+          {t("Kurulmadı. Gerekli ortam değişkenleri:")}{" "}
           <code>
             {info?.missing.join(", ") || "READFLOW_TELEGRAM_BOT_TOKEN, READFLOW_TELEGRAM_CHAT_ID"}
           </code>{" "}
-          (Coolify environment / .env.local — token arayüze veya Git&apos;e girmez).
-        </p>
+          {t("(Coolify environment / .env.local — token arayüze veya Git'e girmez).")}</p>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -646,13 +623,13 @@ function TelegramSection() {
             disabled={busy}
             className="min-h-[40px] rounded-md bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
           >
-            {busy ? "Gönderiliyor…" : "Test mesajı gönder"}
+            {busy ? t("Gönderiliyor…") : t("Test mesajı gönder")}
           </button>
           <span className="text-xs text-stone-500 dark:text-stone-400" role="status" aria-live="polite">
             {message ??
               (info.lastTestAt
-                ? `son test: ${info.lastTestAt.slice(0, 16).replace("T", " ")} — ${info.lastTestOk ? "başarılı" : `başarısız: ${info.lastTestMessage ?? ""}`}`
-                : "henüz test edilmedi — env mevcut olması çalışıyor anlamına gelmez")}
+                ? t("son test: {0} — {1}", info.lastTestAt.slice(0, 16).replace("T", " "), info.lastTestOk ? t("başarılı") : `başarısız: ${info.lastTestMessage ?? ""}`)
+                : t("henüz test edilmedi — env mevcut olması çalışıyor anlamına gelmez"))}
           </span>
         </div>
       )}
@@ -664,29 +641,20 @@ function TelegramSection() {
           aria-expanded={guideOpen}
           className="min-h-[36px] text-xs text-stone-600 underline underline-offset-2 dark:text-stone-400"
         >
-          Kurulum rehberi
-        </button>
+          {t("Kurulum rehberi")}</button>
         {guideOpen ? (
           <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-xs leading-relaxed text-stone-600 dark:text-stone-400">
             <li>
-              Telegram&apos;da <strong>@BotFather</strong> ile <code>/newbot</code> ile bot oluştur;
-              verilen token&apos;i <code>READFLOW_TELEGRAM_BOT_TOKEN</code> olarak ortama ekle.
-            </li>
+              {t("Telegram'da")}{" "}<strong>@BotFather</strong> ile <code>/newbot</code> {" "}{t("ile bot oluştur; verilen token'i")}{" "}<code>READFLOW_TELEGRAM_BOT_TOKEN</code> {" "}{t("olarak ortama ekle.")}</li>
             <li>
-              Yeni botunla <strong>/start</strong> gönder (bot sana yazmadan mesaj atamaz).
-            </li>
+              {t("Yeni botunla")}{" "}<strong>/start</strong> {" "}{t("gönder (bot sana yazmadan mesaj atamaz).")}</li>
             <li>
-              Tarayıcıda <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> aç;
-              yanıttaki <code>message.chat.id</code> değerini{" "}
-              <code>READFLOW_TELEGRAM_CHAT_ID</code> olarak ekle.
-            </li>
+              {t("Tarayıcıda")}{" "}<code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> {" "}{t("aç; yanıttaki")}{" "}<code>message.chat.id</code> {" "}{t("değerini")}{" "}
+              <code>READFLOW_TELEGRAM_CHAT_ID</code> {" "}{t("olarak ekle.")}</li>
             <li>
-              Web sürecini yeniden başlat, sonra <strong>Test mesajı gönder</strong>&apos;e bas.
-            </li>
+              {t("Web sürecini yeniden başlat, sonra")}{" "}<strong>{t("Test mesajı gönder")}</strong>{t("'e bas.")}</li>
             <li>
-              Not: Bot&apos;ta webhook kuruluysa <code>getUpdates</code> çalışmaz; Readflow
-              webhook&apos;u silmez — kendi kurulumunda bilinçli yönet.
-            </li>
+              {t("Not: Bot'ta webhook kuruluysa")}{" "}<code>getUpdates</code> {" "}{t("çalışmaz; Readflow webhook'u silmez — kendi kurulumunda bilinçli yönet.")}</li>
           </ol>
         ) : null}
       </div>

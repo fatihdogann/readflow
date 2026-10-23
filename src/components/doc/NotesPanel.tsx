@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -23,6 +25,7 @@ export function NotesPanel({
   initialNote: string;
   initialUpdatedAt: string | null;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState(initialNote);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,15 +61,15 @@ export function NotesPanel({
         setLastSavedAt(new Date().toISOString());
         setStatus(
           unchangedSinceRequest
-            ? `Kaydedildi · ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
-            : "Yeni değişiklikler kaydedilmeyi bekliyor…",
+            ? t("Kaydedildi · {0}", new Date().toLocaleTimeString(t("tr-TR"), { hour: "2-digit", minute: "2-digit" }))
+            : t("Yeni değişiklikler kaydedilmeyi bekliyor…"),
         );
       },
     );
     return () => {
       saverRef.current = null;
     };
-  }, [documentId]);
+  }, [documentId, t]);
 
   const save = useCallback(async (): Promise<void> => {
     await saverRef.current?.save(draftRef.current);
@@ -108,7 +111,7 @@ export function NotesPanel({
    * oraya taşır. Ayrı tablo yerine tek metin — geçmiş elle de düzenlenebilir.
    */
   function appendEntry(): void {
-    const stamp = new Date().toLocaleString("tr-TR", {
+    const stamp = new Date().toLocaleString(t("tr-TR"), {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -117,7 +120,7 @@ export function NotesPanel({
     });
     const block = `${draft.trim() ? `${draft.trimEnd()}\n\n---\n\n` : ""}**${stamp}**\n\n`;
     if (block.length > MAX_NOTE) {
-      setStatus("Not sınırına ulaşıldı — ek not eklenemedi");
+      setStatus(t("Not sınırına ulaşıldı — ek not eklenemedi"));
       return;
     }
     setPreview(false);
@@ -141,32 +144,31 @@ export function NotesPanel({
             (dirty
               ? "kaydedilmedi"
               : lastSavedAt
-                ? `son düzenleme: ${lastSavedAt.slice(0, 16).replace("T", " ")}`
-                : "henüz not yok")}
+                ? t("son düzenleme: {0}", lastSavedAt.slice(0, 16).replace("T", " "))
+                : t("henüz not yok"))}
         </p>
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={appendEntry}
-            title="Notun altına tarihli yeni bir blok aç"
+            title={t("Notun altına tarihli yeni bir blok aç")}
             className="min-h-[32px] rounded-md border border-stone-300 px-2 text-[11px] text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
           >
-            + ek not
-          </button>
+            {t("+ ek not")}</button>
           <button
             type="button"
             onClick={() => setPreview((value) => !value)}
             aria-pressed={preview}
             className="min-h-[32px] rounded px-2 text-[11px] text-stone-600 underline underline-offset-2 dark:text-stone-400"
           >
-            {preview ? "Düzenle" : "Önizle"}
+            {preview ? t("Düzenle") : t("Önizle")}
           </button>
         </div>
       </div>
 
       {preview ? (
         <div className="article min-h-[140px] flex-1 overflow-y-auto rounded-md border border-stone-200 p-3 text-sm dark:border-stone-800">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft || "_Boş_"}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft || t("_Boş_")}</ReactMarkdown>
         </div>
       ) : (
         <textarea
@@ -178,7 +180,7 @@ export function NotesPanel({
             setDirty(true);
             setStatus("");
           }}
-          aria-label="Kişisel not (otomatik kaydedilir)"
+          aria-label={t("Kişisel not (otomatik kaydedilir)")}
           rows={12}
           className="w-full min-h-[200px] flex-1 resize-none rounded-xl border border-stone-300 bg-white px-3.5 py-3 text-sm leading-relaxed shadow-[0_1px_2px_rgba(28,25,23,0.04)] outline-none transition focus:border-stone-500 focus:ring-2 focus:ring-stone-900/5 dark:border-stone-700 dark:bg-stone-950/40 dark:focus:border-stone-500 dark:focus:ring-white/5"
         />
@@ -194,7 +196,7 @@ export function NotesPanel({
           disabled={!dirty || saving}
           className="min-h-[36px] rounded-md bg-stone-900 px-3 text-xs font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
         >
-          {saving ? "Kaydediliyor…" : "Kaydet (⌘/Ctrl+S)"}
+          {saving ? t("Kaydediliyor…") : t("Kaydet (⌘/Ctrl+S)")}
         </button>
       </div>
     </div>

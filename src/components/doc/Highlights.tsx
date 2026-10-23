@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { mutateJson } from "@/lib/client/api";
 import ReactMarkdown from "react-markdown";
@@ -20,6 +22,7 @@ const SELECTION_DEBOUNCE_MS = 180;
 
 /** Dokümanın vurgularını yükleyip değiştirmek için hook. */
 export function useAnnotations(documentId: number) {
+  const t = useT();
   const [annotations, setAnnotations] = useState<AnnotationRow[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -54,7 +57,7 @@ export function useAnnotations(documentId: number) {
         input.selection.start,
         input.selection.end,
       );
-      if (!quote.trim()) return { ok: false, message: "Boş seçim vurgulanamaz" };
+      if (!quote.trim()) return { ok: false, message: t("Boş seçim vurgulanamaz") };
       try {
         const body = await mutateJson<{ annotation: AnnotationRow }>(
           `/api/documents/${documentId}/annotations`,
@@ -69,12 +72,12 @@ export function useAnnotations(documentId: number) {
           },
         );
         setAnnotations((prev) => [...prev, body.annotation]);
-        return { ok: true, message: "Vurgu eklendi.", annotationId: body.annotation.id };
+        return { ok: true, message: t("Vurgu eklendi."), annotationId: body.annotation.id };
       } catch (error) {
-        return { ok: false, message: error instanceof Error ? error.message : "Vurgu eklenemedi" };
+        return { ok: false, message: error instanceof Error ? error.message : t("Vurgu eklenemedi") };
       }
     },
-    [documentId],
+    [documentId, t],
   );
 
   const update = useCallback(
@@ -134,7 +137,7 @@ export function HighlightedText({
   text: string;
   entries: Array<{ annotation: AnnotationRow; range: MatchedRange | null }>;
 }) {
-  const segments = useMemo(() => {
+ const segments = useMemo(() => {
     const sorted = entries
       .filter((entry) => entry.range !== null)
       .sort((a, b) => a.range!.start - b.range!.start);
@@ -355,6 +358,7 @@ export function SelectionToolbar({
   onNoteCreated: (annotationId: number) => void;
   onAskWithQuote: (quote: string) => void;
 }) {
+  const t = useT();
   const [position, setPosition] = useState<{ x: number; y: number; below: boolean } | null>(null);
   const [selection, setSelection] = useState<SelectionPoint | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -460,23 +464,23 @@ export function SelectionToolbar({
   return (
     <div
       role="toolbar"
-      aria-label="Vurgu araçları"
+      aria-label={t("Vurgu araçları")}
       className="no-print fixed z-40 flex items-center gap-1 rounded-lg border border-stone-300 bg-white px-2 py-1.5 shadow-lg dark:border-stone-700 dark:bg-stone-900"
       style={{ left: position.x, top: Math.max(position.y, 8) }}
       data-below={position.below || undefined}
     >
       {(
         [
-          { color: "yellow" as const, label: "Sarı vurgu", dot: "bg-yellow-300" },
-          { color: "green" as const, label: "Yeşil vurgu", dot: "bg-green-300" },
-          { color: "lavender" as const, label: "Lavanta vurgu", dot: "bg-purple-300" },
+          { color: "yellow" as const, label: t("Sarı vurgu"), dot: "bg-yellow-300" },
+          { color: "green" as const, label: t("Yeşil vurgu"), dot: "bg-green-300" },
+          { color: "lavender" as const, label: t("Lavanta vurgu"), dot: "bg-purple-300" },
         ]
       ).map((option) => (
         <button
           key={option.color}
           type="button"
-          title={option.label}
-          aria-label={option.label}
+          title={t(option.label)}
+          aria-label={t(option.label)}
           className={`h-9 w-9 rounded-full ${option.dot} border border-stone-400/50 hover:scale-110 transition-transform`}
           onClick={() => addHighlight(option.color)}
         />
@@ -484,17 +488,16 @@ export function SelectionToolbar({
       <span className="mx-0.5 h-5 w-px bg-stone-200 dark:bg-stone-700" aria-hidden />
       <button
         type="button"
-        title="Seçime vurgu ekleyip not yaz"
-        aria-label="Not ekle"
+        title={t("Seçime vurgu ekleyip not yaz")}
+        aria-label={t("Not ekle")}
         className="h-9 rounded px-2 text-xs font-medium text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
         onClick={addNote}
       >
-        Not ekle
-      </button>
+        {t("Not ekle")}</button>
       <button
         type="button"
-        title="Seçili bölümü sohbette sor"
-        aria-label="AI'a sor"
+        title={t("Seçili bölümü sohbette sor")}
+        aria-label={t("AI'a sor")}
         className="h-9 rounded px-2 text-xs font-medium text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
         onClick={() => {
           onAskWithQuote(fullTextResolver().slice(selection.start, selection.end));
@@ -503,8 +506,7 @@ export function SelectionToolbar({
           setSelection(null);
         }}
       >
-        AI&apos;a sor
-      </button>
+        {t("AI'a sor")}</button>
       {feedback ? <span className="px-1 text-[11px] text-red-600 dark:text-red-400">{feedback}</span> : null}
     </div>
   );
@@ -530,6 +532,7 @@ export function HighlightPopover({
   onOpenNote: (id: number) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState(annotation.note);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -581,7 +584,7 @@ export function HighlightPopover({
     <div
       ref={ref}
       role="dialog"
-      aria-label="Vurgu detayı"
+      aria-label={t("Vurgu detayı")}
       className="no-print fixed z-50 w-64 rounded-lg border border-stone-300 bg-white p-2.5 shadow-xl dark:border-stone-700 dark:bg-stone-900"
       style={{
         left: Math.min(Math.max(position.x, 8), (typeof window !== "undefined" ? window.innerWidth : 800) - 272),
@@ -590,13 +593,13 @@ export function HighlightPopover({
     >
       <div className="flex items-center justify-between gap-1">
         <div className="flex items-center gap-1">
-          {colorDot("yellow", "Sarı")}
-          {colorDot("green", "Yeşil")}
-          {colorDot("lavender", "Lavanta")}
+          {colorDot("yellow", t("Sarı"))}
+          {colorDot("green", t("Yeşil"))}
+          {colorDot("lavender", t("Lavanta"))}
         </div>
         <button
           type="button"
-          aria-label="Vurguyu kaldır"
+          aria-label={t("Vurguyu kaldır")}
           className="flex h-7 w-7 items-center justify-center rounded text-stone-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40"
           onClick={() => {
             void onRemove(annotation.id);
@@ -618,9 +621,9 @@ export function HighlightPopover({
         onBlur={() => {
           if (draft !== annotation.note) void onUpdate(annotation.id, { note: draft });
         }}
-        placeholder="Not ekle…"
+        placeholder={t("Not ekle…")}
         rows={3}
-        aria-label="Vurgu notu"
+        aria-label={t("Vurgu notu")}
         className="mt-1.5 w-full resize-none rounded border border-stone-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500"
       />
       <div className="mt-1.5 flex items-center gap-1">
@@ -629,15 +632,13 @@ export function HighlightPopover({
           onClick={() => onAsk(annotation.quote)}
           className="min-h-[32px] flex-1 rounded-md border border-stone-300 px-2 text-[11px] text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
         >
-          AI&apos;a sor
-        </button>
+          {t("AI'a sor")}</button>
         <button
           type="button"
           onClick={() => onOpenNote(annotation.id)}
           className="min-h-[32px] flex-1 rounded-md border border-stone-300 px-2 text-[11px] text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
         >
-          Rafta aç
-        </button>
+          {t("Rafta aç")}</button>
       </div>
     </div>
   );
@@ -663,6 +664,7 @@ export function AnnotationList({
   /** Metinde gerçekten bulunabilen vurgular; diğerleri "bağlanamadı" gösterilir. */
   linkedIds: number[];
 }) {
+  const t = useT();
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const lastFocused = useRef<number | null>(null);
 
@@ -680,8 +682,7 @@ export function AnnotationList({
   if (annotations.length === 0) {
     return (
       <p className="text-xs text-stone-500 dark:text-stone-400">
-        Henüz vurgu yok — metinde bir bölüm seçip renk seçerek vurgu ekle.
-      </p>
+        {t("Henüz vurgu yok — metinde bir bölüm seçip renk seçerek vurgu ekle.")}</p>
     );
   }
   return (
@@ -697,7 +698,7 @@ export function AnnotationList({
                 onClick={() => onGoTo(annotation.id)}
                 disabled={!linked}
                 className="min-h-[24px] flex-1 truncate text-left italic text-stone-600 hover:underline disabled:cursor-default disabled:no-underline dark:text-stone-300"
-                title={linked ? "Vurguya git" : "Metinde karşılığı bulunamadı"}
+                title={linked ? t("Vurguya git") : t("Metinde karşılığı bulunamadı")}
               >
                 “{annotation.quote.slice(0, 80)}
                 {annotation.quote.length > 80 ? "…" : ""}”
@@ -705,8 +706,8 @@ export function AnnotationList({
               <button
                 type="button"
                 onClick={() => onAsk(annotation.quote)}
-                aria-label="Bu alıntıyı AI'a sor"
-                title="AI'a sor"
+                aria-label={t("Bu alıntıyı AI'a sor")}
+                title={t("AI'a sor")}
                 className="shrink-0 rounded px-1 text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100"
               >
                 ✦
@@ -714,7 +715,7 @@ export function AnnotationList({
               <button
                 type="button"
                 onClick={() => void onRemove(annotation.id)}
-                aria-label="Vurguyu kaldır"
+                aria-label={t("Vurguyu kaldır")}
                 className="shrink-0 text-stone-400 hover:text-red-500"
               >
                 ×
@@ -723,13 +724,11 @@ export function AnnotationList({
 
             {annotation.content_kind === "edited" ? (
               <p className="mt-1 text-[10px] text-sky-700 dark:text-sky-400">
-                Düzenlenmiş sürümde — o sekmenin önizlemesinde görünür
-              </p>
+                {t("Düzenlenmiş sürümde — o sekmenin önizlemesinde görünür")}</p>
             ) : null}
             {!linked && annotation.content_kind !== "edited" ? (
               <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-400">
-                Metinde karşılığı bulunamadı — alıntı ve notun saklı
-              </p>
+                {t("Metinde karşılığı bulunamadı — alıntı ve notun saklı")}</p>
             ) : null}
             <div className="mt-1.5 flex items-center gap-1.5">
               <textarea
@@ -740,9 +739,9 @@ export function AnnotationList({
                   if (draft !== annotation.note) void onUpdate(annotation.id, { note: draft });
                 }}
                 data-ann-id={annotation.id}
-                placeholder="Bu alıntıya not ekle…"
+                placeholder={t("Bu alıntıya not ekle…")}
                 rows={2}
-                aria-label="Alıntı notu"
+                aria-label={t("Alıntı notu")}
                 className="w-full resize-none rounded border border-stone-200 bg-white px-2 py-1 text-xs outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:focus:border-stone-500"
               />
             </div>

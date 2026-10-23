@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentListItem } from "@/lib/db/repo/documents";
 import { DocumentList, type OutputBadge } from "@/components/DocumentList";
@@ -54,6 +56,7 @@ export function HistoryView({
   title: string;
   basePath: string;
 }) {
+  const t = useT();
   const [filters, setFilters] = useState<HistoryViewFilters>(initialFilters);
   const [docs, setDocs] = useState<DocumentListItem[]>([]);
   const [outputsByDoc, setOutputsByDoc] = useState<Map<number, OutputBadge[]>>(new Map());
@@ -84,7 +87,7 @@ export function HistoryView({
           cache: "no-store",
           signal: controller.signal,
         });
-        if (!response.ok) throw new Error(`Sorgu başarısız (HTTP ${response.status})`);
+        if (!response.ok) throw new Error(t("Sorgu başarısız (HTTP {0})", response.status));
         const body = (await response.json()) as FetchResult;
         if (seq !== seqRef.current) return; // eski yanıt: yok say
         setOutputsByDoc(new Map(body.outputs));
@@ -93,7 +96,7 @@ export function HistoryView({
       } catch (fetchError) {
         if (fetchError instanceof DOMException && fetchError.name === "AbortError") return;
         if (seq === seqRef.current) {
-          setError(fetchError instanceof Error ? fetchError.message : "Sorgu başarısız");
+          setError(fetchError instanceof Error ? fetchError.message : t("Sorgu başarısız"));
         }
       } finally {
         if (seq === seqRef.current) setLoading(false);
@@ -171,24 +174,24 @@ export function HistoryView({
   type ChipKind = "q" | "domain" | "tag" | "agent" | "folder-none" | "folder" | "notlu" | "duzenlenmis" | "favorite" | "durum";
   const activeChips: Array<{ kind: ChipKind; label: string }> = useMemo(() => {
     const chips: Array<{ kind: ChipKind; label: string }> = [];
-    if (filters.q) chips.push({ kind: "q", label: `Ara: ${filters.q}` });
+    if (filters.q) chips.push({ kind: "q", label: t("Ara: {0}", filters.q) });
     if (filters.domain) chips.push({ kind: "domain", label: `Domain: ${filters.domain}` });
-    if (filters.tag) chips.push({ kind: "tag", label: `Etiket: ${filters.tag}` });
+    if (filters.tag) chips.push({ kind: "tag", label: t("Etiket: {0}", filters.tag) });
     if (filters.agent) chips.push({ kind: "agent", label: `AI: ${filters.agent}` });
-    if (filters.folderId === "none") chips.push({ kind: "folder-none", label: "Klasörsüz" });
+    if (filters.folderId === "none") chips.push({ kind: "folder-none", label: t("Klasörsüz") });
     else if (typeof filters.folderId === "number") {
       const folder = facets.folders.find((candidate) => candidate.id === filters.folderId);
-      if (folder) chips.push({ kind: "folder", label: `Klasör: ${folder.name}` });
+      if (folder) chips.push({ kind: "folder", label: t("Klasör: {0}", folder.name) });
     }
-    if (filters.notlu) chips.push({ kind: "notlu", label: "Notlu" });
-    if (filters.duzenlenmis) chips.push({ kind: "duzenlenmis", label: "Düzenlenmiş" });
-    if (filters.favorite) chips.push({ kind: "favorite", label: "Favori" });
+    if (filters.notlu) chips.push({ kind: "notlu", label: t("Notlu") });
+    if (filters.duzenlenmis) chips.push({ kind: "duzenlenmis", label: t("Düzenlenmiş") });
+    if (filters.favorite) chips.push({ kind: "favorite", label: t("Favori") });
     if (filters.readState) {
-      const labels = { unread: "Okunacak", reading: "Okuyorum", done: "Bitti" } as const;
-      chips.push({ kind: "durum", label: labels[filters.readState] });
+      const labels = { unread: t("Okunacak"), reading: t("Okuyorum"), done: t("Bitti") } as const;
+      chips.push({ kind: "durum", label: t(labels[filters.readState]) });
     }
     return chips;
-  }, [filters, facets.folders]);
+  }, [filters, facets.folders, t]);
 
   const clearChip = useCallback(
     (kind: ChipKind) => {
@@ -227,33 +230,33 @@ export function HistoryView({
 
   const filterPanel = (
     <div className="flex flex-wrap items-center gap-2">
-      <select aria-label="Domain filtresi" value={filters.domain ?? ""} onChange={(event) => patchFilters({ domain: event.target.value || undefined })} className={selectClass}>
-        <option value="">Tüm domainler</option>
+      <select aria-label={t("Domain filtresi")} value={filters.domain ?? ""} onChange={(event) => patchFilters({ domain: event.target.value || undefined })} className={selectClass}>
+        <option value="">{t("Tüm domainler")}</option>
         {facets.domains.map((domain) => (
           <option key={domain} value={domain}>{domain}</option>
         ))}
       </select>
-      <select aria-label="Klasör filtresi" value={filters.folderId === "none" ? "none" : String(filters.folderId ?? "")} onChange={(event) => patchFilters({ folderId: event.target.value === "" ? undefined : event.target.value === "none" ? "none" : Number(event.target.value) })} className={selectClass}>
-        <option value="">Tüm klasörler</option>
-        <option value="none">Klasörsüz</option>
+      <select aria-label={t("Klasör filtresi")} value={filters.folderId === "none" ? "none" : String(filters.folderId ?? "")} onChange={(event) => patchFilters({ folderId: event.target.value === "" ? undefined : event.target.value === "none" ? "none" : Number(event.target.value) })} className={selectClass}>
+        <option value="">{t("Tüm klasörler")}</option>
+        <option value="none">{t("Klasörsüz")}</option>
         {facets.folders.map((folder) => (
           <option key={folder.id} value={String(folder.id)}>{folder.name} ({folder.document_count})</option>
         ))}
       </select>
-      <select aria-label="Etiket filtresi" value={filters.tag ?? ""} onChange={(event) => patchFilters({ tag: event.target.value || undefined })} className={selectClass}>
-        <option value="">Tüm etiketler</option>
+      <select aria-label={t("Etiket filtresi")} value={filters.tag ?? ""} onChange={(event) => patchFilters({ tag: event.target.value || undefined })} className={selectClass}>
+        <option value="">{t("Tüm etiketler")}</option>
         {facets.tags.map((tag) => (
           <option key={tag.id} value={tag.name}>{tag.name}</option>
         ))}
       </select>
       <select aria-label="AI filtresi" value={filters.agent ?? ""} onChange={(event) => patchFilters({ agent: event.target.value || undefined })} className={selectClass}>
-        <option value="">Tüm AI&apos;lar</option>
+        <option value="">{t("Tüm AI'lar")}</option>
         {facets.agents.map((agent) => (
           <option key={agent} value={agent}>{agent}</option>
         ))}
       </select>
       <select
-        aria-label="Okuma durumu filtresi"
+        aria-label={t("Okuma durumu filtresi")}
         value={filters.readState ?? ""}
         onChange={(event) =>
           patchFilters({
@@ -262,23 +265,20 @@ export function HistoryView({
         }
         className={selectClass}
       >
-        <option value="">Tüm durumlar</option>
-        <option value="unread">Okunacak</option>
-        <option value="reading">Okuyorum</option>
-        <option value="done">Bitti</option>
+        <option value="">{t("Tüm durumlar")}</option>
+        <option value="unread">{t("Okunacak")}</option>
+        <option value="reading">{t("Okuyorum")}</option>
+        <option value="done">{t("Bitti")}</option>
       </select>
       <label className="flex min-h-[40px] items-center gap-1.5 text-xs text-stone-600 dark:text-stone-400">
         <input type="checkbox" checked={Boolean(filters.notlu)} onChange={(event) => patchFilters({ notlu: event.target.checked })} className="accent-stone-700" />
-        Notlu
-      </label>
+        {t("Notlu")}</label>
       <label className="flex min-h-[40px] items-center gap-1.5 text-xs text-stone-600 dark:text-stone-400">
         <input type="checkbox" checked={Boolean(filters.duzenlenmis)} onChange={(event) => patchFilters({ duzenlenmis: event.target.checked })} className="accent-stone-700" />
-        Düzenlenmiş
-      </label>
+        {t("Düzenlenmiş")}</label>
       <label className="flex min-h-[40px] items-center gap-1.5 text-xs text-stone-600 dark:text-stone-400">
         <input type="checkbox" checked={Boolean(filters.favorite)} onChange={(event) => patchFilters({ favorite: event.target.checked })} className="accent-stone-700" />
-        Favori
-      </label>
+        {t("Favori")}</label>
     </div>
   );
 
@@ -293,7 +293,7 @@ export function HistoryView({
             aria-expanded={filtersOpen}
             className="min-h-[40px] rounded-md border border-stone-300 px-3 text-xs font-medium hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800 lg:hidden"
           >
-            Filtreler{activeCount > 0 ? ` (${activeCount})` : ""}
+            {t("Filtreler")}{activeCount > 0 ? ` (${activeCount})` : ""}
           </button>
         </div>
 
@@ -307,7 +307,7 @@ export function HistoryView({
               applyFilters({ ...filters, q: textDraft.trim() || undefined });
             }
           }}
-          placeholder="Belge, düzenlenmiş metin, not ve AI çıktılarında ara…"
+          placeholder={t("Belge, düzenlenmiş metin, not ve AI çıktılarında ara…")}
           aria-label="Arama"
           className="w-full rounded-md border border-stone-300 bg-white px-3 py-2.5 text-sm outline-none placeholder:text-stone-500 focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:placeholder:text-stone-400 dark:focus:border-stone-500"
         />
@@ -331,13 +331,12 @@ export function HistoryView({
               onClick={clearAll}
               className="min-h-[32px] px-2 text-xs text-stone-500 underline underline-offset-2 dark:text-stone-400"
             >
-              Tümünü temizle
-            </button>
+              {t("Tümünü temizle")}</button>
           </div>
         ) : null}
 
         <div className="flex items-center gap-3 px-1 text-xs text-stone-500 dark:text-stone-400">
-          <span>{loading ? "Yükleniyor…" : `${docs.length} doküman`}</span>
+          <span>{loading ? t("Yükleniyor…") : t("{0} doküman", docs.length)}</span>
           {error ? (
             <span role="alert" className="text-red-600 dark:text-red-400">{error}</span>
           ) : null}
@@ -355,7 +354,7 @@ export function HistoryView({
             outputsByDoc={outputsByDoc}
             emptyMessage={
               activeCount > 0
-                ? "Bu filtrelerle eşleşen doküman yok — filtreleri temizleyip tekrar dene."
+                ? t("Bu filtrelerle eşleşen doküman yok — filtreleri temizleyip tekrar dene.")
                 : undefined
             }
           />
@@ -368,8 +367,7 @@ export function HistoryView({
           onClick={() => runFetch(filters, docs.length)}
           className="no-print mx-auto min-h-[40px] rounded-md border border-stone-300 px-4 py-2 text-sm text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
         >
-          Daha fazla yükle
-        </button>
+          {t("Daha fazla yükle")}</button>
       ) : null}
     </div>
   );

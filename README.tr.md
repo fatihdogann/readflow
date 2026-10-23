@@ -6,7 +6,7 @@ Local-first, AI destekli kişisel okuma ve metin işleme alanı. Chatbot değil;
 
 [![CI](https://github.com/fatihdogann/readflow/actions/workflows/ci.yml/badge.svg)](https://github.com/fatihdogann/readflow/actions/workflows/ci.yml) · MIT · [Tanıtım sayfası](https://readflow.mehmetfatihdogan.com.tr)
 
-![Readflow belge görünümü: okuma durumu, Metni işle paneli ve özet sekmesi](showcase/assets/doc-light.jpg)
+![Readflow belge görünümü: okuma durumu, orijinal metin ve vurgular](showcase/assets/doc-light.jpg)
 
 | Ana ekran | Vurgular |
 |---|---|
@@ -23,6 +23,9 @@ Tarayıcı ──▶ Web uygulaması (localhost:3000)
 ```
 
 ## Readflow nedir?
+
+Arayüz Türkçe ve İngilizce kullanılabilir; dil seçimi yan menüde veya mobil menüdedir.
+Açık ve koyu tema desteklenir. Dil değişimi arşivdeki belge ve not metinlerini değiştirmez.
 
 - Bir **URL yapıştırırsın**: sayfa sunucu tarafında indirilir, Mozilla Readability ile ana makaleye ayrıştırılır (navigation, reklam, cookie banner gürültüsü atılır, HTML sanitize edilir). Site bot koruması verirse Wayback Machine kopyası denenir.
 - Bir **metin yapıştırırsın**: doğrudan arşive kaydedilir.

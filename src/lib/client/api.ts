@@ -1,4 +1,5 @@
 "use client";
+import { parseLocale, translator } from "@/lib/i18n";
 
 export interface ApiError extends Error {
   status: number;
@@ -11,6 +12,7 @@ export async function mutateJson<T>(
   method: "POST" | "PATCH" | "PUT" | "DELETE",
   body?: unknown,
 ): Promise<T> {
+  const t = translator(parseLocale(typeof document === "undefined" ? "tr" : document.documentElement.lang));
   let response: Response;
   try {
     response = await fetch(url, {
@@ -19,7 +21,7 @@ export async function mutateJson<T>(
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    const wrapped = new Error("Sunucuya ulaşılamadı — taslağın korundu") as ApiError;
+    const wrapped = new Error(t("Sunucuya ulaşılamadı — taslağın korundu")) as ApiError;
     wrapped.status = 0;
     wrapped.body = null;
     throw wrapped;
@@ -31,7 +33,7 @@ export async function mutateJson<T>(
       parsed && typeof parsed === "object" && "error" in parsed
         ? String((parsed as { error: unknown }).error)
         : `İstek başarısız (HTTP ${response.status})`;
-    const wrapped = new Error(message) as ApiError;
+    const wrapped = new Error(t(message)) as ApiError;
     wrapped.status = response.status;
     wrapped.body = parsed;
     throw wrapped;

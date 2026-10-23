@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useEffect, useRef, useState } from "react";
 
 const STORAGE_PREFIX = "readflow:pos:";
@@ -23,6 +25,7 @@ export function ReadingProgress({
   /** İlk anlamlı ilerlemede bir kez çağrılır ("okunacak" → "okuyorum"). */
   onStarted?: () => void;
 }) {
+  const t = useT();
   const [ratio, setRatio] = useState(0);
   const [resumeTo, setResumeTo] = useState<number | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,7 +94,7 @@ export function ReadingProgress({
       <div
         className="no-print fixed inset-x-0 top-0 z-30 h-0.5 bg-transparent"
         role="progressbar"
-        aria-label="Okuma ilerlemesi"
+        aria-label={t("Okuma ilerlemesi")}
         aria-valuenow={Math.round(ratio * 100)}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -104,7 +107,7 @@ export function ReadingProgress({
 
       {resumeTo !== null ? (
         <div className="no-print flex items-center gap-2 rounded-lg border border-stone-200 bg-white/70 px-3 py-2 text-xs dark:border-stone-800 dark:bg-stone-900/40">
-          <span className="text-stone-600 dark:text-stone-400">Bu yazıyı yarım bırakmıştın.</span>
+          <span className="text-stone-600 dark:text-stone-400">{t("Bu yazıyı yarım bırakmıştın.")}</span>
           <button
             type="button"
             onClick={() => {
@@ -113,15 +116,13 @@ export function ReadingProgress({
             }}
             className="min-h-[32px] rounded-md bg-stone-900 px-2.5 font-medium text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
           >
-            Kaldığın yere dön
-          </button>
+            {t("Kaldığın yere dön")}</button>
           <button
             type="button"
             onClick={() => setResumeTo(null)}
             className="ml-auto min-h-[32px] rounded px-2 text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
           >
-            Baştan oku
-          </button>
+            {t("Baştan oku")}</button>
         </div>
       ) : null}
     </>

@@ -1,11 +1,14 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { ThemeToggle } from "./ThemeToggle";
+import { LanguageSelect } from "./LanguageSelect";
 import { NAV_ITEMS } from "./nav-items";
 import { AddDocumentIcon, CloseIcon, FolderIcon, HeartIcon, HighlightIcon, HistoryIcon, MenuIcon, NoteIcon, PlusIcon, SettingsIcon } from "./Icons";
 import { FOLDERS_CHANGED_EVENT, notifyFoldersChanged } from "@/lib/client/events";
@@ -18,6 +21,7 @@ interface FolderItem {
 }
 
 function useFolders() {
+  const t = useT();
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [newFolder, setNewFolder] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -57,14 +61,14 @@ function useFolders() {
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "Klasör oluşturulamadı");
+        setError(t(body?.error ?? "Klasör oluşturulamadı"));
         return false;
       }
       setNewFolder("");
       notifyFoldersChanged();
       return true;
     } catch {
-      setError("Sunucuya ulaşılamadı");
+      setError(t("Sunucuya ulaşılamadı"));
       return false;
     }
   }
@@ -82,6 +86,7 @@ function useFolders() {
 }
 
 function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
+  const t = useT();
   const pathname = usePathname();
   const icons = {
     "/": AddDocumentIcon,
@@ -92,7 +97,7 @@ function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
     "/settings": SettingsIcon,
   } as const;
   return (
-    <nav aria-label="Ana gezinme" className="flex flex-col gap-1">
+    <nav aria-label={t("Ana gezinme")} className="flex flex-col gap-1">
       {NAV_ITEMS.map((item) => {
         const active = pathname === item.href;
         const NavIcon = icons[item.href as keyof typeof icons];
@@ -109,7 +114,7 @@ function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
             }`}
           >
             {NavIcon ? <NavIcon size={17} /> : null}
-            {item.label}
+            {t(item.label)}
           </Link>
         );
       })}
@@ -118,11 +123,11 @@ function NavLinkList({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared: ReturnType<typeof useFolders> }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-1 overflow-y-auto">
       <div className="mb-1 px-3 text-[11px] font-medium uppercase tracking-[0.12em] text-stone-500 dark:text-stone-400">
-        Klasörler
-      </div>
+        {t("Klasörler")}</div>
       {shared.folders.map((folder) => (
         <div
           key={folder.id}
@@ -137,10 +142,10 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
           </span>
           <button
             type="button"
-            title="Klasörü sil"
-            aria-label={`${folder.name} klasörünü sil`}
+            title={t("Klasörü sil")}
+            aria-label={t("{0} klasörünü sil", folder.name)}
             onClick={() => {
-              if (window.confirm(`"${folder.name}" klasörü silinsin mi? İçindeki belge ve notlar klasörsüz kalır.`)) {
+              if (window.confirm(t("\"{0}\" klasörü silinsin mi? İçindeki belge ve notlar klasörsüz kalır.", folder.name))) {
                 void shared.deleteFolder(folder.id);
               }
             }}
@@ -160,14 +165,14 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
         <input
           value={shared.newFolder}
           onChange={(event) => shared.setNewFolder(event.target.value)}
-          placeholder="yeni klasör…"
-          aria-label="Yeni klasör adı"
+          placeholder={t("yeni klasör…")}
+          aria-label={t("Yeni klasör adı")}
           className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-1.5 text-xs outline-none placeholder:text-stone-500 focus:border-stone-300 focus:bg-white dark:placeholder:text-stone-500 dark:focus:border-stone-700 dark:focus:bg-stone-900"
         />
         <button
           type="submit"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 hover:text-stone-800 dark:hover:bg-stone-800 dark:hover:text-stone-200"
-          title="Klasör oluştur"
+          title={t("Klasör oluştur")}
         >
           <PlusIcon size={16} />
         </button>
@@ -178,6 +183,7 @@ function FolderSection({ onNavigate, shared }: { onNavigate?: () => void; shared
 }
 
 export function Sidebar() {
+  const t = useT();
   const shared = useFolders();
   return (
     <aside className="no-print sticky top-0 hidden h-dvh w-52 shrink-0 flex-col overflow-y-auto border-r border-stone-200 bg-stone-100/35 px-3 py-5 dark:border-stone-800 dark:bg-stone-950/15 md:flex lg:w-60">
@@ -185,7 +191,7 @@ export function Sidebar() {
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-900 font-serif text-sm font-semibold text-white shadow-[0_6px_18px_rgba(28,25,23,0.18)] dark:bg-stone-100 dark:text-stone-900 dark:shadow-none">R</span>
         <span>
           <span className="block text-lg font-semibold tracking-[-0.025em]">Readflow</span>
-          <span className="block text-[11px] text-stone-500 dark:text-stone-400">oku · düzenle · arşivle</span>
+          <span className="block text-[11px] text-stone-500 dark:text-stone-400">{t("oku · düzenle · arşivle")}</span>
         </span>
       </Link>
       <NavLinkList />
@@ -195,6 +201,7 @@ export function Sidebar() {
       <div className="mt-auto flex flex-col gap-0.5 border-t border-stone-200 pt-3 dark:border-stone-800">
         <AgentStatusBadge />
         <ThemeToggle />
+        <LanguageSelect />
         <LogoutButton />
       </div>
     </aside>
@@ -202,6 +209,7 @@ export function Sidebar() {
 }
 
 function LogoutButton() {
+  const t = useT();
   const [enabled, setEnabled] = useState(false);
   const router = useRouter();
   useEffect(() => {
@@ -228,13 +236,13 @@ function LogoutButton() {
       }}
       className="flex min-h-[40px] items-center gap-2 rounded-md px-2 text-left text-xs text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60"
     >
-      Çıkış yap
-    </button>
+      {t("Çıkış yap")}</button>
   );
 }
 
 /** Dar ekranlar için üst header + çekmece menü. */
 export function MobileNav() {
+  const t = useT();
   const pathname = usePathname();
   const shared = useFolders();
   const [open, setOpen] = useState(false);
@@ -289,12 +297,12 @@ export function MobileNav() {
         <AgentStatusBadge />
       </div>
     </header>
-    <nav aria-label="Hızlı gezinme" className="mobile-bottom-nav no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-[#faf9f7] px-2 pt-1 dark:border-stone-800 dark:bg-[#171512] md:hidden">
+    <nav aria-label={t("Hızlı gezinme")} className="mobile-bottom-nav no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-[#faf9f7] px-2 pt-1 dark:border-stone-800 dark:bg-[#171512] md:hidden">
       {[
-        { href: "/", label: "Yeni ekle", icon: AddDocumentIcon },
-        { href: "/history", label: "Arşiv", icon: HistoryIcon },
-        { href: "/notes", label: "Notlar", icon: NoteIcon },
-        { href: "/favorites", label: "Favoriler", icon: HeartIcon },
+        { href: "/", label: t("Yeni ekle"), icon: AddDocumentIcon },
+        { href: "/history", label: t("Arşiv"), icon: HistoryIcon },
+        { href: "/notes", label: t("Notlar"), icon: NoteIcon },
+        { href: "/favorites", label: t("Favoriler"), icon: HeartIcon },
       ].map(({ href, label, icon: Icon }) => {
         const active = pathname === href || (href === "/history" && pathname.startsWith("/doc/"));
         return (
@@ -309,19 +317,18 @@ export function MobileNav() {
           type="button"
           onClick={() => setOpen(true)}
           aria-expanded={open}
-          aria-label="Menüyü aç"
+          aria-label={t("Menüyü aç")}
           className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[11px] hover:bg-stone-200/60 dark:hover:bg-stone-800/60 ${pathname === "/settings" || pathname === "/highlights" ? "bg-stone-200/70 font-semibold dark:bg-stone-800" : "text-stone-600 dark:text-stone-400"}`}
         >
           <MenuIcon size={20} />
-          Menü
-        </button>
+          {t("Menü")}</button>
     </nav>
       {open && typeof document !== "undefined"
         ? createPortal(
-            <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="Gezinme menüsü">
+            <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label={t("Gezinme menüsü")}>
               <button
                 type="button"
-                aria-label="Menüyü kapat"
+                aria-label={t("Menüyü kapat")}
                 className="absolute inset-0 bg-black/30"
                 onClick={() => setOpen(false)}
               />
@@ -330,11 +337,11 @@ export function MobileNav() {
                 className="relative z-10 ml-auto flex h-dvh w-80 max-w-full flex-col gap-4 overflow-y-auto overscroll-contain border-l border-stone-200 bg-[#faf9f7] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-stone-800 dark:bg-[#171512]"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">Menü</span>
+                  <span className="text-sm font-semibold">{t("Menü")}</span>
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    aria-label="Menüyü kapat"
+                    aria-label={t("Menüyü kapat")}
                     className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-stone-200/60 dark:hover:bg-stone-800/60"
                   >
                     <CloseIcon size={20} />
@@ -344,6 +351,7 @@ export function MobileNav() {
                 <FolderSection shared={shared} onNavigate={() => setOpen(false)} />
                 <div className="mt-auto flex flex-col gap-0.5 border-t border-stone-200 pt-3 dark:border-stone-800">
                   <ThemeToggle />
+                  <LanguageSelect />
                   <LogoutButton />
                 </div>
               </div>

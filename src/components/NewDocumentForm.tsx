@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useRouter } from "next/navigation";
 import { FileTextIcon, LinkIcon } from "./Icons";
 import { useMemo, useRef, useState } from "react";
@@ -8,6 +10,7 @@ import { looksLikeUrl } from "@/lib/types";
 const ACCEPTED = ".pdf,.docx,.md,.markdown,.txt,.csv";
 
 export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }) {
+  const t = useT();
   const router = useRouter();
   const [value, setValue] = useState(initialValue);
   const [busy, setBusy] = useState(false);
@@ -23,7 +26,7 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
 
   async function open(response: Response): Promise<void> {
     const body = (await response.json()) as { id?: number; error?: string };
-    if (!response.ok || !body.id) throw new Error(body.error ?? "İçerik kaydedilemedi");
+    if (!response.ok || !body.id) throw new Error(t(body.error ?? "İçerik kaydedilemedi"));
     router.push(`/doc/${body.id}`);
   }
 
@@ -42,14 +45,14 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "İçerik kaydedilemedi");
+        setError(t(body?.error ?? "İçerik kaydedilemedi"));
         // Site bizi engellediyse kullanıcı sayfayı kendi tarayıcısından getirebilir.
         if (isUrl) setPasteFor(trimmed);
         return;
       }
       await open(response);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Sunucuya ulaşılamadı");
+      setError(submitError instanceof Error ? submitError.message : t("Sunucuya ulaşılamadı"));
     } finally {
       setBusy(false);
     }
@@ -69,7 +72,7 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
         }),
       );
     } catch (htmlError) {
-      setError(htmlError instanceof Error ? htmlError.message : "Sayfa kaynağı işlenemedi");
+      setError(htmlError instanceof Error ? htmlError.message : t("Sayfa kaynağı işlenemedi"));
     } finally {
       setBusy(false);
     }
@@ -103,7 +106,7 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
       if (failed.length) setError(`Eklenemeyen: ${failed.join(", ")}`);
       router.refresh();
     } catch (fileError) {
-      setError(fileError instanceof Error ? fileError.message : "Dosya işlenemedi");
+      setError(fileError instanceof Error ? fileError.message : t("Dosya işlenemedi"));
     } finally {
       setBusy(false);
     }
@@ -129,10 +132,10 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
       }`}
     >
       <textarea
-        aria-label="Bağlantı veya metin"
+        aria-label={t("Bağlantı veya metin")}
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        placeholder="Bağlantı ekle, metin yapıştır veya dosya bırak…"
+        placeholder={t("Bağlantı ekle, metin yapıştır veya dosya bırak…")}
         rows={3}
         className="w-full resize-y rounded-lg border-0 bg-transparent px-2 py-2 text-base leading-relaxed placeholder:text-stone-500 focus-visible:outline-stone-400 dark:placeholder:text-stone-400"
       />
@@ -142,7 +145,7 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
           disabled={!value.trim() || busy}
           className="min-h-11 rounded-lg bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
         >
-          {busy ? "Alınıyor…" : "Kaydet"}
+          {busy ? t("Alınıyor…") : t("Kaydet")}
         </button>
         <button
           type="button"
@@ -150,15 +153,14 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
           disabled={busy}
           className="min-h-11 rounded-lg border border-stone-300 px-3 py-2.5 text-sm text-stone-700 hover:bg-stone-100 disabled:opacity-40 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
         >
-          Dosya seç
-        </button>
+          {t("Dosya seç")}</button>
         <input
           ref={fileInput}
           type="file"
           accept={ACCEPTED}
           multiple
           className="sr-only"
-          aria-label="PDF, Word veya metin dosyaları"
+          aria-label={t("PDF, Word veya metin dosyaları")}
           onChange={(event) => {
             const files = Array.from(event.target.files ?? []);
             event.target.value = "";
@@ -169,13 +171,12 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
           <span className="text-xs text-stone-500">
             <span className="inline-flex items-center gap-1.5">
               {isUrl ? <LinkIcon size={14} /> : <FileTextIcon size={14} />}
-              {isUrl ? "Bağlantı olarak kaydedilecek" : "Metin olarak kaydedilecek"}
+              {isUrl ? t("Bağlantı olarak kaydedilecek") : t("Metin olarak kaydedilecek")}
             </span>
           </span>
         ) : (
           <span className="text-xs text-stone-500 dark:text-stone-400">
-            PDF, Word veya metin dosyası
-          </span>
+            {t("PDF, Word veya metin dosyası")}</span>
         )}
       </div>
 
@@ -189,15 +190,13 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
       {pasteFor ? (
         <div className="flex flex-col gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-900/50">
           <p className="text-xs text-stone-600 dark:text-stone-400">
-            Sayfayı tarayıcında aç, <strong>sağ tık → Sayfa kaynağını görüntüle</strong> (veya ⌘/Ctrl+U),
-            tümünü kopyalayıp buraya yapıştır. Oturum ve bot koruması senin tarayıcında zaten çözülü.
-          </p>
+            {t("Sayfayı tarayıcında aç,")}{" "}<strong>{t("sağ tık → Sayfa kaynağını görüntüle")}</strong> {" "}{t("(veya ⌘/Ctrl+U), tümünü kopyalayıp buraya yapıştır. Oturum ve bot koruması senin tarayıcında zaten çözülü.")}</p>
           <textarea
             value={pastedHtml}
             onChange={(event) => setPastedHtml(event.target.value)}
             rows={4}
             placeholder="<!doctype html>…"
-            aria-label="Sayfa kaynağı (HTML)"
+            aria-label={t("Sayfa kaynağı (HTML)")}
             className="w-full resize-y rounded-lg border border-stone-300 bg-white px-2.5 py-2 font-mono text-[11px] outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-950/40"
           />
           <div className="flex items-center gap-2">
@@ -207,8 +206,7 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
               disabled={!pastedHtml.trim() || busy}
               className="min-h-[36px] rounded-lg bg-stone-900 px-3 text-xs font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900"
             >
-              Kaynaktan ekle
-            </button>
+              {t("Kaynaktan ekle")}</button>
             <button
               type="button"
               onClick={() => {
@@ -217,8 +215,7 @@ export function NewDocumentForm({ initialValue = "" }: { initialValue?: string }
               }}
               className="min-h-[36px] rounded-lg px-3 text-xs text-stone-600 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800"
             >
-              Vazgeç
-            </button>
+              {t("Vazgeç")}</button>
           </div>
         </div>
       ) : null}

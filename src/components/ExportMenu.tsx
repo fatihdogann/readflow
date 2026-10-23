@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useState } from "react";
 import { buildMarkdown, buildTxt, slugify } from "@/lib/export/format";
 import type { DocumentRow } from "@/lib/db/repo/documents";
@@ -34,6 +36,7 @@ export function ExportMenu({
   revisionId?: number;
   onMessage: (message: string) => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
 
   const payload = output
@@ -58,18 +61,18 @@ export function ExportMenu({
       if (target === "pdf" || target === "docx") {
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
-          onMessage(body?.error ?? body?.message ?? (target === "pdf" ? "PDF oluşturulamadı" : "DOCX üretilemedi"));
+          onMessage(body?.error ?? body?.message ?? (target === "pdf" ? t("PDF oluşturulamadı") : t("DOCX üretilemedi")));
           return;
         }
         const blob = await response.blob();
         downloadFile(`${base}.${target}`, blob, "application/octet-stream");
-        onMessage(`${variantLabel} ${target.toUpperCase()} indirildi.`);
+        onMessage(t("{0} {1} indirildi.", variantLabel, target.toUpperCase()));
         return;
       }
       const body = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
-      onMessage(body?.message ?? "İşlem tamamlanamadı");
+      onMessage(body?.message ?? t("İşlem tamamlanamadı"));
     } catch {
-      onMessage("Sunucuya ulaşılamadı");
+      onMessage(t("Sunucuya ulaşılamadı"));
     } finally {
       setBusy(null);
     }
@@ -81,7 +84,7 @@ export function ExportMenu({
   return (
     <details className="no-print relative">
       <summary className="cursor-pointer list-none rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800">
-        Dışa Aktar · {variantLabel}
+        {t("Dışa Aktar ·")}{" "}{variantLabel}
       </summary>
       <div className="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-900">
         <button
@@ -90,41 +93,38 @@ export function ExportMenu({
           onClick={() => {
             void navigator.clipboard
               .writeText(content)
-              .then(() => onMessage("Panoya kopyalandı."))
-              .catch(() => onMessage("Kopyalanamadı"));
+              .then(() => onMessage(t("Panoya kopyalandı.")))
+              .catch(() => onMessage(t("Kopyalanamadı")));
           }}
         >
-          Panoya Kopyala
+          {t("Panoya Kopyala")}
         </button>
         <button
           type="button"
           className={itemClass}
           onClick={() => downloadFile(`${base}.txt`, buildTxt(payload, variantLabel), "text/plain")}
         >
-          TXT indir
-        </button>
+          {t("TXT indir")}</button>
         <button
           type="button"
           className={itemClass}
           onClick={() => downloadFile(`${base}.md`, buildMarkdown(payload, variantLabel), "text/markdown")}
         >
-          Markdown indir
-        </button>
+          {t("Markdown indir")}</button>
         <button type="button" className={itemClass} onClick={() => window.print()}>
-          Yazdır…
-        </button>
+          {t("Yazdır…")}</button>
         <button type="button" className={itemClass} disabled={busy !== null} onClick={() => void postTarget("pdf")}>
-          {busy === "pdf" ? "PDF hazırlanıyor…" : "PDF indir"}
+          {busy === "pdf" ? t("PDF hazırlanıyor…") : t("PDF indir")}
         </button>
         <button type="button" className={itemClass} disabled={busy !== null} onClick={() => void postTarget("docx")}>
-          {busy === "docx" ? "DOCX üretiliyor…" : "DOCX indir"}
+          {busy === "docx" ? t("DOCX üretiliyor…") : t("DOCX indir")}
         </button>
         <div className="my-1 border-t border-stone-200 dark:border-stone-700" />
         <button type="button" className={itemClass} disabled={busy !== null} onClick={() => void postTarget("notion")}>
-          {busy === "notion" ? "Gönderiliyor…" : "Notion'a gönder"}
+          {busy === "notion" ? t("Gönderiliyor…") : t("Notion'a gönder")}
         </button>
         <button type="button" className={itemClass} disabled={busy !== null} onClick={() => void postTarget("telegram")}>
-          {busy === "telegram" ? "Gönderiliyor…" : "Telegram'a gönder"}
+          {busy === "telegram" ? t("Gönderiliyor…") : t("Telegram'a gönder")}
         </button>
       </div>
     </details>

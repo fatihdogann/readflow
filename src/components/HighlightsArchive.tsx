@@ -1,5 +1,8 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+import { translator } from "@/lib/i18n";
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AnnotationWithDocument, AnnotationColor } from "@/lib/db/repo/annotations";
@@ -13,14 +16,14 @@ const COLORS: Array<{ value: AnnotationColor; label: string }> = [
 const SEARCH_DEBOUNCE_MS = 300;
 
 /** Vurguları belge başlığına göre gruplar; sıra en yeni vurguya göre korunur. */
-function groupByDocument(rows: AnnotationWithDocument[]) {
+function groupByDocument(rows: AnnotationWithDocument[], t = translator("tr")) {
   const groups = new Map<number, { title: string; url: string | null; items: AnnotationWithDocument[] }>();
   for (const row of rows) {
     const existing = groups.get(row.document_id);
     if (existing) existing.items.push(row);
     else
       groups.set(row.document_id, {
-        title: row.document_title || "Adsız",
+        title: row.document_title || t("Adsız"),
         url: row.document_source_url,
         items: [row],
       });
@@ -29,9 +32,9 @@ function groupByDocument(rows: AnnotationWithDocument[]) {
 }
 
 /** Vurguları dışa aktarılabilir Markdown'a çevirir. */
-export function toMarkdown(rows: AnnotationWithDocument[]): string {
-  const lines: string[] = ["# Vurgularım", ""];
-  for (const [, group] of groupByDocument(rows)) {
+export function toMarkdown(rows: AnnotationWithDocument[], t = translator("tr")): string {
+  const lines: string[] = [t("# Vurgularım"), ""];
+  for (const [, group] of groupByDocument(rows, t)) {
     lines.push(`## ${group.title}`);
     if (group.url) lines.push(`<${group.url}>`);
     lines.push("");
@@ -45,6 +48,7 @@ export function toMarkdown(rows: AnnotationWithDocument[]): string {
 }
 
 export function HighlightsArchive() {
+  const t = useT();
   const [rows, setRows] = useState<AnnotationWithDocument[]>([]);
   const [query, setQuery] = useState("");
   const [color, setColor] = useState<AnnotationColor | "">("");
@@ -70,26 +74,26 @@ export function HighlightsArchive() {
       setRows(body.annotations);
       setError(null);
     } catch {
-      if (id === requestId.current) setError("Vurgular yüklenemedi");
+      if (id === requestId.current) setError(t("Vurgular yüklenemedi"));
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const timer = setTimeout(() => void load(query, color, withNote), query ? SEARCH_DEBOUNCE_MS : 0);
     return () => clearTimeout(timer);
   }, [query, color, withNote, load]);
 
-  const groups = useMemo(() => groupByDocument(rows), [rows]);
+  const groups = useMemo(() => groupByDocument(rows, t), [rows, t]);
 
   async function copyMarkdown(): Promise<void> {
     try {
-      await navigator.clipboard.writeText(toMarkdown(rows));
+      await navigator.clipboard.writeText(toMarkdown(rows, t));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Panoya kopyalanamadı");
+      setError(t("Panoya kopyalanamadı"));
     }
   }
 
@@ -99,20 +103,20 @@ export function HighlightsArchive() {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Alıntı veya notta ara…"
-          aria-label="Vurgularda ara"
+          placeholder={t("Alıntı veya notta ara…")}
+          aria-label={t("Vurgularda ara")}
           className="min-h-[40px] min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-3 text-sm outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-900"
         />
         <select
           value={color}
           onChange={(event) => setColor(event.target.value as AnnotationColor | "")}
-          aria-label="Renk filtresi"
+          aria-label={t("Renk filtresi")}
           className="min-h-[40px] rounded-lg border border-stone-300 bg-white px-2 text-sm dark:border-stone-700 dark:bg-stone-900"
         >
-          <option value="">Tüm renkler</option>
+          <option value="">{t("Tüm renkler")}</option>
           {COLORS.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {t(option.label)}
             </option>
           ))}
         </select>
@@ -123,20 +127,19 @@ export function HighlightsArchive() {
             onChange={(event) => setWithNote(event.target.checked)}
             className="accent-stone-700"
           />
-          Notlu
-        </label>
+          {t("Notlu")}</label>
         <button
           type="button"
           onClick={() => void copyMarkdown()}
           disabled={rows.length === 0}
           className="min-h-[40px] rounded-lg border border-stone-300 px-3 text-xs hover:bg-stone-100 disabled:opacity-40 dark:border-stone-700 dark:hover:bg-stone-800"
         >
-          {copied ? "Kopyalandı ✓" : "Markdown kopyala"}
+          {copied ? t("Kopyalandı ✓") : t("Markdown kopyala")}
         </button>
       </div>
 
       <p className="text-xs text-stone-500 dark:text-stone-400" aria-live="polite">
-        {loading ? "Yükleniyor…" : `${rows.length} vurgu · ${groups.length} belge`}
+        {loading ? t("Yükleniyor…") : `${rows.length} vurgu · ${groups.length} belge`}
       </p>
 
       {error ? (
@@ -148,8 +151,8 @@ export function HighlightsArchive() {
       {!loading && rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-stone-300 px-6 py-10 text-center text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
           {query || color || withNote
-            ? "Bu filtrelerle vurgu yok."
-            : "Henüz vurgu yok — bir belgede metin seçip renk seçerek başla."}
+            ? t("Bu filtrelerle vurgu yok.")
+            : t("Henüz vurgu yok — bir belgede metin seçip renk seçerek başla.")}
         </div>
       ) : null}
 
@@ -164,8 +167,7 @@ export function HighlightsArchive() {
                 {group.title}
               </Link>
               <span className="text-[11px] text-stone-500 dark:text-stone-400">
-                {group.items.length} vurgu
-              </span>
+                {group.items.length} {" "}{t("vurgu")}</span>
             </div>
             <ul className="flex flex-col gap-2">
               {group.items.map((item) => (

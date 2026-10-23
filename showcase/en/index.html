@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Readflow — Read-it-later App for Articles & PDFs</title>
 <meta name="description" content="Archive articles and PDFs, keep a read-it-later reading list, highlight and summarize with your own agent. Local-first: your data stays with you.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)">
@@ -33,12 +33,14 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css?v=20261012b">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/en/", "description": "A local-first read-it-later app for articles and PDFs: archives them with a reading list and highlights, and summarizes with your own coding-agent CLI.", "inLanguage": "en", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "@id": "https://mehmetfatihdogan.com.tr/#person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og-en.png?v=2"}</script>
+<script src="/theme.js"></script>
 </head>
 <body><a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header class="top">
     <a class="brand" href="/en/"><img src="/favicon.svg" alt="" width="32" height="32">Readflow</a>
     <nav class="top" aria-label="Page">
+      <button type="button" class="theme-toggle" data-theme-toggle hidden></button>
       <a href="#features">Features</a>
       <a href="#architecture">Architecture</a>
 
@@ -54,8 +56,8 @@
 
       <figure class="shot">
         <picture>
-          <source srcset="/assets/doc-dark-800.webp 800w, /assets/doc-dark-1600.webp 1600w, /assets/doc-dark.jpg 2560w" sizes="(max-width: 760px) calc(100vw - 36px), 600px" media="(prefers-color-scheme: dark)">
-          <img src="/assets/doc-light.jpg" srcset="/assets/doc-light-800.webp 800w, /assets/doc-light-1600.webp 1600w, /assets/doc-light.jpg 2560w" sizes="(max-width: 760px) calc(100vw - 36px), 600px" width="2560" height="1600" alt="Readflow document view: title, reading status, processing panel and a Normal-length summary tab" fetchpriority="high">
+          <source srcset="/assets/en/doc-dark-800.webp 800w, /assets/en/doc-dark-1600.webp 1600w, /assets/en/doc-dark.jpg 2560w" sizes="(max-width: 760px) calc(100vw - 36px), 600px" media="(prefers-color-scheme: dark)">
+          <img src="/assets/en/doc-light.jpg" srcset="/assets/en/doc-light-800.webp 800w, /assets/en/doc-light-1600.webp 1600w, /assets/en/doc-light.jpg 2560w" sizes="(max-width: 760px) calc(100vw - 36px), 600px" width="2560" height="1600" alt="Readflow document view: reading status, original text and highlights" fetchpriority="high">
         </picture>
       <figcaption>Reading, notes and summaries in one place. A view from a demo archive.</figcaption></figure>
     </div>
@@ -76,30 +78,30 @@
 
     <section aria-labelledby="screens" id="screens-section">
       <h2 id="screens">Screens</h2>
-      <p class="sub">Choose a screen to explore. Screenshots use demo data and follow your system’s light or dark theme.</p>
+      <p class="sub">Choose a screen to explore. Screenshots use demo data and match the selected language and theme.</p>
 
     <div class="gallery"><details class="screen" name="screens"><summary>Add content</summary><figure class="shot">
           <picture>
-            <source srcset="/assets/home-dark.jpg" media="(prefers-color-scheme: dark)">
-            <img src="/assets/home-light.jpg" width="2560" height="1600" loading="lazy" alt="Home screen: input for links or text and recently added documents">
+            <source srcset="/assets/en/home-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img src="/assets/en/home-light.jpg" width="2560" height="1600" loading="lazy" alt="Home screen: input for links or text and recently added documents">
           </picture>
           <figcaption>Home: paste a link, drop text or a file.</figcaption>
         </figure></details><details class="screen" name="screens"><summary>Highlights and notes</summary><figure class="shot">
           <picture>
-            <source srcset="/assets/highlights-dark.jpg" media="(prefers-color-scheme: dark)">
-            <img src="/assets/highlights-light.jpg" width="2560" height="1600" loading="lazy" alt="Highlights page: quotes and notes grouped by document">
+            <source srcset="/assets/en/highlights-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img src="/assets/en/highlights-light.jpg" width="2560" height="1600" loading="lazy" alt="Highlights page: quotes and notes grouped by document">
           </picture>
           <figcaption>Highlights: quotes and notes across all documents.</figcaption>
         </figure></details><details class="screen" name="screens"><summary>Settings and connections</summary><figure class="shot mt">
         <picture>
-          <source srcset="/assets/settings-dark.jpg" media="(prefers-color-scheme: dark)">
-          <img src="/assets/settings-light.jpg" width="2560" height="1600" loading="lazy" alt="Settings screen: send from browser, backup and migration, active AI profile">
+          <source srcset="/assets/en/settings-dark.jpg" media="(prefers-color-scheme: dark)">
+          <img src="/assets/en/settings-light.jpg" width="2560" height="1600" loading="lazy" alt="Settings screen: send from browser, backup and migration, active AI profile">
         </picture>
         <figcaption>Settings: bookmarklet and phone shortcut, backup download, the agent in use.</figcaption>
       </figure></details><details class="screen" name="screens"><summary>Read on your phone</summary><figure class="shot phone-shot">
           <picture>
-            <source srcset="/assets/mobile-doc-dark.jpg" media="(prefers-color-scheme: dark)">
-            <img src="/assets/mobile-doc-light.jpg" width="780" height="1688" loading="lazy" alt="Mobile document view">
+            <source srcset="/assets/en/mobile-doc-dark.jpg" media="(prefers-color-scheme: dark)">
+            <img src="/assets/en/mobile-doc-light.jpg" width="780" height="1688" loading="lazy" alt="Mobile document view">
           </picture>
         <figcaption>Access the same archive from approved devices over Tailscale.</figcaption></figure></details></div></section>
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import type { ReadState } from "@/lib/db/repo/documents";
 
 const OPTIONS: Array<{ value: ReadState; label: string; title: string }> = [
@@ -18,11 +20,12 @@ export function ReadStateControl({
   onChange: (next: ReadState) => void;
   size?: "sm" | "md";
 }) {
+  const t = useT();
   const height = size === "sm" ? "min-h-[28px] px-2 text-[11px]" : "min-h-[34px] px-2.5 text-xs";
   return (
     <div
       role="radiogroup"
-      aria-label="Okuma durumu"
+      aria-label={t("Okuma durumu")}
       className="flex overflow-hidden rounded-lg border border-stone-300 dark:border-stone-700"
     >
       {OPTIONS.map((option) => (
@@ -31,7 +34,7 @@ export function ReadStateControl({
           type="button"
           role="radio"
           aria-checked={value === option.value}
-          title={option.title}
+          title={t(option.title)}
           onClick={() => onChange(option.value)}
           className={`${height} ${
             value === option.value
@@ -39,7 +42,7 @@ export function ReadStateControl({
               : "text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
           }`}
         >
-          {option.label}
+          {t(option.label)}
         </button>
       ))}
     </div>

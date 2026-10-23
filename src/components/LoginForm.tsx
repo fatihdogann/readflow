@@ -1,9 +1,12 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LoginForm() {
+  const t = useT();
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -22,13 +25,13 @@ export function LoginForm() {
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "Giriş başarısız");
+        setError(t(body?.error ?? "Giriş başarısız"));
         return;
       }
       router.replace("/");
       router.refresh();
     } catch {
-      setError("Sunucuya ulaşılamadı");
+      setError(t("Sunucuya ulaşılamadı"));
     } finally {
       setBusy(false);
     }
@@ -37,8 +40,7 @@ export function LoginForm() {
   return (
     <form onSubmit={submit} className="flex w-full max-w-xs flex-col gap-3">
       <label className="flex flex-col gap-1 text-xs text-stone-600 dark:text-stone-400">
-        Kullanıcı adı
-        <input
+        {t("Kullanıcı adı")}<input
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           autoComplete="username"
@@ -48,8 +50,7 @@ export function LoginForm() {
         />
       </label>
       <label className="flex flex-col gap-1 text-xs text-stone-600 dark:text-stone-400">
-        Şifre
-        <input
+        {t("Şifre")}<input
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -68,7 +69,7 @@ export function LoginForm() {
         disabled={busy}
         className="min-h-[44px] rounded-md bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
       >
-        {busy ? "Giriş yapılıyor…" : "Giriş yap"}
+        {busy ? t("Giriş yapılıyor…") : t("Giriş yap")}
       </button>
     </form>
   );

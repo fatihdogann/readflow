@@ -13,13 +13,15 @@ editing/summarization through your own coding-agent CLI or an MCP agent.
 The public website presents the product. Install the application on your own
 computer to use your personal reading workspace.
 
-![Readflow document view: reading status, processing panel and summary](showcase/assets/doc-light.jpg)
+![Readflow document view: reading status, original text and highlights](showcase/assets/en/doc-light.jpg)
 
 | Archive | Highlights |
 | --- | --- |
-| ![Reading archive](showcase/assets/home-light.jpg) | ![Highlights and notes](showcase/assets/highlights-light.jpg) |
+| ![Reading archive](showcase/assets/en/home-light.jpg) | ![Highlights and notes](showcase/assets/en/highlights-light.jpg) |
 
 ## Features
+
+- **Language and appearance:** Turkish and English interface, with light and dark themes. Choose your language in the sidebar or mobile menu.
 
 - **Capture:** paste a URL/text, upload PDF, DOCX, Markdown or text, import folders and reading-app exports, or send a page through a bookmarklet.
 - **Clean reader:** Mozilla Readability extraction, sanitized HTML and optional local OCR for scanned PDFs.

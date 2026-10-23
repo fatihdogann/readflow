@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { mutateJson } from "@/lib/client/api";
 import type { DocumentEditInfo } from "@/lib/documents/service";
@@ -45,6 +47,7 @@ export function EditorPanel({
   onFocusNote,
   onAskWithQuote,
 }: EditorPanelProps) {
+  const t = useT();
   const [draft, setDraft] = useState(edit?.content ?? originalText);
   const [revision, setRevision] = useState<number | null>(edit?.revision ?? 0);
   const [dirty, setDirty] = useState(false);
@@ -126,8 +129,8 @@ export function EditorPanel({
       setConflict(null);
       setStatus(
         unchangedSinceRequest
-          ? `Kaydedildi · ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
-          : "Yeni değişiklikler kaydedilmeyi bekliyor…",
+          ? t("Kaydedildi · {0}", new Date().toLocaleTimeString(t("tr-TR"), { hour: "2-digit", minute: "2-digit" }))
+          : t("Yeni değişiklikler kaydedilmeyi bekliyor…"),
       );
       onEditChange(body.edit);
       onNotice("");
@@ -138,7 +141,7 @@ export function EditorPanel({
           currentContent: apiError.body?.currentContent ?? "",
           currentRevision: apiError.body?.currentRevision ?? 0,
         });
-        setStatus("Sürüm çakışması — taslağın aşağıda korundu");
+        setStatus(t("Sürüm çakışması — taslağın aşağıda korundu"));
       } else {
         setStatus("Kaydedilemedi — taslak korundu");
         onNotice(apiError.message);
@@ -169,9 +172,9 @@ export function EditorPanel({
       setRevision(0);
       setDirty(false);
       onEditChange(null);
-      setStatus("Kullanıcı sürümü kaldırıldı");
+      setStatus(t("Kullanıcı sürümü kaldırıldı"));
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "Kaldırılamadı");
+      onNotice(error instanceof Error ? error.message : t("Kaldırılamadı"));
     }
   }
 
@@ -186,44 +189,42 @@ export function EditorPanel({
           aria-pressed={preview}
           className="min-h-[36px] rounded-lg border border-stone-300 bg-white px-3 text-stone-700 shadow-[0_1px_2px_rgba(28,25,23,0.04)] hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
         >
-          {preview ? "Düzenle" : "Önizle"}
+          {preview ? t("Düzenle") : t("Önizle")}
         </button>
         <span className="text-stone-500 dark:text-stone-400" aria-live="polite" role="status">
-          {words} kelime · {draft.length} karakter · {status || (dirty ? "kaydedilmedi" : "kayıtlı")}
+          {words} {" "}{t("kelime ·")}{" "}{draft.length} {" "}{t("karakter ·")}{" "}{status || (dirty ? "kaydedilmedi" : t("kayıtlı"))}
         </span>
         <span className="ml-auto flex items-center gap-2">
           <button
             type="button"
             onClick={() => {
-              if (window.confirm("İçerik, orijinal metinle yeniden oluşturulsun mu? Mevcut taslak değişir.")) {
+              if (window.confirm(t("İçerik, orijinal metinle yeniden oluşturulsun mu? Mevcut taslak değişir."))) {
                 setDraft(originalText);
                 setDirty(true);
               }
             }}
             className="min-h-[36px] rounded px-2 text-stone-600 underline underline-offset-2 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
           >
-            Orijinalden yeniden oluştur
-          </button>
+            {t("Orijinalden yeniden oluştur")}</button>
           {edit ? (
             <button
               type="button"
               onClick={() => {
-                if (window.confirm("Kayıtlı kullanıcı sürümü kaldırılsın mı? Bu işlem geri alınamaz.")) {
+                if (window.confirm(t("Kayıtlı kullanıcı sürümü kaldırılsın mı? Bu işlem geri alınamaz."))) {
                   void removeEdit();
                 }
               }}
               className="min-h-[36px] rounded px-2 text-stone-600 underline underline-offset-2 hover:text-red-600 dark:text-stone-400"
             >
-              Sürümü kaldır
-            </button>
+              {t("Sürümü kaldır")}</button>
           ) : null}
         </span>
       </div>
 
       {conflict ? (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200" role="alert">
-          <p className="font-medium">Başka bir kayıt belgeyi güncelledi (sunucudaki sürüm {conflict.currentRevision}).</p>
-          <p className="mt-1">Taslağın kaybolmadı. Ne yapmak istersin?</p>
+          <p className="font-medium">{t("Başka bir kayıt belgeyi güncelledi (sunucudaki sürüm")}{" "}{conflict.currentRevision}).</p>
+          <p className="mt-1">{t("Taslağın kaybolmadı. Ne yapmak istersin?")}</p>
           <div className="mt-2 flex gap-2">
             <button
               type="button"
@@ -235,8 +236,7 @@ export function EditorPanel({
                 setConflict(null);
               }}
             >
-              Sunucudaki sürümü yükle
-            </button>
+              {t("Sunucudaki sürümü yükle")}</button>
             <button
               type="button"
               className="min-h-[36px] rounded border border-stone-300 px-3 py-1 dark:border-stone-700"
@@ -245,8 +245,7 @@ export function EditorPanel({
                 void save({ revision: conflict.currentRevision });
               }}
             >
-              Taslağımı üzerine yaz
-            </button>
+              {t("Taslağımı üzerine yaz")}</button>
           </div>
         </div>
       ) : null}
@@ -258,7 +257,7 @@ export function EditorPanel({
           onClick={onMarkClick}
         >
           <HighlightedMarkdown
-            markdown={draft || "_Boş_"}
+            markdown={draft || t("_Boş_")}
             annotations={editedAnnotations}
             onLinkedChange={onLinkedChange}
           />
@@ -275,7 +274,7 @@ export function EditorPanel({
           }}
           rows={1}
           spellCheck
-          aria-label="Düzenlenmiş metin (kullanıcı sürümü)"
+          aria-label={t("Düzenlenmiş metin (kullanıcı sürümü)")}
           className="article w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-stone-800 outline-none placeholder:text-stone-400 focus:ring-0 dark:text-stone-200"
         />
           <div className="pointer-events-none absolute inset-y-8 left-3 w-px bg-stone-200/80 dark:bg-stone-800 sm:left-5" aria-hidden />
@@ -325,7 +324,7 @@ export function EditorPanel({
           disabled={!dirty || saving}
           className="min-h-[40px] rounded-md bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-40 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white"
         >
-          {saving ? "Kaydediliyor…" : "Kaydet (⌘/Ctrl+S)"}
+          {saving ? t("Kaydediliyor…") : t("Kaydet (⌘/Ctrl+S)")}
         </button>
         {dirty ? (
           <button
@@ -338,8 +337,7 @@ export function EditorPanel({
             }}
             className="min-h-[40px] rounded-md border border-stone-300 px-4 text-sm text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
           >
-            İptal
-          </button>
+            {t("İptal")}</button>
         ) : null}
       </div>
     </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { useEffect } from "react";
 import { CloseIcon } from "@/components/Icons";
 
@@ -10,6 +12,7 @@ const AUTO_DISMISS_MS = 6000;
  * kaydırılınca görünmez oluyordu; ekrana sabitlenir ve kendiliğinden kapanır.
  */
 export function Toast({ message, onDismiss }: { message: string | null; onDismiss: () => void }) {
+  const t = useT();
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(onDismiss, AUTO_DISMISS_MS);
@@ -28,7 +31,7 @@ export function Toast({ message, onDismiss }: { message: string | null; onDismis
       <button
         type="button"
         onClick={onDismiss}
-        aria-label="Bildirimi kapat"
+        aria-label={t("Bildirimi kapat")}
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-stone-500 hover:bg-stone-200/70 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100"
       >
         <CloseIcon size={13} />
