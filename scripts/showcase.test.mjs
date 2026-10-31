@@ -28,7 +28,7 @@ for (const path of ['index.html', 'en/index.html']) {
     }
     assert.match(html, /src="\/theme.js\?assetv=[a-f0-9]{16}"/);
     const languageTarget = path.startsWith('en/') ? '/' : '/en/';
-    assert.ok(html.includes(`href="${languageTarget}?v=20261024" hreflang=`), 'Language switch must bypass stale HTML');
+    assert.ok(html.includes(`href="${languageTarget}" hreflang=`), 'Language switch uses the canonical page purged on deployment');
     assert.match(html, /data-theme-toggle/);
     assert.match(html, /script-src 'self'/);
     for (const [, asset] of html.matchAll(/(?:src|srcset)="(\/assets\/[^" ,]+)/g)) {
