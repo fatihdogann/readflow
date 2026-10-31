@@ -51,3 +51,13 @@ ekranın diliyle aynı olmalıdır. CLI çağrısı gerekmez; örnek özetler de
 Uygulamanın dil seçimi `readflow-language` çerezinde; vitrinin tema tercihi
 `readflow-showcase-theme` localStorage anahtarında tutulur. Vitrin başlangıçta
 sistem temasını izler; ziyaretçinin seçimi hem sayfaya hem görüntülere uygulanır.
+
+## Önbellek (31 Ekim 2026)
+
+Vitrin HTML'i Cloudflare'de 10 dakika saklanır; tarayıcı yeniden doğrular.
+Coolify post-deploy komutu `assetv` işaretli yerel CSS/JS/görsel/font/PDF adreslerini
+sunulan dosyaların içerik karmasıyla yeniler ve aynı sitenin HTML önbelleğini temizler.
+Yeni yerel varlık referansında `?assetv=0` kullanılır; dış URL'lere eklenmez.
+İşaretli varlıkların tarayıcı süresi 1 yıl, edge süresi 1 ay; işaretsizler 4 saat.
+Operasyon kaynağı: FinanceReports `ops/site-cache/README.md` ve `after-deploy.sh`.
+Token yalnız Coolify runtime ortamındadır; kaynaklara ve çıktılara konmaz.

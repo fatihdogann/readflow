@@ -21,19 +21,19 @@ for (const path of ['index.html', 'en/index.html']) {
   test(`${path}: responsive light/dark hero images`, () => {
     const html = readFileSync(new URL(`../showcase/${path}`, import.meta.url), 'utf8');
     const assets = path.startsWith('en/') ? 'assets/en' : 'assets';
-    assert.ok(html.includes(`/${assets}/doc-light-800.webp?v=`), 'Missing versioned light mobile source');
-    assert.ok(html.includes(`/${assets}/doc-dark-800.webp?v=`), 'Missing versioned dark mobile source');
+    assert.ok(html.includes(`/${assets}/doc-light-800.webp?assetv=`), 'Missing versioned light mobile source');
+    assert.ok(html.includes(`/${assets}/doc-dark-800.webp?assetv=`), 'Missing versioned dark mobile source');
     for (const theme of ['light', 'dark']) {
       assert.ok(readFileSync(new URL(`../showcase/${assets}/doc-${theme}-800.webp`, import.meta.url)).length > 0);
     }
-    assert.match(html, /src="\/theme.js\?v=20261024"/);
+    assert.match(html, /src="\/theme.js\?assetv=[a-f0-9]{16}"/);
     const languageTarget = path.startsWith('en/') ? '/' : '/en/';
     assert.ok(html.includes(`href="${languageTarget}?v=20261024" hreflang=`), 'Language switch must bypass stale HTML');
     assert.match(html, /data-theme-toggle/);
     assert.match(html, /script-src 'self'/);
     for (const [, asset] of html.matchAll(/(?:src|srcset)="(\/assets\/[^" ,]+)/g)) {
       assert.ok(readFileSync(new URL(`../showcase${asset.split('?')[0]}`, import.meta.url)).length > 0, asset);
-      assert.match(asset, /\?v=[a-f0-9]{10}$/);
+      assert.match(asset, /\?assetv=[a-f0-9]{16}$/);
       if (path.startsWith('en/')) assert.match(asset, /^\/assets\/en\//);
     }
   });
