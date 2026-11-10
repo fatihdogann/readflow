@@ -91,15 +91,14 @@ h2 { font: 600 clamp(24px, 3vw, 32px)/1.2 var(--sans); letter-spacing: -.025em; 
 .note { color: var(--muted); font-size: 13px; max-width: 90ch; margin: 0; }
 .grid, .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; align-items: start; }
 .grid { row-gap: 28px; }
-.gallery { row-gap: 24px; max-width: 880px; }
+.gallery-section { max-width: 880px; margin-inline: auto; }
+.gallery { row-gap: 24px; }
 .gallery[data-enhanced] { display: block; }
 .gallery-controls:not([hidden]) { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
 .gallery-controls [role="status"] { color: var(--muted); font-size: 14px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .gallery-arrows { display: flex; gap: 8px; }
-.gallery-arrows button { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
+.gallery-arrows button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
 .gallery-arrows button:hover { border-color: var(--text); }
-.gallery-arrows button::before { content: ""; width: 8px; height: 8px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
-.gallery-arrows button:first-child::before { transform: rotate(-135deg); }
 .gallery[data-enhanced] .shot { max-width: none; }
 .gallery[data-enhanced] picture { aspect-ratio: 8 / 5; }
 .gallery[data-enhanced] img { width: 100%; height: 100%; object-fit: contain; }
