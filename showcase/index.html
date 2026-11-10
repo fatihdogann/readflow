@@ -32,9 +32,10 @@
 <meta name="twitter:image:alt" content="Readflow paylaşım kartı: makale ve PDF arşivi, okuma listesi ve vurgular — kendi bilgisayarında.">
 <link rel="icon" href="/favicon.svg?assetv=3ef240644755e316" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?assetv=8c11ad3d3e510eea">
-<link rel="stylesheet" href="/style.css?assetv=369c66f4a8f61cbd">
+<link rel="stylesheet" href="/style.css?assetv=dc17d2df899be8f6">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/", "description": "Makaleleri ve PDF'leri arşivleyen, vurgulayan ve kendi coding-agent CLI'ınla özetleyen local-first okuma uygulaması.", "inLanguage": "tr", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "@id": "https://mehmetfatihdogan.com.tr/#person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og-tr.png?v=2"}</script>
 <script src="/theme.js?assetv=0bd59f4df25f9589"></script>
+<script src="/gallery.js?assetv=6b1a6c5de0dad649" defer></script>
 </head>
 <body><a class="skip-link" href="#main">İçeriğe atla</a>
 <div class="wrap">
@@ -79,32 +80,45 @@
 
     <section aria-labelledby="gorunumler" id="gorunumler-bolumu">
       <h2 id="gorunumler">Görünümler</h2>
-      <p class="sub">Bir ekran seçerek incele. Görüntüler demo verisiyle alınmıştır; seçtiğin dil ve temaya göre değişir.</p>
-
-    <div class="gallery"><details class="screen" name="screens"><summary>İçerik ekle</summary><figure class="shot">
+      <p class="sub">Görüntüler demo verisiyle alınmıştır ve seçtiğin dil ile temaya göre değişir.</p>
+      <div class="gallery" id="gallery-screens" data-gallery>
+        <div class="gallery-controls" data-gallery-controls hidden>
+          <span role="status" data-gallery-status></span>
+          <div class="gallery-arrows">
+            <button type="button" data-gallery-step="-1" aria-label="Önceki görünüm" aria-controls="gallery-screens"></button>
+            <button type="button" data-gallery-step="1" aria-label="Sonraki görünüm" aria-controls="gallery-screens"></button>
+          </div>
+        </div>
+        <figure class="shot" data-gallery-label="İçerik ekle">
           <picture>
             <source srcset="/assets/home-dark.jpg?assetv=e277f26985a2830a" media="(prefers-color-scheme: dark)">
             <img src="/assets/home-light.jpg?assetv=05333185ad0965f2" width="2560" height="1600" loading="lazy" alt="Ana ekran: bağlantı veya metin ekleme alanı ve son eklenen belgeler">
           </picture>
           <figcaption>Ana ekran: bağlantı yapıştır, metin veya dosya bırak.</figcaption>
-        </figure></details><details class="screen" name="screens"><summary>Vurgular ve notlar</summary><figure class="shot">
+        </figure>
+        <figure class="shot" data-gallery-label="Vurgular ve notlar">
           <picture>
             <source srcset="/assets/highlights-dark.jpg?assetv=db08755a849cc8da" media="(prefers-color-scheme: dark)">
             <img src="/assets/highlights-light.jpg?assetv=2bda3be88f7e3aba" width="2560" height="1600" loading="lazy" alt="Vurgular sayfası: belgelere göre gruplanmış alıntılar ve notlar">
           </picture>
           <figcaption>Vurgular: tüm belgelerdeki alıntılar ve notlar.</figcaption>
-        </figure></details><details class="screen" name="screens"><summary>Ayarlar ve bağlantılar</summary><figure class="shot">
-        <picture>
-          <source srcset="/assets/settings-dark.jpg?assetv=c7c886927bc80735" media="(prefers-color-scheme: dark)">
-          <img src="/assets/settings-light.jpg?assetv=677651e8456e8365" width="2560" height="1600" loading="lazy" alt="Ayarlar ekranı: tarayıcıdan gönderme, yedek ve taşıma, çalışan AI profili">
-        </picture>
-        <figcaption>Ayarlar: bookmarklet ve telefon kestirmesi, yedek indirme, çalışan agent.</figcaption>
-      </figure></details><details class="screen" name="screens"><summary>Telefonda oku</summary><figure class="shot phone-shot">
+        </figure>
+        <figure class="shot" data-gallery-label="Ayarlar ve bağlantılar">
+          <picture>
+            <source srcset="/assets/settings-dark.jpg?assetv=c7c886927bc80735" media="(prefers-color-scheme: dark)">
+            <img src="/assets/settings-light.jpg?assetv=677651e8456e8365" width="2560" height="1600" loading="lazy" alt="Ayarlar ekranı: tarayıcıdan gönderme, yedek ve taşıma, çalışan AI profili">
+          </picture>
+          <figcaption>Ayarlar: bookmarklet ve telefon kestirmesi, yedek indirme, çalışan agent.</figcaption>
+        </figure>
+        <figure class="shot phone-shot" data-gallery-label="Telefonda oku">
           <picture>
             <source srcset="/assets/mobile-doc-dark.jpg?assetv=028b5ac4602355d1" media="(prefers-color-scheme: dark)">
             <img src="/assets/mobile-doc-light.jpg?assetv=1d2c8a0e476c3df9" width="780" height="1688" loading="lazy" alt="Mobil belge görünümü">
           </picture>
-        <figcaption>Aynı arşive izinli cihazlarından Tailscale ile eriş.</figcaption></figure></details></div></section>
+          <figcaption>Aynı arşive izinli cihazlarından Tailscale ile eriş.</figcaption>
+        </figure>
+      </div>
+    </section>
 
     <section id="mimari" aria-labelledby="mimari-baslik">
       <h2 id="mimari-baslik">Arşiv yerelde. İşler kendi agent’ında.</h2>

@@ -67,3 +67,39 @@ test('theme choice overrides the system, switches images and survives reload', (
   assert.equal(first.button.textContent, 'Light theme');
   assert.equal(mount().root.dataset.theme, 'dark');
 });
+
+test('gallery wraps in both directions and announces the visible screen', () => {
+  const script = readFileSync(new URL('../showcase/gallery.js', import.meta.url), 'utf8');
+  const slides = ['Add content', 'Highlights and notes', 'Settings and connections', 'Read on your phone']
+    .map(galleryLabel => ({ dataset: { galleryLabel }, hidden: false }));
+  const buttons = ['-1', '1'].map(galleryStep => ({
+    dataset: { galleryStep },
+    addEventListener(_, listener) { this.click = listener; },
+  }));
+  const controls = {
+    hidden: true,
+    querySelectorAll: () => buttons,
+    addEventListener(_, listener) { this.keydown = listener; },
+  };
+  const status = { textContent: '' };
+  const gallery = {
+    dataset: {},
+    querySelectorAll: () => slides,
+    querySelector: selector => selector === '[data-gallery-controls]' ? controls : status,
+  };
+  runInNewContext(script, { document: { querySelectorAll: () => [gallery] } });
+
+  assert.equal(controls.hidden, false);
+  assert.deepEqual(slides.map(slide => slide.hidden), [false, true, true, true]);
+  assert.equal(status.textContent, '1 / 4 · Add content');
+  buttons[0].click();
+  assert.deepEqual(slides.map(slide => slide.hidden), [true, true, true, false]);
+  assert.equal(status.textContent, '4 / 4 · Read on your phone');
+  buttons[1].click();
+  assert.equal(status.textContent, '1 / 4 · Add content');
+  let prevented = false;
+  controls.keydown({ key: 'ArrowRight', preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.deepEqual(slides.map(slide => slide.hidden), [true, false, true, true]);
+  assert.equal(status.textContent, '2 / 4 · Highlights and notes');
+});

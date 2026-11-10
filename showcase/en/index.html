@@ -31,9 +31,10 @@
 <meta name="twitter:image:alt" content="Readflow share card: article and PDF archive, reading list and highlights on your own computer.">
 <link rel="icon" href="/favicon.svg?assetv=3ef240644755e316" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?assetv=8c11ad3d3e510eea">
-<link rel="stylesheet" href="/style.css?assetv=369c66f4a8f61cbd">
+<link rel="stylesheet" href="/style.css?assetv=dc17d2df899be8f6">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Readflow", "url": "https://readflow.mehmetfatihdogan.com.tr/en/", "description": "A local-first read-it-later app for articles and PDFs: archives them with a reading list and highlights, and summarizes with your own coding-agent CLI.", "inLanguage": "en", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Linux, Windows", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Person", "@id": "https://mehmetfatihdogan.com.tr/#person", "name": "Mehmet Fatih Doğan", "url": "https://mehmetfatihdogan.com.tr"}, "sameAs": ["https://github.com/fatihdogann/readflow"], "image": "https://readflow.mehmetfatihdogan.com.tr/assets/og-en.png?v=2"}</script>
 <script src="/theme.js?assetv=0bd59f4df25f9589"></script>
+<script src="/gallery.js?assetv=6b1a6c5de0dad649" defer></script>
 </head>
 <body><a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
@@ -78,32 +79,45 @@
 
     <section aria-labelledby="screens" id="screens-section">
       <h2 id="screens">Screens</h2>
-      <p class="sub">Choose a screen to explore. Screenshots use demo data and match the selected language and theme.</p>
-
-    <div class="gallery"><details class="screen" name="screens"><summary>Add content</summary><figure class="shot">
+      <p class="sub">Screenshots use demo data and match the selected language and theme.</p>
+      <div class="gallery" id="gallery-screens" data-gallery>
+        <div class="gallery-controls" data-gallery-controls hidden>
+          <span role="status" data-gallery-status></span>
+          <div class="gallery-arrows">
+            <button type="button" data-gallery-step="-1" aria-label="Previous screen" aria-controls="gallery-screens"></button>
+            <button type="button" data-gallery-step="1" aria-label="Next screen" aria-controls="gallery-screens"></button>
+          </div>
+        </div>
+        <figure class="shot" data-gallery-label="Add content">
           <picture>
             <source srcset="/assets/en/home-dark.jpg?assetv=241608f1299a70f7" media="(prefers-color-scheme: dark)">
             <img src="/assets/en/home-light.jpg?assetv=6560e0e11d5ea68d" width="2560" height="1600" loading="lazy" alt="Home screen: input for links or text and recently added documents">
           </picture>
           <figcaption>Home: paste a link, drop text or a file.</figcaption>
-        </figure></details><details class="screen" name="screens"><summary>Highlights and notes</summary><figure class="shot">
+        </figure>
+        <figure class="shot" data-gallery-label="Highlights and notes">
           <picture>
             <source srcset="/assets/en/highlights-dark.jpg?assetv=148bd03f21b90816" media="(prefers-color-scheme: dark)">
             <img src="/assets/en/highlights-light.jpg?assetv=e238a12a635f5c5d" width="2560" height="1600" loading="lazy" alt="Highlights page: quotes and notes grouped by document">
           </picture>
           <figcaption>Highlights: quotes and notes across all documents.</figcaption>
-        </figure></details><details class="screen" name="screens"><summary>Settings and connections</summary><figure class="shot">
-        <picture>
-          <source srcset="/assets/en/settings-dark.jpg?assetv=565010db2d6fcf8a" media="(prefers-color-scheme: dark)">
-          <img src="/assets/en/settings-light.jpg?assetv=ce5472a0f1d80494" width="2560" height="1600" loading="lazy" alt="Settings screen: send from browser, backup and migration, active AI profile">
-        </picture>
-        <figcaption>Settings: bookmarklet and phone shortcut, backup download, the agent in use.</figcaption>
-      </figure></details><details class="screen" name="screens"><summary>Read on your phone</summary><figure class="shot phone-shot">
+        </figure>
+        <figure class="shot" data-gallery-label="Settings and connections">
+          <picture>
+            <source srcset="/assets/en/settings-dark.jpg?assetv=565010db2d6fcf8a" media="(prefers-color-scheme: dark)">
+            <img src="/assets/en/settings-light.jpg?assetv=ce5472a0f1d80494" width="2560" height="1600" loading="lazy" alt="Settings screen: send from browser, backup and migration, active AI profile">
+          </picture>
+          <figcaption>Settings: bookmarklet and phone shortcut, backup download, the agent in use.</figcaption>
+        </figure>
+        <figure class="shot phone-shot" data-gallery-label="Read on your phone">
           <picture>
             <source srcset="/assets/en/mobile-doc-dark.jpg?assetv=aef702a62e232037" media="(prefers-color-scheme: dark)">
             <img src="/assets/en/mobile-doc-light.jpg?assetv=0a2b6b36b5b76972" width="780" height="1688" loading="lazy" alt="Mobile document view">
           </picture>
-        <figcaption>Access the same archive from approved devices over Tailscale.</figcaption></figure></details></div></section>
+          <figcaption>Access the same archive from approved devices over Tailscale.</figcaption>
+        </figure>
+      </div>
+    </section>
 
     <section id="architecture" aria-labelledby="architecture-title">
       <h2 id="architecture-title">Local archive. Your own agent.</h2>
