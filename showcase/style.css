@@ -61,8 +61,10 @@ nav.top a:hover { color: var(--text); text-decoration: underline; }
 .theme-toggle { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
 .theme-toggle:hover { border-color: var(--text); }
 .theme-toggle[hidden] { display: none; }
-.hero { display: grid; grid-template-columns: .85fr 1.15fr; align-items: center; gap: 40px; padding-block: 48px; }
+.hero { display: grid; grid-template-columns: .85fr 1.15fr; align-items: center; gap: 40px; padding-block: 42px; }
 .hero-copy { min-width: 0; }
+/* Crop the scrollbar baked into the hero screenshots. */
+.hero .shot img { width: 101%; max-width: none; }
 .hero-text { grid-template-columns: minmax(0, 1fr); }
 .hero-text .hero-copy { max-width: 760px; }
 .hero-text h1 { max-width: 23ch; }
@@ -78,7 +80,7 @@ html[lang="en"] .hero:not(.hero-text) h1 { font-size: clamp(36px, 4.2vw, 56px); 
 .shot { margin: 0; }
 .shot picture { display: block; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
 figcaption { margin-top: 8px; font-size: 12px; color: var(--muted); }
-section { padding-block: 56px; }
+section { padding-block: 48px; }
 h2 { font: 600 clamp(24px, 3vw, 32px)/1.2 var(--sans); letter-spacing: -.025em; margin: 0 0 12px; text-wrap: balance; }
 .sub { color: var(--muted); max-width: 72ch; margin: 0 0 24px; }
 .pipeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; list-style: none; padding: 0; margin: 28px 0 20px; }
@@ -135,12 +137,12 @@ footer a { display: inline-flex; min-height: 44px; align-items: center; }
   nav.top a, .theme-toggle { min-width: 44px; }
   .theme-toggle { padding-inline: 0; border: 0; background: none; color: var(--muted); }
   .theme-toggle:hover { color: var(--text); text-decoration: underline; }
-  .hero { grid-template-columns: minmax(0,1fr); gap: 24px; padding-block: 28px; }
+  .hero { grid-template-columns: minmax(0,1fr); gap: 24px; padding-block: 24px; }
   h1 { font-size: clamp(36px, 9vw, 48px); margin-bottom: 14px; }
   html[lang="en"] .hero:not(.hero-text) h1 { font-size: clamp(34px, 8.8vw, 48px); }
   .lead { font-size: 15px; line-height: 1.65; margin-bottom: 18px; }
   .hero-facts { font-size: 12px; margin-top: 12px; }
-  section { padding-block: 40px; }
+  section { padding-block: 34px; }
   .grid { row-gap: 20px; }
   h2 { font-size: 24px; }
   .sub { font-size: 14px; margin-bottom: 18px; }
