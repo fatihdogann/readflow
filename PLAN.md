@@ -1,10 +1,9 @@
 # Readflow — Geliştirme Planı
 
-> **Belge kontrolü: 2026-10-04.** Tamamlanan fazların aşağıdaki tasarım metinleri
-> tarihsel kayıttır; eski dosya adları ve "Bugün/Yapılacak" ifadeleri yeniden
-> uygulanacak iş değildir. Güncel kurulum ve komutlar [README.md](README.md) ve
-> [docs/INSTALL.md](docs/INSTALL.md) içindedir. Açık kapsam bu belgenin
-> "Yarım kalan işler" bölümündedir.
+> **Belge kontrolü: 2026-11-13.** Faz 0–6 tasarım metinleri tarihsel kayıttır.
+> Güncel kurulum ve komutlar [README.md](README.md) ve
+> [docs/INSTALL.md](docs/INSTALL.md) içindedir. Başlangıç bulgularının durumu
+> [aşağıdaki tabloda](#başlangıç-bulgularının-güncel-durumu) yer alır.
 
 Her faz tek başına sevk edilebilir. Faz sonunda `pnpm test && pnpm typecheck && pnpm lint` geçmeli,
 dokunulan dokümantasyon aynı commit'te güncellenmeli.
@@ -219,20 +218,16 @@ Bugün `fetchArticle` content-type'ı html/xhtml/plain değilse reddediyor. Ekle
 
 ---
 
-## Yarım kalan işler (tespit edildi, fazlara dağıtıldı)
+## Başlangıç bulgularının güncel durumu
 
-| # | Yarım kalan | Nerede biter |
-|---|---|---|
-| 1 | Failover zinciri yalnız yerel worker'da; `remote.ts`'te yok — yani hiç çalışmıyor | Faz 0.2 |
-| 2 | Profillerde effort/öncelik kavramı yok | Faz 0.2 |
-| 3 | Manifest'te yalnız SVG ikon — iOS ana ekran bozuk | Faz 0.3 |
-| 4 | Chat `quote` + `includeNotes` API'de var, UI göndermiyor | Faz 3 |
-| 5 | Annotation `content_kind: "edited"` DB/API'de var, UI'da yok | Faz 3 |
-| 6 | `HighlightedArticle` sahte range + çift parse | Faz 2 |
-| 7 | Mobil vurgu (touch event yok) | Faz 2 |
-| 8 | Chat Markdown render etmiyor, AI çıktıları ediyor | Faz 3 |
-| 9 | Non-HTML content-type reddediliyor (PDF/DOCX) | Faz 5.1 |
-| 10 | Dokümantasyon 6 noktada koddan sapmış | Faz 0.5 |
+| Alan | Güncel durum |
+|---|---|
+| Worker ve profil sırası (Faz 0.2) | Mac'te kullanılan yerel worker, [profil önceliği ve reasoning effort ayarlarını](src/lib/agent/profiles.ts) ve [yedek profil zincirini](src/lib/jobs/worker.ts) kullanır. Eski uzak worker yolu güncel Mac ve statik Coolify kurulumunun kapsamı dışındadır. |
+| Ana ekran ikonları (Faz 0.3) | [Manifest](src/app/manifest.ts) PNG ikonlar içerir. [Apple ana ekran ikonu](src/app/apple-icon.png) ayrıca mevcut. |
+| Sohbet ve AI işlemleri (Faz 3) | [Sohbet](src/components/doc/ChatPanel.tsx) alıntıyı gönderir ve yanıtı Markdown olarak işler. [AI işlemleri](src/components/doc/AiActions.tsx) notları dahil etme seçimini gönderir. |
+| Düzenlenmiş metin ve mobil vurgu (Faz 2–3) | [Düzenleyici](src/components/doc/EditorPanel.tsx) düzenlenmiş metnin vurgularını gösterir. [Vurgu bileşeni](src/components/doc/Highlights.tsx) alıntıyı gerçek metinde konumlandırır ve mobil seçimi `touchend` ile izler. |
+| PDF ve DOCX (Faz 5.1) | [İçe aktarma](src/lib/import/index.ts) PDF ve DOCX dosyalarını kabul eder. Site erişimi ve desteklenen biçimler için [güncel sınırlar](README.md#limits) geçerlidir. |
+| Dokümantasyon (Faz 0.5) | Kurulum, servis ve veri akışı için [README](README.md) ve [kurulum rehberi](docs/INSTALL.md) kullanılır. |
 
 ---
 
